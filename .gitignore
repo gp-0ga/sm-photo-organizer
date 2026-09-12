@@ -1,4 +1,5 @@
 node_modules/
+build/
 .tmp_spreadsheet_inspect/
 .tmp_album_test/
 test/fixtures/

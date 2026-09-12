@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#163a5f" />
+    <title>資産写真撮影 MVP</title>
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">施設調査 撮影テスト</p>
+        <h1>資産写真撮影 MVP</h1>
+      </div>
+      <span class="local-badge">端末内で処理</span>
+    </header>
+
+    <main class="capture-main">
+      <section class="panel" aria-labelledby="capture-excel-heading">
+        <div class="step-label">1</div>
+        <div class="step-body">
+          <h2 id="capture-excel-heading">資産一覧を読み込む</h2>
+          <p>健全度判定表の「No11」をスマホ内で読み取ります。Excelは外部へ送信しません。</p>
+          <label class="file-picker">
+            <span>Excelを選択</span>
+            <input id="capture-excel-input" type="file" accept=".xlsx" />
+          </label>
+          <div id="capture-excel-status" class="status neutral" role="status">Excelを選択してください。</div>
+        </div>
+      </section>
+
+      <section class="panel camera-panel" aria-labelledby="capture-camera-heading">
+        <div class="step-label">2</div>
+        <div class="step-body">
+          <h2 id="capture-camera-heading">資産を選んで撮影する</h2>
+          <label class="camera-asset-label" for="capture-asset">撮影する資産</label>
+          <select id="capture-asset" class="camera-asset-select" disabled>
+            <option value="">先にExcelを読み込んでください</option>
+          </select>
+
+          <div id="capture-workspace" class="camera-workspace" hidden>
+            <div class="camera-viewport">
+              <video id="capture-preview" playsinline muted></video>
+              <div id="capture-placeholder" class="camera-placeholder">「カメラを開く」を押してください</div>
+            </div>
+            <div id="capture-current" class="camera-current">資産を選択してください</div>
+            <div class="camera-controls">
+              <button id="capture-start" class="secondary" type="button">カメラを開く</button>
+              <button id="capture-shutter" class="camera-shutter" type="button" disabled aria-label="撮影"></button>
+              <button id="capture-stop" class="secondary" type="button" disabled>カメラを閉じる</button>
+            </div>
+            <label class="zoom-control" for="capture-zoom">
+              <span>ズーム <strong id="capture-zoom-value">1.0×</strong></span>
+              <input id="capture-zoom" type="range" min="1" max="5" value="1" step="0.1" />
+            </label>
+            <div id="capture-status" class="status neutral" role="status">撮影前に必ず資産名を確認してください。</div>
+            <div id="capture-counts" class="camera-counts"><p>まだ撮影していません。</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="capture-save-heading">
+        <div class="step-label">3</div>
+        <div class="step-body">
+          <h2 id="capture-save-heading">資産別ZIPを保存する</h2>
+          <p>撮影後にZIPを作成し、共有画面で「ファイルに保存」を選びます。</p>
+          <button id="capture-save-zip" class="primary camera-save" type="button" disabled>資産別ZIPを保存</button>
+          <div id="capture-save-status" class="status neutral" role="status">撮影した写真だけがZIPに入ります。</div>
+          <p class="camera-test-warning">※ZIP保存前に画面を閉じたり再読み込みしたりすると、撮影写真は消えます。</p>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/src/capture-main.js"></script>
+  </body>
+</html>

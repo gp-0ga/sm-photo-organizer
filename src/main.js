@@ -7,6 +7,7 @@ import { SPECIAL_MARKERS } from "./domain.js";
 import { analyzePhotoFiles, compressToJpeg, jpegFileName } from "./photos.js";
 import { albumEntries, createPhotoAlbum, inspectPhotoAlbumTemplate } from "./album.js";
 import { cameraFileName, captureVideoFrame, openRearCamera, stopCamera } from "./camera.js";
+import { createAssetPhotoZip, zipFileName } from "./zip.js";
 
 const excelInput = document.querySelector("#excel-input");
 const excelStatus = document.querySelector("#excel-status");
@@ -46,6 +47,8 @@ const cameraZoom = document.querySelector("#camera-zoom");
 const cameraZoomValue = document.querySelector("#camera-zoom-value");
 const cameraStatus = document.querySelector("#camera-status");
 const cameraCounts = document.querySelector("#camera-counts");
+const cameraSaveZip = document.querySelector("#camera-save-zip");
+const cameraSaveStatus = document.querySelector("#camera-save-status");
 
 let assets = [];
 let photos = [];
@@ -118,6 +121,7 @@ function updateCameraCurrent() {
 
 function updateCameraCounts() {
   const captured = photos.filter((photo) => photo.source === "camera");
+  cameraSaveZip.disabled = captured.length === 0;
   if (!captured.length) {
     cameraCounts.innerHTML = `<p>まだ撮影していません。</p>`;
     return;
@@ -384,6 +388,34 @@ cameraShutter.addEventListener("click", async () => {
   } finally {
     captureInProgress = false;
     updateCameraCurrent();
+  }
+});
+
+cameraSaveZip.addEventListener("click", async () => {
+  cameraSaveZip.disabled = true;
+  setStatus(cameraSaveStatus, "資産別ZIPを作成中…", "working");
+  try {
+    const { blob, photoCount } = await createAssetPhotoZip(assets, photos);
+    const name = zipFileName();
+    const file = new File([blob], name, { type: "application/zip" });
+
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: name });
+      setStatus(cameraSaveStatus, `${photoCount}枚の資産別ZIPを共有画面へ渡しました。`, "success");
+    } else {
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = name;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      setStatus(cameraSaveStatus, `${photoCount}枚の資産別ZIPをダウンロードしました。`, "success");
+    }
+  } catch (error) {
+    if (error?.name === "AbortError") setStatus(cameraSaveStatus, "保存をキャンセルしました。", "neutral");
+    else setStatus(cameraSaveStatus, error.message ?? String(error), "error");
+  } finally {
+    updateCameraCounts();
   }
 });
 
