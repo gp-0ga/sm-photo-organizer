@@ -6,6 +6,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; min-width: 320px; }
 button, input { font: inherit; }
 
@@ -66,16 +67,24 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .marker-card.review { border-color: #b23838; background: #fff4f4; }
 .marker-card.unknown { border-color: #bd7a13; background: #fff9ed; }
 .marker-main { max-width: 960px; }
+.browser-notice { padding: .8rem 1rem; border: 2px solid #bd7a13; border-radius: 10px; color: #704d11; background: #fff8e8; font-weight: 700; line-height: 1.5; }
+.browser-notice[hidden] { display: none; }
+.marker-selector { width: min(100%, 680px); margin: 1rem auto 0; }
+.marker-select-heading { display: flex; align-items: end; justify-content: space-between; gap: .75rem; }
 .marker-select-label { display: block; margin: 1rem 0 .4rem; color: #42515c; font-weight: 700; }
-.marker-display { display: grid; justify-items: center; gap: .55rem; width: min(100%, 680px); margin: 1rem auto; padding: clamp(1rem, 4vw, 2rem); border: 4px solid #163a5f; border-radius: 16px; background: white; text-align: center; }
-.marker-display img { width: min(72vw, 380px); image-rendering: pixelated; }
+.marker-change-list { padding: .3rem .45rem; color: #42515c; background: transparent; font-size: .82rem; text-decoration: underline; }
+.marker-display { display: grid; grid-template-rows: auto minmax(0, 1fr) auto 3.1em; justify-items: center; align-items: center; gap: .55rem; width: min(100%, 760px); min-height: 620px; margin: 1rem auto; padding: clamp(1rem, 3vw, 2rem); border: 4px solid #163a5f; border-radius: 16px; background: white; text-align: center; }
+.marker-display img { width: min(52vw, 440px); max-height: 100%; image-rendering: pixelated; }
 .marker-start-text { width: 100%; padding: .55rem 1rem; color: white; background: #163a5f; font-size: clamp(1.1rem, 3vw, 1.65rem); }
-.marker-display-number { font-size: clamp(1.65rem, 6vw, 3rem); overflow-wrap: anywhere; }
-.marker-display-name { font-size: clamp(1.3rem, 4vw, 2rem); font-weight: 800; overflow-wrap: anywhere; }
+.marker-display-number { font-size: clamp(1.65rem, 5vw, 3rem); line-height: 1.05; overflow-wrap: anywhere; }
+.marker-display-name { display: grid; place-items: center; width: 100%; height: 3.1em; font-size: clamp(1.3rem, 3vw, 2rem); line-height: 1.12; font-weight: 800; overflow-wrap: anywhere; }
+.marker-display-name.long { font-size: clamp(1.08rem, 2.5vw, 1.65rem); }
+.marker-display-name.very-long { font-size: clamp(.92rem, 2vw, 1.3rem); }
 .marker-nav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .75rem; max-width: 680px; margin: auto; }
 .marker-nav button { min-height: 48px; }
 .marker-nav span { min-width: 5rem; text-align: center; font-weight: 800; }
 .marker-note { max-width: 680px; margin: 1rem auto 0; padding: .8rem; border-radius: 9px; background: #edf7fc; }
+.marker-note-mobile { display: none; }
 .marker-card-button { width: 100%; color: inherit; background: white; font-weight: inherit; }
 .marker-card-button.selected { outline: 4px solid #2a658f; }
 .marker-card-start { width: 100%; padding: .3rem; color: white; background: #163a5f; font-size: .85rem; }
@@ -144,6 +153,45 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .marker-site .step-body { padding: 1rem; }
   .marker-heading-row button { width: 100%; }
   .size-setting { align-items: start; flex-direction: column; }
+}
+
+@media (max-width: 520px) {
+  .marker-site.marker-ready { background: white; }
+  .marker-site.marker-ready .app-header,
+  .marker-site.marker-ready .marker-load-panel,
+  .marker-site.marker-ready .browser-notice,
+  .marker-site.marker-ready #marker-print-panel,
+  .marker-site.marker-ready .marker-heading-row,
+  .marker-site.marker-ready .marker-note { display: none !important; }
+  .marker-site.marker-ready .marker-main { width: 100%; min-height: 100dvh; margin: 0; gap: 0; }
+  .marker-site.marker-ready #marker-view-panel { border: 0; border-radius: 0; box-shadow: none; }
+  .marker-site.marker-ready #marker-view-panel .step-body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 100dvh; padding: max(.35rem, env(safe-area-inset-top)) .45rem max(.45rem, env(safe-area-inset-bottom)); }
+  .marker-site.marker-ready .marker-selector { width: 100%; margin: 0 0 .35rem; }
+  .marker-site.marker-ready .marker-select-heading { min-height: 1.35rem; align-items: center; }
+  .marker-site.marker-ready .marker-select-label { margin: 0; font-size: .82rem; line-height: 1.1; }
+  .marker-site.marker-ready .marker-change-list { padding: 0 .2rem; font-size: .76rem; }
+  .marker-site.marker-ready .camera-asset-select { min-height: 42px; padding: .45rem .55rem; border-width: 2px; font-size: .95rem; }
+  .marker-site.marker-ready .marker-display { grid-template-rows: 2rem minmax(0, 1fr) auto 2.7em; gap: .22rem; width: 100%; height: min(410px, calc(100dvh - 112px)); min-height: 300px; margin: 0 auto .35rem; padding: .35rem .45rem; border-width: 3px; border-radius: 10px; }
+  .marker-site.marker-ready .marker-display img { width: min(57vw, 205px); max-height: min(41dvh, 205px); }
+  .marker-site.marker-ready .marker-start-text { display: grid; place-items: center; height: 2rem; padding: .15rem .4rem; font-size: 1rem; line-height: 1; }
+  .marker-site.marker-ready .marker-display-number { font-size: clamp(1.45rem, 7vw, 2rem); }
+  .marker-site.marker-ready .marker-display-name { height: 2.7em; font-size: clamp(1.05rem, 5vw, 1.35rem); line-height: 1.08; }
+  .marker-site.marker-ready .marker-display-name.long { font-size: clamp(.92rem, 4vw, 1.12rem); }
+  .marker-site.marker-ready .marker-display-name.very-long { font-size: clamp(.78rem, 3.4vw, .98rem); }
+  .marker-site.marker-ready .marker-nav { width: 100%; gap: .4rem; }
+  .marker-site.marker-ready .marker-nav button { min-height: 46px; padding: .55rem .4rem; }
+  .marker-site.marker-ready .marker-nav span { min-width: 4.2rem; font-size: .92rem; }
+  .marker-note-mobile { display: inline; }
+  .marker-note-wide { display: none; }
+}
+
+@media (min-width: 701px) {
+  .marker-site.marker-ready .marker-main { max-width: 1180px; }
+  .marker-site.marker-ready .marker-display { width: min(86vw, 820px); min-height: min(72vh, 720px); }
+  .marker-site.marker-ready .marker-display img { width: min(48vw, 500px); }
+  .marker-site.marker-ready .marker-selector,
+  .marker-site.marker-ready .marker-nav,
+  .marker-site.marker-ready .marker-note { max-width: 820px; }
 }
 
 @media print {

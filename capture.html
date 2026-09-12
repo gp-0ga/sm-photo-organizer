@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#163a5f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <title>資産切替マーカー</title>
   </head>
   <body class="marker-site">
@@ -16,11 +20,12 @@
     </header>
 
     <main class="marker-main">
+      <div id="marker-browser-notice" class="browser-notice" hidden></div>
       <section class="panel marker-load-panel" aria-labelledby="marker-excel-heading">
         <div class="step-label">1</div>
         <div class="step-body">
           <h2 id="marker-excel-heading">資産一覧を読み込む</h2>
-          <p>健全度判定表の「No11」から資産番号と資産名を読み取ります。Excelは送信せず、この端末内だけで処理します。</p>
+          <p>健全度判定表の「No11」から資産番号と資産名だけを読み取り、このブラウザ内に保存します。Excelは外部へ送信しません。</p>
           <label class="file-picker marker-file-picker">
             <span>Excelを選択</span>
             <input id="marker-excel-input" type="file" accept=".xlsx" />
@@ -35,13 +40,18 @@
           <div class="section-heading-row marker-heading-row">
             <div>
               <h2 id="marker-view-heading">撮影するマーカーを表示する</h2>
-              <p>資産を選び、表示されたカード全体をiPhoneの標準カメラで1枚撮影します。</p>
+              <p class="marker-view-description">iPhone SEではスクリーンショット、iPad・PCでは表示されたカードをiPhoneの標準カメラで撮影できます。</p>
             </div>
             <button id="marker-print" class="secondary" type="button">全マーカーを印刷</button>
           </div>
 
-          <label class="marker-select-label" for="marker-asset-select">表示する資産</label>
-          <select id="marker-asset-select" class="camera-asset-select"></select>
+          <div class="marker-selector">
+            <div class="marker-select-heading">
+              <label class="marker-select-label" for="marker-asset-select">表示する資産</label>
+              <button id="marker-change-list" class="marker-change-list" type="button">資産一覧を変更</button>
+            </div>
+            <select id="marker-asset-select" class="camera-asset-select"></select>
+          </div>
 
           <article id="marker-display" class="marker-display" aria-live="polite">
             <strong class="marker-start-text">ここからこの資産</strong>
@@ -55,7 +65,7 @@
             <span id="marker-position"></span>
             <button id="marker-next" class="primary" type="button">次の資産</button>
           </div>
-          <p class="marker-note">QRの読取り操作は不要です。このカードを写真として撮るだけで、PCでの振り分け時に切替マーカーになります。</p>
+          <p class="marker-note"><span class="marker-note-mobile">この画面をスクリーンショットしてください。</span><span class="marker-note-wide">このカード全体をiPhoneのカメラで撮影してください。</span> QRの読取り操作は不要です。</p>
         </div>
       </section>
 
