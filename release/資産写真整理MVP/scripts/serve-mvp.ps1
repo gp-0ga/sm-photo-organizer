@@ -144,7 +144,17 @@ try {
                 continue
             }
             $body = [IO.File]::ReadAllBytes($candidate)
-            $contentType = if ([IO.Path]::GetExtension($candidate) -eq '.html') { 'text/html; charset=utf-8' } else { 'application/octet-stream' }
+            $contentType = switch ([IO.Path]::GetExtension($candidate).ToLowerInvariant()) {
+                '.html' { 'text/html; charset=utf-8' }
+                '.js' { 'text/javascript; charset=utf-8' }
+                '.css' { 'text/css; charset=utf-8' }
+                '.json' { 'application/json; charset=utf-8' }
+                '.svg' { 'image/svg+xml' }
+                '.png' { 'image/png' }
+                '.jpg' { 'image/jpeg' }
+                '.jpeg' { 'image/jpeg' }
+                default { 'application/octet-stream' }
+            }
             Send-Response $stream 200 'OK' $contentType $body ($method -eq 'HEAD')
         }
         catch {
