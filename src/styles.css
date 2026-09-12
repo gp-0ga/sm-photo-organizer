@@ -63,6 +63,14 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .marker-card { display: grid; justify-items: center; gap: .25rem; padding: .8rem; border: 1px solid #cad5dc; border-radius: 10px; text-align: center; break-inside: avoid; }
 .marker-card img { width: min(100%, 180px); image-rendering: pixelated; }
 .marker-card span { font-size: .8rem; overflow-wrap: anywhere; }
+.header-actions { display: flex; align-items: center; gap: .65rem; }
+.header-action { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: .65rem .9rem; border: 1px solid currentColor; border-radius: 8px; color: inherit; font-weight: 800; text-decoration: none; }
+.privacy-banner { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .8rem 1rem; padding: 1rem 1.2rem; border: 2px solid #2a658f; border-radius: 12px; background: #edf7fc; color: #163a5f; }
+.privacy-banner strong { font-size: 1.05rem; }
+.privacy-banner span { line-height: 1.5; }
+.organizer-back-link { white-space: nowrap; }
+.hosted-organizer #camera-panel,
+.hosted-organizer #album-panel { display: none; }
 .marker-card.special { border-width: 2px; }
 .marker-card.review { border-color: #b23838; background: #fff4f4; }
 .marker-card.unknown { border-color: #bd7a13; background: #fff9ed; }
@@ -132,7 +140,12 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .camera-save { width: 100%; margin-top: 1rem; padding: .9rem 1rem; }
 
 @media (max-width: 700px) {
-  .app-header { align-items: start; }
+  .app-header { align-items: start; flex-direction: column; }
+  .header-actions { width: 100%; align-items: stretch; flex-direction: column; }
+  .privacy-banner { grid-template-columns: 1fr; }
+  .organizer-back-link { width: 100%; }
+  .file-picker { display: grid; width: 100%; }
+  .file-picker input { width: 100%; max-width: 100%; min-width: 0; }
   .panel { grid-template-columns: 2.4rem 1fr; }
   .step-body { padding: 1.1rem 1rem 1.3rem; }
   .section-heading-row { display: grid; }

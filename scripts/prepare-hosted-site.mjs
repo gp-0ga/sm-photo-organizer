@@ -7,12 +7,13 @@ const outputRoot = path.join(projectRoot, "build");
 await fs.rm(outputRoot, { recursive: true, force: true });
 await fs.mkdir(outputRoot, { recursive: true });
 await fs.copyFile(path.join(projectRoot, "dist", "capture.html"), path.join(outputRoot, "index.html"));
+await fs.copyFile(path.join(projectRoot, "dist", "index.html"), path.join(outputRoot, "organize.html"));
 await fs.cp(path.join(projectRoot, "dist", "assets"), path.join(outputRoot, "assets"), { recursive: true });
 for (const fileName of ["manifest.webmanifest", "icon.svg"]) {
   await fs.copyFile(path.join(projectRoot, "dist", fileName), path.join(outputRoot, fileName));
 }
 const assetFiles = await fs.readdir(path.join(outputRoot, "assets"));
-const cacheFiles = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg", ...assetFiles.map((file) => `./assets/${file}`)];
+const cacheFiles = ["./", "./index.html", "./organize.html", "./manifest.webmanifest", "./icon.svg", ...assetFiles.map((file) => `./assets/${file}`)];
 const cacheName = `asset-marker-${Date.now()}`;
 const serviceWorker = `const CACHE=${JSON.stringify(cacheName)};
 const FILES=${JSON.stringify(cacheFiles)};

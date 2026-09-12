@@ -9,6 +9,9 @@ import { albumEntries, createPhotoAlbum, inspectPhotoAlbumTemplate } from "./alb
 import { cameraFileName, captureVideoFrame, openRearCamera, stopCamera } from "./camera.js";
 import { createAssetPhotoZip, zipFileName } from "./zip.js";
 
+const hostedOrganizer = /\/organize\.html$/i.test(window.location.pathname);
+if (hostedOrganizer) document.body.classList.add("hosted-organizer");
+
 const excelInput = document.querySelector("#excel-input");
 const excelStatus = document.querySelector("#excel-status");
 const folderStatus = document.querySelector("#folder-status");
