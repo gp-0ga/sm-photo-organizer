@@ -4,6 +4,7 @@ import { createAssetQr } from "./qr.js";
 import { clearMarkerSelection, loadMarkerAssets, loadMarkerSelection, saveMarkerAssets, saveMarkerSelection } from "./marker-storage.js";
 
 const excelInput = document.querySelector("#marker-excel-input");
+const pdfInput = document.querySelector("#marker-pdf-input");
 const excelStatus = document.querySelector("#marker-excel-status");
 const viewPanel = document.querySelector("#marker-view-panel");
 const printPanel = document.querySelector("#marker-print-panel");
@@ -23,6 +24,42 @@ let assets = [];
 let currentIndex = 0;
 const qrUrls = new Map();
 let cardsRendered = false;
+
+function decodePdfLiteral(value) {
+  return value.replace(/\\([\\()nrt])/g, (_, code) => ({ "n": "\n", "r": "\r", "t": "\t" }[code] ?? code));
+}
+
+async function readMarkerAssetsFromPdf(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const chunks = [];
+  const decoder = new TextDecoder("latin1");
+  const raw = decoder.decode(bytes);
+  const streamPattern = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  let match;
+  while ((match = streamPattern.exec(raw))) {
+    const streamBytes = bytes.slice(match.index + match[0].indexOf("\n") + 1, match.index + match[0].length - "endstream".length);
+    try {
+      const writer = new Blob([streamBytes]).stream().pipeThrough(new DecompressionStream("deflate"));
+      const reader = writer.pipeThrough(new TextDecoderStream("latin1")).getReader();
+      let text = "";
+      for (;;) { const next = await reader.read(); if (next.done) break; text += next.value; }
+      chunks.push(text);
+    } catch {
+      chunks.push(match[1]);
+    }
+  }
+  const text = chunks.join("\n") + "\n" + raw;
+  const assets = [];
+  const seen = new Set();
+  const pattern = /SM-ASSET-NAME\|1\|([^|()\\]+)\|([^()\\]*(?:\\.[^()\\]*)*)/g;
+  while ((match = pattern.exec(text))) {
+    const assetNumber = decodePdfLiteral(match[1]).trim();
+    const assetName = decodePdfLiteral(match[2]).trim();
+    if (assetNumber && assetName && !seen.has(assetNumber)) { seen.add(assetNumber); assets.push({ assetNumber, assetName, items: [] }); }
+  }
+  if (!assets.length) throw new Error("このPDFから資産情報を読み取れませんでした。PCアプリの「全マーカーを印刷」で作成したPDFを選択してください。");
+  return assets;
+}
 
 function setStatus(message, tone = "neutral") {
   excelStatus.className = `status ${tone}`;
@@ -72,7 +109,10 @@ async function renderMarkerCards() {
     number.textContent = asset.assetNumber;
     const name = document.createElement("span");
     name.textContent = asset.assetName;
-    card.append(start, image, number, name);
+    const payload = document.createElement("small");
+    payload.className = "marker-payload";
+    payload.textContent = `SM-ASSET-NAME|1|${asset.assetNumber}|${asset.assetName}`;
+    card.append(start, image, number, name, payload);
     card.addEventListener("click", () => {
       showAsset(index);
       viewPanel.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -114,6 +154,23 @@ excelInput.addEventListener("change", async () => {
     assets = [];
     document.body.classList.remove("marker-ready");
     cardList.replaceChildren();
+    setStatus(error.message ?? String(error), "error");
+  }
+});
+
+pdfInput.addEventListener("change", async () => {
+  const file = pdfInput.files?.[0];
+  if (!file) return;
+  viewPanel.hidden = true;
+  printPanel.hidden = true;
+  setStatus(`${file.name}から資産情報を読み込んでいます…`, "working");
+  try {
+    const loadedAssets = await readMarkerAssetsFromPdf(file);
+    saveMarkerAssets(localStorage, loadedAssets);
+    clearMarkerSelection(localStorage);
+    await useAssets(loadedAssets, `${loadedAssets.length}資産をPDFから読み込みました。圏外でもマーカーを表示できます。`);
+  } catch (error) {
+    document.body.classList.remove("marker-ready");
     setStatus(error.message ?? String(error), "error");
   }
 });

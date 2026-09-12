@@ -63,6 +63,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .marker-card { display: grid; justify-items: center; gap: .25rem; padding: .8rem; border: 1px solid #cad5dc; border-radius: 10px; text-align: center; break-inside: avoid; }
 .marker-card img { width: min(100%, 180px); image-rendering: pixelated; }
 .marker-card span { font-size: .8rem; overflow-wrap: anywhere; }
+.marker-payload { display: none; font-size: 4pt; overflow-wrap: anywhere; }
 .header-actions { display: flex; align-items: center; gap: .65rem; }
 .header-action { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: .65rem .9rem; border: 1px solid currentColor; border-radius: 8px; color: inherit; font-weight: 800; text-decoration: none; }
 .privacy-banner { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .8rem 1rem; padding: 1rem 1.2rem; border: 2px solid #2a658f; border-radius: 12px; background: #edf7fc; color: #163a5f; }
@@ -217,6 +218,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .marker-grid { grid-template-columns: repeat(3, 1fr); gap: 6mm; }
   .marker-card { min-height: 77mm; border: 1px solid #555; }
   .marker-card img { width: 46mm; }
+  .marker-payload { display: block; }
   .marker-site .app-header, .marker-site .marker-load-panel, .marker-site #marker-view-panel, .marker-site #marker-print-heading, .marker-site #marker-print-heading + p { display: none !important; }
   .marker-site #marker-print-panel { display: block !important; }
   .marker-site .marker-card-button { outline: 0; }
