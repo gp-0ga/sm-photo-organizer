@@ -4,69 +4,67 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#163a5f" />
-    <title>資産写真撮影 MVP</title>
+    <title>資産切替マーカー</title>
   </head>
-  <body>
+  <body class="marker-site">
     <header class="app-header">
       <div>
-        <p class="eyebrow">施設調査 撮影テスト</p>
-        <h1>資産写真撮影 MVP</h1>
+        <p class="eyebrow">施設調査</p>
+        <h1>資産切替マーカー</h1>
       </div>
-      <span class="local-badge">端末内で処理</span>
+      <span class="local-badge">端末内で作成</span>
     </header>
 
-    <main class="capture-main">
-      <section class="panel" aria-labelledby="capture-excel-heading">
+    <main class="marker-main">
+      <section class="panel marker-load-panel" aria-labelledby="marker-excel-heading">
         <div class="step-label">1</div>
         <div class="step-body">
-          <h2 id="capture-excel-heading">資産一覧を読み込む</h2>
-          <p>健全度判定表の「No11」をスマホ内で読み取ります。Excelは外部へ送信しません。</p>
-          <label class="file-picker">
+          <h2 id="marker-excel-heading">資産一覧を読み込む</h2>
+          <p>健全度判定表の「No11」から資産番号と資産名を読み取ります。Excelは送信せず、この端末内だけで処理します。</p>
+          <label class="file-picker marker-file-picker">
             <span>Excelを選択</span>
-            <input id="capture-excel-input" type="file" accept=".xlsx" />
+            <input id="marker-excel-input" type="file" accept=".xlsx" />
           </label>
-          <div id="capture-excel-status" class="status neutral" role="status">Excelを選択してください。</div>
+          <div id="marker-excel-status" class="status neutral" role="status">Excelを選択してください。</div>
         </div>
       </section>
 
-      <section class="panel camera-panel" aria-labelledby="capture-camera-heading">
+      <section id="marker-view-panel" class="panel" aria-labelledby="marker-view-heading" hidden>
         <div class="step-label">2</div>
         <div class="step-body">
-          <h2 id="capture-camera-heading">資産を選んで撮影する</h2>
-          <label class="camera-asset-label" for="capture-asset">撮影する資産</label>
-          <select id="capture-asset" class="camera-asset-select" disabled>
-            <option value="">先にExcelを読み込んでください</option>
-          </select>
-
-          <div id="capture-workspace" class="camera-workspace" hidden>
-            <div class="camera-viewport">
-              <video id="capture-preview" playsinline muted></video>
-              <div id="capture-placeholder" class="camera-placeholder">「カメラを開く」を押してください</div>
+          <div class="section-heading-row marker-heading-row">
+            <div>
+              <h2 id="marker-view-heading">撮影するマーカーを表示する</h2>
+              <p>資産を選び、表示されたカード全体をiPhoneの標準カメラで1枚撮影します。</p>
             </div>
-            <div id="capture-current" class="camera-current">資産を選択してください</div>
-            <div class="camera-controls">
-              <button id="capture-start" class="secondary" type="button">カメラを開く</button>
-              <button id="capture-shutter" class="camera-shutter" type="button" disabled aria-label="撮影"></button>
-              <button id="capture-stop" class="secondary" type="button" disabled>カメラを閉じる</button>
-            </div>
-            <label class="zoom-control" for="capture-zoom">
-              <span>ズーム <strong id="capture-zoom-value">1.0×</strong></span>
-              <input id="capture-zoom" type="range" min="1" max="5" value="1" step="0.1" />
-            </label>
-            <div id="capture-status" class="status neutral" role="status">撮影前に必ず資産名を確認してください。</div>
-            <div id="capture-counts" class="camera-counts"><p>まだ撮影していません。</p></div>
+            <button id="marker-print" class="secondary" type="button">全マーカーを印刷</button>
           </div>
+
+          <label class="marker-select-label" for="marker-asset-select">表示する資産</label>
+          <select id="marker-asset-select" class="camera-asset-select"></select>
+
+          <article id="marker-display" class="marker-display" aria-live="polite">
+            <strong class="marker-start-text">ここからこの資産</strong>
+            <img id="marker-display-qr" alt="" />
+            <strong id="marker-display-number" class="marker-display-number"></strong>
+            <span id="marker-display-name" class="marker-display-name"></span>
+          </article>
+
+          <div class="marker-nav">
+            <button id="marker-previous" class="secondary" type="button">前の資産</button>
+            <span id="marker-position"></span>
+            <button id="marker-next" class="primary" type="button">次の資産</button>
+          </div>
+          <p class="marker-note">QRの読取り操作は不要です。このカードを写真として撮るだけで、PCでの振り分け時に切替マーカーになります。</p>
         </div>
       </section>
 
-      <section class="panel" aria-labelledby="capture-save-heading">
+      <section id="marker-print-panel" class="panel marker-print-panel" aria-labelledby="marker-print-heading" hidden>
         <div class="step-label">3</div>
         <div class="step-body">
-          <h2 id="capture-save-heading">資産別ZIPを保存する</h2>
-          <p>撮影後にZIPを作成し、共有画面で「ファイルに保存」を選びます。</p>
-          <button id="capture-save-zip" class="primary camera-save" type="button" disabled>資産別ZIPを保存</button>
-          <div id="capture-save-status" class="status neutral" role="status">撮影した写真だけがZIPに入ります。</div>
-          <p class="camera-test-warning">※ZIP保存前に画面を閉じたり再読み込みしたりすると、撮影写真は消えます。</p>
+          <h2 id="marker-print-heading">印刷するマーカー一覧</h2>
+          <p>画面で確認する場合は、カードを選ぶと上に大きく表示されます。</p>
+          <div id="marker-card-list" class="marker-grid"></div>
         </div>
       </section>
     </main>

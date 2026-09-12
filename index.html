@@ -128,10 +128,15 @@
           <div class="section-heading-row">
             <div>
               <h2 id="export-heading">圧縮写真を出力する</h2>
-              <p>全写真を資産直下へ保存し、写真帳分類を選んだ写真はサブフォルダにもコピーします。</p>
+              <p>全写真を資産直下へ保存し、写真帳分類を選んだ写真はサブフォルダにもコピーします。元写真は変更しません。</p>
             </div>
-            <button id="export-photos" class="primary" disabled>200KB以下で出力</button>
+            <button id="export-photos" class="primary" disabled>指定容量以下で出力</button>
           </div>
+          <label class="size-setting" for="photo-target-kb">
+            <span>出力する写真1枚の上限</span>
+            <span class="size-input-row"><input id="photo-target-kb" type="number" min="50" max="5000" step="50" value="200" inputmode="numeric" /> KB以下</span>
+          </label>
+          <p class="setting-note">50～5000KBで指定できます。画像の内容により、実際の容量は指定値より小さくなります。</p>
           <div id="export-status" class="status neutral" role="status">写真を確認してから出力してください。</div>
         </div>
       </section>

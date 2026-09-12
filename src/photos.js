@@ -74,9 +74,17 @@ export async function compressToJpeg(file, maxBytes = 200 * 1024) {
 
   bitmap.close?.();
   if (!lastBlob || lastBlob.size > maxBytes) {
-    throw new Error(`${file.name} を200KB以下へ圧縮できませんでした。`);
+    throw new Error(`${file.name} を指定容量（${Math.round(maxBytes / 1024)}KB）以下へ圧縮できませんでした。`);
   }
   return lastBlob;
+}
+
+export function targetBytesFromKilobytes(value) {
+  const kilobytes = Number(value);
+  if (!Number.isFinite(kilobytes) || kilobytes < 50 || kilobytes > 5000) {
+    throw new Error("写真容量は50～5000KBで指定してください。");
+  }
+  return Math.round(kilobytes * 1024);
 }
 
 export function jpegFileName(fileName) {
