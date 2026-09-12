@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build && node scripts/prepare-hosted-site.mjs && node scripts/make-release.mjs",
     "preview": "vite preview",
-    "test": "node --test test/domain.test.js test/folders.test.js test/album.test.js test/camera.test.js test/zip.test.js test/photo-settings.test.js",
+    "test": "node --test test/domain.test.js test/folders.test.js test/album.test.js test/camera.test.js test/zip.test.js test/photo-settings.test.js test/marker-storage.test.js",
     "fixtures": "node scripts/generate-photo-fixtures.mjs"
   },
   "dependencies": {
