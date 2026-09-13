@@ -103,6 +103,7 @@ label { display: grid; gap: .35rem; color: #34444f; font-size: .9rem; font-weigh
 .badge.confirmed { color: #15583f; background: #dff4ea; }
 .badge.unconfirmed { color: #704d11; background: #fff2d8; }
 .badge.calibrated { color: #5a3c88; background: #eee6fa; }
+.badge.error { color: #8c2d1f; background: #ffe7e2; }
 
 .scale-grid { display: grid; gap: .55rem; }
 .save-tools { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .45rem; }
@@ -213,7 +214,7 @@ label { display: grid; gap: .35rem; color: #34444f; font-size: .9rem; font-weigh
   align-items: center;
   gap: .45rem;
 }
-.page-nav button { padding: .45rem .75rem; }
+.page-nav button { min-width: 7.5rem; padding: .45rem .75rem; }
 .page-nav span { color: #34444f; font-weight: 800; text-align: center; white-space: nowrap; }
 .canvas-wrap {
   overflow: auto;

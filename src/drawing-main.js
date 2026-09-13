@@ -258,6 +258,7 @@ function serializePage(page) {
     url: page.url,
     kind: page.kind,
     unsupported: page.unsupported,
+    missingImage: page.missingImage || false,
     scaleDenominator: page.scaleDenominator,
     dpi: page.dpi,
     scaleCorrection: page.scaleCorrection,
@@ -269,13 +270,17 @@ function serializePage(page) {
 
 function pageFromSaved(saved) {
   return new Promise((resolve) => {
-    if (saved.unsupported || !saved.url) {
+    if (saved.unsupported) {
       resolve({ ...saved, image: null, shapes: saved.shapes || [] });
       return;
     }
+    if (!saved.url) {
+      resolve({ ...saved, image: null, missingImage: true, shapes: saved.shapes || [] });
+      return;
+    }
     const image = new Image();
-    image.onload = () => resolve({ ...saved, image, shapes: saved.shapes || [] });
-    image.onerror = () => resolve({ ...saved, unsupported: true, image: null, shapes: saved.shapes || [] });
+    image.onload = () => resolve({ ...saved, image, missingImage: false, shapes: saved.shapes || [] });
+    image.onerror = () => resolve({ ...saved, missingImage: true, image: null, shapes: saved.shapes || [] });
     image.src = saved.url;
   });
 }
@@ -671,6 +676,16 @@ async function loadPdfFile(file) {
   if (pages.length > 0) {
     await ensurePageRendered(pages[0]);
   }
+  for (let index = 1; index < pages.length; index += 1) {
+    const page = pages[index];
+    setStatus(`${file.name}: ${index + 1} / ${pages.length}ページを画像化しています。`);
+    try {
+      await ensurePageRendered(page);
+      page.renderError = null;
+    } catch (error) {
+      page.renderError = error?.message || `${index + 1}ページ目の画像化に失敗しました。`;
+    }
+  }
   return pages;
 }
 
@@ -722,7 +737,12 @@ async function handleFiles(files) {
   setStatus("PDFをローカルで画像化しています。ページ数が多い場合は少し待ちます。");
   try {
     state.pages = await loadFiles([...files]);
-    setStatus(`${state.pages.length}ページを読み込みました。左のカードまたは前/次で確認できます。`, "success");
+    const failedPages = state.pages.filter((page) => page.renderError);
+    if (failedPages.length > 0) {
+      setStatus(`${state.pages.length}ページを読み込み、${failedPages.length}ページは画像化に失敗しました。該当カードの「再表示」を押してください。`);
+    } else {
+      setStatus(`${state.pages.length}ページを読み込みました。左のページカード、または画面下の「前のページ」「次のページ」で確認できます。`, "success");
+    }
   } catch (error) {
     pageList.textContent = "";
     alert(error.message);
@@ -742,7 +762,7 @@ async function handleFiles(files) {
 
 function syncControls() {
   const page = activePage();
-  const disabled = !page || page.unsupported;
+  const disabled = !page || page.unsupported || !page.image;
   pageKind.disabled = !page;
   scaleDenominator.disabled = disabled;
   confirmScale.disabled = disabled;
@@ -770,6 +790,8 @@ function syncControls() {
   });
   scaleNote.textContent = page.unsupported
     ? "この形式はMVPでは直接表示できません。PDF/TIFFをPNG/JPGに変換して読み込んでください。"
+    : page.missingImage
+      ? "以前の保存データにこのページの画像がありません。元のPDFをもう一度選択してください。今後の読込みでは全ページを保存します。"
       : page.scaleConfirmed
         ? `縮尺確定: 1/${page.scaleDenominator}${page.scaleCorrection !== 1 ? ` / 実寸補正 x${formatNumber(page.scaleCorrection, 3)}` : ""}。次は入力モードを選んで図面上をクリックできます。`
         : "図面に書かれた縮尺を入力して確定してください。DPIは内部固定値で自動処理します。";
@@ -787,7 +809,13 @@ function renderPageList() {
       const text = document.createElement("div");
       const scaleText = page.scaleConfirmed ? `縮尺 1/${page.scaleDenominator} 確定` : "縮尺未確定";
       const calibrationText = page.scaleCorrection !== 1 ? `<span class="badge calibrated">補正x${formatNumber(page.scaleCorrection, 2)}</span>` : "";
-      const pendingText = page.pendingPdf ? `<span class="badge unconfirmed">未表示(画像化前)</span>` : "";
+      const pendingText = page.renderError
+        ? `<span class="badge error">画像化失敗・再試行可</span>`
+        : page.missingImage
+          ? `<span class="badge error">元画像なし・再読込必要</span>`
+        : page.pendingPdf
+          ? `<span class="badge unconfirmed">画像化待ち</span>`
+          : `<span class="badge confirmed">表示準備済み</span>`;
       text.innerHTML = `
         <div class="page-name">${index + 1}. ${page.name}</div>
         <div class="page-meta">
@@ -799,7 +827,7 @@ function renderPageList() {
         </div>`;
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = "表示";
+      button.textContent = page.renderError ? "再表示" : page.missingImage ? "要再読込" : "表示";
       row.addEventListener("click", () => selectPageByIndex(index));
       row.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -985,7 +1013,12 @@ function draw() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#667782";
     ctx.font = "24px sans-serif";
-    ctx.fillText(page?.pendingPdf ? "左の一覧で「表示」を押すと画像化されます" : "図面画像を読み込んでください", 60, 90);
+    const emptyMessage = page?.missingImage
+      ? "このページは元画像が未保存です。左上のファイル選択から元PDFを再読込みしてください"
+      : page?.pendingPdf
+        ? "このページを画像化しています"
+        : "図面画像を読み込んでください";
+    ctx.fillText(emptyMessage, 60, 90);
     return;
   }
   canvas.width = page.image.naturalWidth;
