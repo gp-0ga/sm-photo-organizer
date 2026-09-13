@@ -25,6 +25,7 @@ const state = {
   calibrating: false,
   pointer: null,
   dragPreview: null,
+  hoverPoint: null,
   suppressClick: false,
   ruler: {
     lengthM: 20,
@@ -87,9 +88,15 @@ const applySelected = document.querySelector("#apply-selected");
 const finishShape = document.querySelector("#finish-shape");
 const undoPoint = document.querySelector("#undo-point");
 const deleteSelected = document.querySelector("#delete-selected");
+const duplicateSelected = document.querySelector("#duplicate-selected");
 const exportExcel = document.querySelector("#export-excel");
 const exportImage = document.querySelector("#export-image");
 const exportImagesZip = document.querySelector("#export-images-zip");
+const showSummary = document.querySelector("#show-summary");
+const closeSummary = document.querySelector("#close-summary");
+const summaryOverlay = document.querySelector("#summary-overlay");
+const summaryPrimaryTable = document.querySelector("#summary-primary-table");
+const summarySecondaryTable = document.querySelector("#summary-secondary-table");
 const totals = document.querySelector("#totals");
 const zoomOut = document.querySelector("#zoom-out");
 const zoomIn = document.querySelector("#zoom-in");
@@ -1002,6 +1009,60 @@ function draw() {
     if (state.ruler.horizontal.visible) drawRuler(page, "horizontal");
     if (state.ruler.vertical.visible) drawRuler(page, "vertical");
   }
+  drawLiveDimensions(page);
+}
+
+function drawDimensionLabel(text, x, y) {
+  ctx.save();
+  ctx.font = `${13 / state.zoom}px sans-serif`;
+  const padX = 6 / state.zoom;
+  const padY = 4 / state.zoom;
+  const metrics = ctx.measureText(text);
+  const boxWidth = metrics.width + padX * 2;
+  const boxHeight = 13 / state.zoom + padY * 2;
+  ctx.fillStyle = "rgb(31 41 51 / 88%)";
+  ctx.fillRect(x, y, boxWidth, boxHeight);
+  ctx.fillStyle = "#ffffff";
+  ctx.textBaseline = "top";
+  ctx.fillText(text, x + padX, y + padY);
+  ctx.restore();
+}
+
+function drawLiveDimensions(page) {
+  if (!page.scaleConfirmed) return;
+  if (state.pointer?.type === "rect" && state.dragPreview) {
+    const [a, , c] = state.dragPreview;
+    const width = metric(page, Math.abs(c.x - a.x));
+    const height = metric(page, Math.abs(c.y - a.y));
+    const label = `${formatNumber(width, 2)} x ${formatNumber(height, 2)} m  (${formatNumber(width * height, 2)} m2)`;
+    drawDimensionLabel(label, c.x + 12 / state.zoom, c.y + 12 / state.zoom);
+    return;
+  }
+  if (state.pointer?.type === "vertex" && state.pointer.vertex) {
+    const { shape } = state.pointer.vertex;
+    if (isAxisAlignedRectangle(shape.points)) {
+      const xs = shape.points.map((point) => point.x);
+      const ys = shape.points.map((point) => point.y);
+      const width = metric(page, Math.max(...xs) - Math.min(...xs));
+      const height = metric(page, Math.max(...ys) - Math.min(...ys));
+      const cursor = shape.points[state.pointer.vertex.pointIndex];
+      const label = `${formatNumber(width, 2)} x ${formatNumber(height, 2)} m  (${formatNumber(width * height, 2)} m2)`;
+      drawDimensionLabel(label, cursor.x + 12 / state.zoom, cursor.y + 12 / state.zoom);
+    }
+    return;
+  }
+  if (state.currentPoints.length > 0 && state.hoverPoint && !state.pointer) {
+    const last = state.currentPoints.at(-1);
+    const segmentLength = metric(page, lineLength([last, state.hoverPoint], false));
+    let label = `${formatNumber(segmentLength, 2)} m`;
+    if (state.mode !== "line" && state.currentPoints.length >= 2) {
+      const previewPoints = [...state.currentPoints, state.hoverPoint];
+      const scale = mmPerPixel(page);
+      const area = polygonArea(previewPoints) * ((scale * (page.scaleCorrection || 1)) / 1000) ** 2;
+      label += `  (面積 ${formatNumber(area, 2)} m2)`;
+    }
+    drawDimensionLabel(label, state.hoverPoint.x + 12 / state.zoom, state.hoverPoint.y + 12 / state.zoom);
+  }
 }
 
 function metersToPixels(page, meters) {
@@ -1188,6 +1249,33 @@ function addManualShape() {
 function rectFromTwoPoints(points) {
   const [a, b] = points;
   return [{ x: a.x, y: a.y }, { x: b.x, y: a.y }, { x: b.x, y: b.y }, { x: a.x, y: b.y }];
+}
+
+function isAxisAlignedRectangle(points) {
+  if (points.length !== 4) return false;
+  const eps = 0.01;
+  return points.every((point, index) => {
+    const next = points[(index + 1) % 4];
+    return Math.abs(point.x - next.x) <= eps || Math.abs(point.y - next.y) <= eps;
+  });
+}
+
+function updateRectangleVertex(points, index, newPoint) {
+  const next = (index + 1) % 4;
+  const prev = (index + 3) % 4;
+  const original = points[index];
+  const eps = 0.5;
+  if (Math.abs(points[next].x - original.x) <= eps) {
+    points[next] = { ...points[next], x: newPoint.x };
+  } else {
+    points[next] = { ...points[next], y: newPoint.y };
+  }
+  if (Math.abs(points[prev].x - original.x) <= eps) {
+    points[prev] = { ...points[prev], x: newPoint.x };
+  } else {
+    points[prev] = { ...points[prev], y: newPoint.y };
+  }
+  points[index] = newPoint;
 }
 
 function isRectangleDragMode() {
@@ -1512,13 +1600,12 @@ function buildPrintSheet(rows, headers) {
   return sheet;
 }
 
-function exportWorkbook() {
+function buildQuantityRows() {
   const quantityRows = [];
-  const evidenceRows = [];
   state.pages.forEach((page) => {
-    page.shapes.forEach((shape, index) => {
+    page.shapes.forEach((shape) => {
       const q = shapeQuantity(page, shape);
-      const base = {
+      quantityRows.push({
         図面名: page.name,
         図面種別: page.kind,
         対象ID: shape.id,
@@ -1544,8 +1631,56 @@ function exportWorkbook() {
         補正確認m: page.calibrationMeasured,
         画像DPI: page.dpi,
         備考: shape.memo,
-      };
-      quantityRows.push(base);
+      });
+    });
+  });
+  quantityRows.sort(compareOutputRows);
+  return quantityRows;
+}
+
+function renderSummaryTable(container, rows, headers) {
+  if (rows.length === 0) {
+    container.innerHTML = "<p class=\"small-note\">数量がまだありません。</p>";
+    return;
+  }
+  const numericHeaders = new Set(["面積m2", "延長m", "周長m"]);
+  const table = document.createElement("table");
+  table.className = "summary-table";
+  const thead = document.createElement("thead");
+  thead.innerHTML = `<tr>${headers.map((header) => `<th>${header}</th>`).join("")}</tr>`;
+  const tbody = document.createElement("tbody");
+  tbody.replaceChildren(
+    ...rows.map((row) => {
+      const tr = document.createElement("tr");
+      if (String(row.集計区分 || "").includes("計")) tr.className = "summary-total-row";
+      tr.innerHTML = headers
+        .map((header) => {
+          const value = row[header];
+          if (numericHeaders.has(header)) {
+            return `<td>${Number(value) ? formatNumber(Number(value), 2) : ""}</td>`;
+          }
+          return `<td>${value ?? ""}</td>`;
+        })
+        .join("");
+      return tr;
+    }),
+  );
+  table.append(thead, tbody);
+  container.replaceChildren(table);
+}
+
+function renderSummaryDialog() {
+  const quantityRows = buildQuantityRows();
+  renderSummaryTable(summaryPrimaryTable, buildPrimarySummaryRows(quantityRows), PRIMARY_SUMMARY_HEADERS);
+  renderSummaryTable(summarySecondaryTable, buildSummaryRows(quantityRows), SUMMARY_HEADERS);
+}
+
+function exportWorkbook() {
+  const quantityRows = buildQuantityRows();
+  const evidenceRows = [];
+  state.pages.forEach((page) => {
+    page.shapes.forEach((shape, index) => {
+      const q = shapeQuantity(page, shape);
       evidenceRows.push({
         図面名: page.name,
         図面種別: page.kind,
@@ -1817,7 +1952,13 @@ canvas.addEventListener("pointerdown", (event) => {
   canvas.setPointerCapture?.(event.pointerId);
 });
 canvas.addEventListener("pointermove", (event) => {
-  if (!state.pointer) return;
+  if (!state.pointer) {
+    if (state.currentPoints.length > 0) {
+      state.hoverPoint = canvasPoint(event);
+      draw();
+    }
+    return;
+  }
   const dx = event.clientX - state.pointer.lastClientX;
   const dy = event.clientY - state.pointer.lastClientY;
   const movedTotal = Math.hypot(event.clientX - state.pointer.startClientX, event.clientY - state.pointer.startClientY);
@@ -1826,7 +1967,13 @@ canvas.addEventListener("pointermove", (event) => {
     state.dragPreview = rectFromTwoPoints([state.pointer.startPoint, canvasPoint(event)]);
     draw();
   } else if (state.pointer.type === "vertex" && state.pointer.vertex) {
-    state.pointer.vertex.shape.points[state.pointer.vertex.pointIndex] = canvasPoint(event);
+    const { shape, pointIndex } = state.pointer.vertex;
+    const newPoint = canvasPoint(event);
+    if (isAxisAlignedRectangle(shape.points)) {
+      updateRectangleVertex(shape.points, pointIndex, newPoint);
+    } else {
+      shape.points[pointIndex] = newPoint;
+    }
     draw();
   } else if (state.pointer.type === "ruler") {
     const r = state.ruler[state.pointer.rulerOrientation];
@@ -1946,6 +2093,26 @@ undoPoint.addEventListener("click", () => {
   }
   draw();
 });
+duplicateSelected.addEventListener("click", () => {
+  const page = activePage();
+  const entry = selectedEntry();
+  if (!page || !entry) return;
+  const offset = 24 / state.zoom;
+  const clone = {
+    ...structuredClone(entry.shape),
+    id: crypto.randomUUID(),
+    points: entry.shape.points.map((point) => ({ x: point.x + offset, y: point.y + offset })),
+    source: "複製",
+    createdAt: new Date().toLocaleString("ja-JP"),
+  };
+  page.shapes.push(clone);
+  state.selectedId = clone.id;
+  setStatus(`${clone.kind}を複製しました。位置を調整してください。`, "success");
+  renderAllPanels();
+  syncControls();
+  draw();
+  scheduleAutosave();
+});
 deleteSelected.addEventListener("click", () => {
   const page = activePage();
   if (!page || !state.selectedId) return;
@@ -1961,6 +2128,16 @@ zoomIn.addEventListener("click", () => setZoom(state.zoom + 0.1));
 prevPage.addEventListener("click", () => selectPageByIndex(activePageIndex() - 1));
 nextPage.addEventListener("click", () => selectPageByIndex(activePageIndex() + 1));
 exportExcel.addEventListener("click", exportWorkbook);
+showSummary.addEventListener("click", () => {
+  renderSummaryDialog();
+  summaryOverlay.hidden = false;
+});
+closeSummary.addEventListener("click", () => {
+  summaryOverlay.hidden = true;
+});
+summaryOverlay.addEventListener("click", (event) => {
+  if (event.target === summaryOverlay) summaryOverlay.hidden = true;
+});
 exportImage.addEventListener("click", exportCanvasImage);
 exportImagesZip.addEventListener("click", exportAllImagesZip);
 

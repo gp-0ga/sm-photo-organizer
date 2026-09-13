@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>図面数量拾いMVP</title>
-    <script type="module" crossorigin src="/assets/drawing-B_TMCI1D.js"></script>
+    <script type="module" crossorigin src="/assets/drawing-CExFssH9.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/xlsx-CSDiKpwJ.js">
     <link rel="modulepreload" crossorigin href="/assets/zip-DhXGBq_l.js">
-    <link rel="stylesheet" crossorigin href="/assets/drawing-zYfEM6Vs.css">
+    <link rel="stylesheet" crossorigin href="/assets/drawing-DCJAqtu6.css">
   </head>
   <body class="drawing-app">
     <header class="drawing-header">
@@ -155,19 +155,19 @@
         <section class="tool-panel">
           <h2>3. 入力</h2>
           <div class="mode-grid">
-            <button class="mode-button selected" data-mode="area" type="button">面積</button>
-            <button class="mode-button" data-mode="opening" type="button">開口</button>
-            <button class="mode-button" data-mode="line" type="button">線数量</button>
+            <button class="mode-button icon-btn selected" data-mode="area" data-label="面積" title="面積" type="button" aria-label="面積">▦</button>
+            <button class="mode-button icon-btn" data-mode="opening" data-label="開口" title="開口" type="button" aria-label="開口">🪟</button>
+            <button class="mode-button icon-btn" data-mode="line" data-label="線数量" title="線数量" type="button" aria-label="線数量">📏</button>
           </div>
           <label>
             分類
             <select id="quantity-kind"></select>
           </label>
           <div class="draw-type draw-type--4">
-            <button id="select-edit" type="button">選択/編集</button>
-            <button id="draw-polygon" class="selected" type="button">多角形</button>
-            <button id="draw-rect" type="button">四角形</button>
-            <button id="draw-manual" type="button">手入力</button>
+            <button id="select-edit" class="icon-btn" data-label="選択/編集" title="選択/編集" type="button" aria-label="選択/編集">↖</button>
+            <button id="draw-polygon" class="icon-btn selected" data-label="多角形" title="多角形" type="button" aria-label="多角形">⬠</button>
+            <button id="draw-rect" class="icon-btn" data-label="四角形" title="四角形" type="button" aria-label="四角形">▭</button>
+            <button id="draw-manual" class="icon-btn" data-label="手入力" title="手入力" type="button" aria-label="手入力">✎</button>
           </div>
           <label id="manual-area-field" hidden>
             面積表からの面積m2
@@ -180,7 +180,7 @@
             </label>
             <label>
               立面・範囲
-              <input id="elevation-input" type="text" placeholder="例: 北面、1面目" />
+              <input id="elevation-input" type="text" list="elevation-options" placeholder="選択または直接入力" />
             </label>
           </div>
           <label>
@@ -193,8 +193,9 @@
           </label>
           <div class="action-row">
             <button id="finish-shape" class="primary" type="button">確定</button>
-            <button id="undo-point" type="button">1点戻す</button>
-            <button id="delete-selected" type="button">選択削除</button>
+            <button id="undo-point" class="icon-btn" data-label="1点戻す" title="1点戻す" type="button" aria-label="1点戻す">↶</button>
+            <button id="duplicate-selected" class="icon-btn" data-label="選択複製" title="選択複製" type="button" aria-label="選択複製">⧉</button>
+            <button id="delete-selected" class="icon-btn" data-label="選択削除" title="選択削除" type="button" aria-label="選択削除">🗑</button>
           </div>
           <p class="small-note">多角形は点を順にクリック。四角形と開口はドラッグでも作成できます。Shift/Ctrlを押しながらクリックすると水平/垂直に揃えます。図面はドラッグで移動できます。手入力は面積表に書かれた数値をそのまま記録し、図面名が根拠になります。</p>
         </section>
@@ -209,7 +210,7 @@
             </label>
             <label>
               立面・範囲
-              <input id="edit-elevation" type="text" />
+              <input id="edit-elevation" type="text" list="elevation-options" />
             </label>
             <label>
               仕上
@@ -246,6 +247,7 @@
         <section class="tool-panel">
           <h2>5. 出力</h2>
           <button id="export-excel" class="primary" type="button">Excel出力</button>
+          <button id="show-summary" type="button">画面で集計を確認</button>
           <button id="export-image" type="button">この図面をPNG画像で保存</button>
           <button id="export-images-zip" type="button">確定済み図面をまとめてZIP保存</button>
           <p class="small-note">現在表示中のページを画像保存、または数量を1件以上確定した図面だけをまとめてZIPで保存します。未使用のページは含まれません。</p>
@@ -253,5 +255,34 @@
         </section>
       </aside>
     </main>
+    <div id="summary-overlay" class="summary-overlay" hidden>
+      <div class="summary-dialog">
+        <div class="summary-dialog-header">
+          <h2>集計プレビュー</h2>
+          <button id="close-summary" type="button">閉じる</button>
+        </div>
+        <div class="summary-dialog-body">
+          <h3>一次集計(棟x仕上x分類)</h3>
+          <div id="summary-primary-table"></div>
+          <h3>二次集計(棟計・総合計)</h3>
+          <div id="summary-secondary-table"></div>
+        </div>
+      </div>
+    </div>
+    <datalist id="elevation-options">
+      <option value="北面"></option>
+      <option value="南面"></option>
+      <option value="東面"></option>
+      <option value="西面"></option>
+      <option value="北東面"></option>
+      <option value="北西面"></option>
+      <option value="南東面"></option>
+      <option value="南西面"></option>
+      <option value="屋上"></option>
+      <option value="1面目"></option>
+      <option value="2面目"></option>
+      <option value="3面目"></option>
+      <option value="4面目"></option>
+    </datalist>
   </body>
 </html>
