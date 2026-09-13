@@ -35,7 +35,9 @@ const state = {
 };
 
 const canvas = document.querySelector("#drawing-canvas");
-const ctx = canvas.getContext("2d");
+// 一部のハイブリッドGPU環境でcanvasのバッファ内容と画面表示が食い違う(GPU合成が更新されない)
+// 事象が確認されたため、willReadFrequentlyでソフトウェア(CPU)ラスタライズへ寄せる。
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
 const canvasWrap = document.querySelector("#canvas-wrap");
 const fileInput = document.querySelector("#file-input");
 const pageList = document.querySelector("#page-list");
@@ -113,11 +115,24 @@ function activePageIndex() {
   return state.pages.findIndex((page) => page.id === state.activePageId);
 }
 
-function selectPageByIndex(index) {
+async function selectPageByIndex(index) {
   if (index < 0 || index >= state.pages.length) return;
-  state.activePageId = state.pages[index].id;
+  const page = state.pages[index];
+  state.activePageId = page.id;
   state.currentPoints = [];
   state.selectedId = null;
+  if (page.pendingPdf) {
+    setLoading(true);
+    setStatus(`${page.name} を画像化しています。`);
+    try {
+      await ensurePageRendered(page);
+      setStatus(`${page.name} を表示しました。`, "success");
+    } catch (error) {
+      setStatus(error.message || "図面の画像化に失敗しました。");
+    } finally {
+      setLoading(false);
+    }
+  }
   fitActivePageToView();
   syncControls();
   renderPageList();
@@ -265,6 +280,22 @@ async function saveCurrentWork() {
   }
   const name = workName.value.trim() || `図面数量拾い_${new Date().toLocaleString("ja-JP")}`;
   const id = crypto.randomUUID();
+  const pendingPages = state.pages.filter((page) => page.pendingPdf);
+  if (pendingPages.length > 0) {
+    setLoading(true);
+    setStatus(`保存のため、未表示の${pendingPages.length}ページを画像化しています。しばらくお待ちください。`);
+    try {
+      for (const page of pendingPages) {
+        await ensurePageRendered(page);
+      }
+    } catch (error) {
+      setLoading(false);
+      setStatus(error.message || "図面の画像化に失敗しました。保存を中止しました。");
+      return;
+    }
+    renderPageList();
+    setLoading(false);
+  }
   try {
     await putSavedWork({ ...serializeCurrentWork(name), id });
   } catch {
@@ -328,6 +359,22 @@ async function exportWorkToFile() {
     return;
   }
   const name = workName.value.trim() || `図面数量拾い_${new Date().toLocaleString("ja-JP")}`;
+  const pendingPages = state.pages.filter((page) => page.pendingPdf);
+  if (pendingPages.length > 0) {
+    setLoading(true);
+    setStatus(`書き出しのため、未表示の${pendingPages.length}ページを画像化しています。しばらくお待ちください。`);
+    try {
+      for (const page of pendingPages) {
+        await ensurePageRendered(page);
+      }
+    } catch (error) {
+      setLoading(false);
+      setStatus(error.message || "図面の画像化に失敗しました。書き出しを中止しました。");
+      return;
+    }
+    renderPageList();
+    setLoading(false);
+  }
   const data = serializeCurrentWork(name);
   const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -538,16 +585,55 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+const pdfjsWasmUrl = `${location.origin}/pdfjs-wasm/`;
+
 async function getPdfDocument(arrayBuffer) {
   try {
-    return await withTimeout(pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer.slice(0)) }).promise, 8000);
+    return await withTimeout(
+      pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer.slice(0)), wasmUrl: pdfjsWasmUrl }).promise,
+      15000,
+    );
   } catch {
-    return pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer.slice(0)), disableWorker: true }).promise;
+    return pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer.slice(0)), disableWorker: true, wasmUrl: pdfjsWasmUrl })
+      .promise;
   }
 }
 
-async function loadPdfFile(file) {
+async function renderPdfPageToDataUrl(pdf, pageNumber) {
   const scale = PDF_RENDER_DPI / 72;
+  const pdfPage = await pdf.getPage(pageNumber);
+  const viewport = pdfPage.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  // 一部のハイブリッドGPU環境でDOM未接続canvasのGPU描画結果が読み出せない(白紙になる)事象が
+  // 確認されたため、CPU側ラスタライズに寄せるためwillReadFrequentlyを指定する。
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  try {
+    await withTimeout(pdfPage.render({ canvasContext: context, viewport }).promise, 30000);
+  } catch (error) {
+    throw new Error(`PDFページ${pageNumber}の描画に失敗しました。${error?.message || ""}`.trim());
+  }
+  return canvas.toDataURL("image/png");
+}
+
+async function ensurePageRendered(page) {
+  if (page.image || !page.pendingPdf) return page;
+  const { pdf, pageNumber } = page.pendingPdf;
+  const dataUrl = await renderPdfPageToDataUrl(pdf, pageNumber);
+  const image = new Image();
+  await new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = () => reject(new Error("画像の読み込みに失敗しました。"));
+    image.src = dataUrl;
+  });
+  page.url = dataUrl;
+  page.image = image;
+  page.pendingPdf = null;
+  return page;
+}
+
+async function loadPdfFile(file) {
   const arrayBuffer = await file.arrayBuffer();
   let pdf;
   try {
@@ -558,25 +644,25 @@ async function loadPdfFile(file) {
   const pageLimit = Math.min(pdf.numPages, 30);
   const pages = [];
   for (let pageNumber = 1; pageNumber <= pageLimit; pageNumber += 1) {
-    const pdfPage = await pdf.getPage(pageNumber);
-    const viewport = pdfPage.getViewport({ scale });
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.ceil(viewport.width);
-    canvas.height = Math.ceil(viewport.height);
-    const context = canvas.getContext("2d");
-    try {
-      await withTimeout(pdfPage.render({ canvasContext: context, viewport }).promise, 30000);
-    } catch (error) {
-      throw new Error(`PDFページ${pageNumber}の描画に失敗しました。${error?.message || ""}`.trim());
-    }
-    pages.push(
-      await imagePageFromSource({
-        name: `${file.name} p.${pageNumber}${pdf.numPages > pageLimit && pageNumber === pageLimit ? "(以降省略)" : ""}`,
-        fileType: "application/pdf",
-        src: canvas.toDataURL("image/png"),
-        kind: "平面図",
-      }),
-    );
+    pages.push({
+      id: crypto.randomUUID(),
+      name: `${file.name} p.${pageNumber}${pdf.numPages > pageLimit && pageNumber === pageLimit ? "(以降省略)" : ""}`,
+      fileType: "application/pdf",
+      url: null,
+      image: null,
+      pendingPdf: { pdf, pageNumber },
+      kind: "平面図",
+      unsupported: false,
+      scaleDenominator: 100,
+      dpi: PDF_RENDER_DPI,
+      scaleCorrection: 1,
+      calibrationMeasured: null,
+      scaleConfirmed: false,
+      shapes: [],
+    });
+  }
+  if (pages.length > 0) {
+    await ensurePageRendered(pages[0]);
   }
   return pages;
 }
@@ -694,10 +780,12 @@ function renderPageList() {
       const text = document.createElement("div");
       const scaleText = page.scaleConfirmed ? `縮尺 1/${page.scaleDenominator} 確定` : "縮尺未確定";
       const calibrationText = page.scaleCorrection !== 1 ? `<span class="badge calibrated">補正x${formatNumber(page.scaleCorrection, 2)}</span>` : "";
+      const pendingText = page.pendingPdf ? `<span class="badge unconfirmed">未表示(画像化前)</span>` : "";
       text.innerHTML = `
         <div class="page-name">${index + 1}. ${page.name}</div>
         <div class="page-meta">
           <span class="badge kind">${page.kind}</span>
+          ${pendingText}
           <span class="badge ${page.scaleConfirmed ? "confirmed" : "unconfirmed"}">${scaleText}</span>
           ${calibrationText}
           <span class="badge">${page.shapes.length}件</span>
@@ -890,7 +978,7 @@ function draw() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#667782";
     ctx.font = "24px sans-serif";
-    ctx.fillText("図面画像を読み込んでください", 60, 90);
+    ctx.fillText(page?.pendingPdf ? "左の一覧で「表示」を押すと画像化されます" : "図面画像を読み込んでください", 60, 90);
     return;
   }
   canvas.width = page.image.naturalWidth;
