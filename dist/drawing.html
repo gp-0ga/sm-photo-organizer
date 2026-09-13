@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>図面数量拾いMVP</title>
+    <script type="module" crossorigin src="/assets/drawing-Ckn_rT_G.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/xlsx-B6miiLSx.js">
+    <link rel="stylesheet" crossorigin href="/assets/drawing-BM9RHq-s.css">
+  </head>
+  <body class="drawing-app">
+    <header class="drawing-header">
+      <div>
+        <p>LOCAL MVP</p>
+        <h1>図面数量拾い</h1>
+      </div>
+      <span>外部送信なし / ブラウザ内処理</span>
+    </header>
+
+    <main class="drawing-shell">
+      <aside class="drawing-sidebar drawing-sidebar--left">
+        <section class="tool-panel">
+          <h2>1. 図面</h2>
+          <label class="file-drop">
+            <input id="file-input" type="file" accept="image/*,.pdf,.tif,.tiff" multiple />
+            PDF/TIFFは画像化して読み込み推奨。PNG/JPGはそのまま操作できます。
+          </label>
+          <div id="page-list" class="page-list"></div>
+        </section>
+
+        <section class="tool-panel">
+          <h2>保存</h2>
+          <label>
+            作業名
+            <input id="work-name" type="text" placeholder="例: A棟_外壁拾い" />
+          </label>
+          <div class="save-tools">
+            <button id="save-work" class="primary" type="button">作業保存</button>
+            <button id="load-work" type="button">読込</button>
+            <button id="delete-work" type="button">削除</button>
+          </div>
+          <label>
+            保存済み作業
+            <select id="saved-work-list"></select>
+          </label>
+          <p class="small-note">保存先はこのPCのブラウザ内です。外部送信はしません。</p>
+        </section>
+
+        <section class="tool-panel">
+          <h2>2. 図面設定</h2>
+          <label>
+            図面種別
+            <select id="page-kind">
+              <option value="平面図">平面図</option>
+              <option value="立面図">立面図</option>
+              <option value="屋上平面図">屋上平面図</option>
+              <option value="断面図">断面図</option>
+              <option value="矩計図">矩計図</option>
+              <option value="面積表">面積表</option>
+              <option value="使わない">使わない</option>
+            </select>
+          </label>
+          <div class="scale-grid">
+            <label>
+              図面縮尺 1/
+              <input id="scale-denominator" type="number" min="1" step="1" value="100" />
+            </label>
+          </div>
+          <div class="scale-presets" aria-label="縮尺候補">
+            <button type="button" data-scale="50">1/50</button>
+            <button type="button" data-scale="100">1/100</button>
+            <button type="button" data-scale="200">1/200</button>
+          </div>
+          <button id="confirm-scale" class="primary" type="button">この縮尺を確定</button>
+          <div class="calibration-tools">
+            <button id="calibrate-scale" type="button">既知寸法で補正</button>
+            <label>
+              実寸m
+              <input id="known-length" type="number" min="0" step="0.001" value="0" />
+            </label>
+          </div>
+          <div class="apply-scale-tools">
+            <button id="apply-same-scale" type="button">同じ縮尺へ適用</button>
+            <button id="apply-plan-elevation" type="button">平面・立面へ適用</button>
+          </div>
+          <div class="manual-correction">
+            <label>
+              補正係数
+              <input id="manual-correction" type="number" min="0.001" step="0.001" value="1" />
+            </label>
+            <button id="set-correction" type="button">係数を採用</button>
+          </div>
+          <p id="scale-note" class="small-note">縮尺未確定</p>
+          <p id="action-status" class="action-status" aria-live="polite"></p>
+        </section>
+      </aside>
+
+      <section class="drawing-workspace">
+        <div id="canvas-wrap" class="canvas-wrap">
+          <canvas id="drawing-canvas" width="1200" height="800"></canvas>
+        </div>
+        <div class="canvas-toolbar">
+          <div class="page-nav">
+            <button id="prev-page" type="button">前</button>
+            <span id="page-readout">0 / 0</span>
+            <button id="next-page" type="button">次</button>
+          </div>
+          <label>
+            表示倍率
+            <span class="zoom-buttons">
+              <button id="zoom-out" type="button">−</button>
+              <strong id="zoom-readout">100%</strong>
+              <button id="zoom-in" type="button">＋</button>
+            </span>
+          </label>
+          <span id="cursor-readout">-</span>
+        </div>
+      </section>
+
+      <aside class="drawing-sidebar drawing-sidebar--right">
+        <section class="tool-panel">
+          <h2>3. 入力</h2>
+          <div class="mode-grid">
+            <button class="mode-button selected" data-mode="area" type="button">面積</button>
+            <button class="mode-button" data-mode="opening" type="button">開口</button>
+            <button class="mode-button" data-mode="line" type="button">線数量</button>
+          </div>
+          <label>
+            分類
+            <select id="quantity-kind"></select>
+          </label>
+          <div class="draw-type">
+            <button id="select-edit" type="button">選択/編集</button>
+            <button id="draw-polygon" class="selected" type="button">多角形</button>
+            <button id="draw-rect" type="button">四角形</button>
+          </div>
+          <div class="detail-grid">
+            <label>
+              棟
+              <input id="building-input" type="text" placeholder="例: A棟" />
+            </label>
+            <label>
+              立面・範囲
+              <input id="elevation-input" type="text" placeholder="例: 北面、1面目" />
+            </label>
+          </div>
+          <label>
+            仕上
+            <input id="finish-input" type="text" placeholder="例: 窯業系サイディング、ALC" />
+          </label>
+          <label>
+            備考
+            <input id="memo-input" type="text" placeholder="例: 北面、2階、概算" />
+          </label>
+          <div class="action-row">
+            <button id="finish-shape" class="primary" type="button">確定</button>
+            <button id="undo-point" type="button">1点戻す</button>
+            <button id="delete-selected" type="button">選択削除</button>
+          </div>
+          <p class="small-note">多角形は点を順にクリック。四角形と開口はドラッグでも作成できます。Shift/Ctrlを押しながらクリックすると水平/垂直に揃えます。図面はドラッグで移動できます。</p>
+        </section>
+
+        <section class="tool-panel">
+          <h2>4. 確定済み数量</h2>
+          <div id="quantity-list" class="quantity-list"></div>
+          <div id="selected-editor" class="selected-editor" hidden>
+            <label>
+              棟
+              <input id="edit-building" type="text" />
+            </label>
+            <label>
+              立面・範囲
+              <input id="edit-elevation" type="text" />
+            </label>
+            <label>
+              仕上
+              <input id="edit-finish" type="text" />
+            </label>
+            <label>
+              備考
+              <input id="edit-memo" type="text" />
+            </label>
+            <div class="detail-grid">
+              <label>
+                採用幅m
+                <input id="edit-width" type="number" min="0" step="0.001" />
+              </label>
+              <label>
+                採用高さm
+                <input id="edit-height" type="number" min="0" step="0.001" />
+              </label>
+            </div>
+            <div class="detail-grid">
+              <label>
+                採用面積m2
+                <input id="edit-area" type="number" min="0" step="0.001" />
+              </label>
+              <label>
+                採用延長m
+                <input id="edit-length" type="number" min="0" step="0.001" />
+              </label>
+            </div>
+            <button id="apply-selected" class="primary" type="button">選択内容を更新</button>
+          </div>
+        </section>
+
+        <section class="tool-panel">
+          <h2>5. 出力</h2>
+          <button id="export-excel" class="primary" type="button">Excel出力</button>
+          <div id="totals" class="totals"></div>
+        </section>
+      </aside>
+    </main>
+  </body>
+</html>
