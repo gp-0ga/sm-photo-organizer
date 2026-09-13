@@ -1,11 +1,12 @@
 import * as XLSX from "xlsx";
+import { createZip } from "./zip.js";
 import "./drawing.css";
 
 const pageKinds = ["平面図", "立面図", "屋上平面図", "断面図", "矩計図", "面積表", "使わない"];
 const kindOptions = {
-  area: ["外壁面積", "防水面積"],
+  area: ["外壁面積", "防水面積", "床面積", "建築面積"],
   opening: ["開口控除"],
-  line: ["縦目地", "横目地", "打継シール", "サッシ周りシール", "防水目地", "建物周長", "その他"],
+  line: ["伸縮目地", "打継シール", "サッシ周りシール", "防水目地", "建物周長", "その他"],
 };
 
 const state = {
@@ -21,6 +22,12 @@ const state = {
   pointer: null,
   dragPreview: null,
   suppressClick: false,
+  ruler: {
+    lengthM: 20,
+    stepM: 4,
+    horizontal: { visible: false, x: 80, y: 80 },
+    vertical: { visible: false, x: 80, y: 160 },
+  },
 };
 
 const canvas = document.querySelector("#drawing-canvas");
@@ -33,6 +40,8 @@ const saveWork = document.querySelector("#save-work");
 const loadWork = document.querySelector("#load-work");
 const deleteWork = document.querySelector("#delete-work");
 const savedWorkList = document.querySelector("#saved-work-list");
+const exportWorkFile = document.querySelector("#export-work-file");
+const importWorkFile = document.querySelector("#import-work-file");
 const pageKind = document.querySelector("#page-kind");
 const scaleDenominator = document.querySelector("#scale-denominator");
 const confirmScale = document.querySelector("#confirm-scale");
@@ -43,10 +52,17 @@ const applyPlanElevation = document.querySelector("#apply-plan-elevation");
 const manualCorrection = document.querySelector("#manual-correction");
 const setCorrection = document.querySelector("#set-correction");
 const scaleNote = document.querySelector("#scale-note");
+const rulerLength = document.querySelector("#ruler-length");
+const rulerStep = document.querySelector("#ruler-step");
+const rulerHorizontal = document.querySelector("#ruler-horizontal");
+const rulerVertical = document.querySelector("#ruler-vertical");
 const quantityKind = document.querySelector("#quantity-kind");
 const selectEdit = document.querySelector("#select-edit");
 const drawPolygon = document.querySelector("#draw-polygon");
 const drawRect = document.querySelector("#draw-rect");
+const drawManual = document.querySelector("#draw-manual");
+const manualAreaField = document.querySelector("#manual-area-field");
+const manualAreaInput = document.querySelector("#manual-area-input");
 const buildingInput = document.querySelector("#building-input");
 const elevationInput = document.querySelector("#elevation-input");
 const finishInput = document.querySelector("#finish-input");
@@ -66,6 +82,8 @@ const finishShape = document.querySelector("#finish-shape");
 const undoPoint = document.querySelector("#undo-point");
 const deleteSelected = document.querySelector("#delete-selected");
 const exportExcel = document.querySelector("#export-excel");
+const exportImage = document.querySelector("#export-image");
+const exportImagesZip = document.querySelector("#export-images-zip");
 const totals = document.querySelector("#totals");
 const zoomOut = document.querySelector("#zoom-out");
 const zoomIn = document.querySelector("#zoom-in");
@@ -300,6 +318,49 @@ async function loadDraftWork() {
   }
 }
 
+async function exportWorkToFile() {
+  if (state.pages.length === 0) {
+    setStatus("書き出す図面がありません。");
+    return;
+  }
+  const name = workName.value.trim() || `図面数量拾い_${new Date().toLocaleString("ja-JP")}`;
+  const data = serializeCurrentWork(name);
+  const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${sanitizeFileName(name)}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  setStatus(`${name} をファイルへ書き出しました。他のPCへコピーして「ファイルから読込」で復元できます。`, "success");
+}
+
+async function importWorkFromFile(file) {
+  if (!file) return;
+  if (state.pages.length > 0 && !confirm("現在の作業をファイルの内容で置き換えて読み込みます。よろしいですか？")) return;
+  setLoading(true);
+  setStatus(`${file.name} を読み込んでいます。`);
+  try {
+    const text = await file.text();
+    const selected = JSON.parse(text);
+    state.pages = await Promise.all((selected.pages || []).map(pageFromSaved));
+    state.activePageId = selected.activePageId || state.pages[0]?.id || null;
+    workName.value = selected.name || "";
+    state.currentPoints = [];
+    state.selectedId = null;
+    fitActivePageToView();
+    syncControls();
+    renderPageList();
+    renderQuantityList();
+    draw();
+    setStatus(`${selected.name || file.name} をファイルから復元しました。`, "success");
+  } catch {
+    setStatus("ファイルの読み込みに失敗しました。図面数量拾いの作業ファイル(.json)か確認してください。");
+  } finally {
+    setLoading(false);
+  }
+}
+
 async function deleteSelectedWork() {
   const selected = await getSavedWork(savedWorkList.value);
   if (!selected) return;
@@ -390,9 +451,13 @@ function pointInPolygon(point, polygon) {
 }
 
 function shapeQuantity(page, shape) {
+  const adopted = shape.adopted || {};
+  if (shape.drawType === "manual") {
+    const area = adopted.area || 0;
+    return { width: 0, height: 0, length: 0, area, perimeter: 0, measuredWidth: 0, measuredHeight: 0, measuredArea: area, measuredPerimeter: 0, isManual: true };
+  }
   const scale = mmPerPixel(page);
   if (!scale) return { width: 0, height: 0, length: 0, area: 0 };
-  const adopted = shape.adopted || {};
   if (shape.mode === "line") {
     const closed = shape.kind === "建物周長";
     const measuredLength = metric(page, lineLength(shape.points, closed));
@@ -631,6 +696,7 @@ function selectedEntry() {
 function quantityLabel(page, shape) {
   const q = shapeQuantity(page, shape);
   if (shape.mode === "line") return `${formatNumber(q.length)}m`;
+  if (q.isManual) return `${formatNumber(q.area)}m2 (面積表転記)`;
   const perimeter = shape.mode === "opening" ? ` / 周長 ${formatNumber(q.perimeter)}m` : "";
   return `${formatNumber(q.width)}m x ${formatNumber(q.height)}m = ${formatNumber(q.area)}m2${perimeter}`;
 }
@@ -667,15 +733,22 @@ function renderSelectedEditor() {
   selectedEditor.hidden = !entry;
   if (!entry) return;
   const q = shapeQuantity(entry.page, entry.shape);
+  const isManual = entry.shape.drawType === "manual";
   editBuilding.value = entry.shape.building || "";
   editElevation.value = entry.shape.elevation || "";
   editFinish.value = entry.shape.finish || "";
   editMemo.value = entry.shape.memo || "";
-  editWidth.value = entry.shape.mode === "line" ? "" : formatNumber(q.width, 3);
-  editHeight.value = entry.shape.mode === "line" ? "" : formatNumber(q.height, 3);
+  editWidth.value = entry.shape.mode === "line" || isManual ? "" : formatNumber(q.width, 3);
+  editHeight.value = entry.shape.mode === "line" || isManual ? "" : formatNumber(q.height, 3);
   editArea.value = entry.shape.mode === "line" ? "" : formatNumber(q.area, 3);
-  editArea.disabled = entry.shape.mode !== "line" && q.isRectangular;
-  editArea.title = editArea.disabled ? "四角形は採用幅x採用高さから自動計算します。" : "";
+  editWidth.disabled = isManual;
+  editHeight.disabled = isManual;
+  editArea.disabled = !isManual && entry.shape.mode !== "line" && q.isRectangular;
+  editArea.title = isManual
+    ? "面積表から転記した値です。直接編集できます。"
+    : editArea.disabled
+      ? "四角形は採用幅x採用高さから自動計算します。"
+      : "";
   editLength.value = entry.shape.mode === "line" ? formatNumber(q.length, 3) : "";
 }
 
@@ -709,6 +782,9 @@ function applySelectedEdits() {
   if (shape.mode === "line") {
     const length = Number(editLength.value);
     shape.adopted.length = Number.isFinite(length) && length > 0 ? length : undefined;
+  } else if (shape.drawType === "manual") {
+    const area = Number(editArea.value);
+    shape.adopted.area = Number.isFinite(area) && area > 0 ? area : shape.adopted.area;
   } else {
     const width = Number(editWidth.value);
     const height = Number(editHeight.value);
@@ -801,6 +877,79 @@ function draw() {
   if (state.dragPreview) {
     drawPolyline(state.dragPreview, state.dragPreview.length > 2, "#c47717", "rgb(196 119 23 / 16%)");
   }
+  if (page.scaleConfirmed) {
+    if (state.ruler.horizontal.visible) drawRuler(page, "horizontal");
+    if (state.ruler.vertical.visible) drawRuler(page, "vertical");
+  }
+}
+
+function metersToPixels(page, meters) {
+  const scale = mmPerPixel(page);
+  if (!scale) return 0;
+  return (meters * 1000) / (scale * (page.scaleCorrection || 1));
+}
+
+function rulerEndpoint(page, orientation) {
+  const lengthPx = metersToPixels(page, state.ruler.lengthM);
+  const { x, y } = state.ruler[orientation];
+  return orientation === "horizontal" ? { x: x + lengthPx, y } : { x, y: y + lengthPx };
+}
+
+function drawRuler(page, orientation) {
+  const { x, y } = state.ruler[orientation];
+  const { lengthM } = state.ruler;
+  const end = rulerEndpoint(page, orientation);
+  if (Math.hypot(end.x - x, end.y - y) <= 0) return;
+  ctx.save();
+  ctx.strokeStyle = "#c47717";
+  ctx.lineWidth = 3 / state.zoom;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
+
+  const tick = 10 / state.zoom;
+  const smallTick = 6 / state.zoom;
+  ctx.fillStyle = "#8a4a0a";
+  ctx.font = `${12 / state.zoom}px sans-serif`;
+  const step = state.ruler.stepM > 0 && state.ruler.stepM <= lengthM ? state.ruler.stepM : lengthM;
+  const marks = Math.max(1, Math.round(lengthM / step));
+  for (let i = 0; i <= marks; i += 1) {
+    const distM = i < marks ? i * step : lengthM;
+    const ratio = distM / lengthM;
+    const px = orientation === "horizontal" ? x + (end.x - x) * ratio : x;
+    const py = orientation === "horizontal" ? y : y + (end.y - y) * ratio;
+    const isEnd = i === 0 || i === marks;
+    const tickLen = isEnd ? tick : smallTick;
+    ctx.beginPath();
+    if (orientation === "horizontal") {
+      ctx.moveTo(px, py - tickLen);
+      ctx.lineTo(px, py + tickLen);
+    } else {
+      ctx.moveTo(px - tickLen, py);
+      ctx.lineTo(px + tickLen, py);
+    }
+    ctx.stroke();
+    const label = `${formatNumber(distM, distM % 1 === 0 ? 0 : 2)}m`;
+    if (orientation === "horizontal") {
+      ctx.fillText(label, px - 10 / state.zoom, py - tickLen - 4 / state.zoom);
+    } else {
+      ctx.fillText(label, px + tickLen + 4 / state.zoom, py + 4 / state.zoom);
+    }
+  }
+  ctx.restore();
+}
+
+function hitRulerOrientation(point) {
+  const page = activePage();
+  if (!page || !page.scaleConfirmed) return null;
+  for (const orientation of ["horizontal", "vertical"]) {
+    const r = state.ruler[orientation];
+    if (!r.visible) continue;
+    const end = rulerEndpoint(page, orientation);
+    if (distanceToSegment(point, { x: r.x, y: r.y }, end) < 10 / state.zoom) return orientation;
+  }
+  return null;
 }
 
 function canvasPoint(event) {
@@ -878,6 +1027,37 @@ function addShape(points) {
   state.currentPoints = [];
   state.selectedId = page.shapes.at(-1).id;
   setStatus(`${quantityKind.value}を確定しました。${quantityLabel(page, page.shapes.at(-1))}`, "success");
+  renderAllPanels();
+  syncControls();
+  draw();
+  scheduleAutosave();
+}
+
+function addManualShape() {
+  const page = activePage();
+  if (!page) return;
+  const area = Number(manualAreaInput.value);
+  if (!Number.isFinite(area) || area <= 0) {
+    setStatus("面積は0より大きい数値を入れてください。");
+    return;
+  }
+  page.shapes.push({
+    id: crypto.randomUUID(),
+    mode: state.mode,
+    kind: quantityKind.value,
+    building: buildingInput.value.trim(),
+    elevation: elevationInput.value.trim(),
+    finish: finishInput.value.trim(),
+    memo: memoInput.value.trim(),
+    points: [],
+    drawType: "manual",
+    adopted: { area },
+    source: "面積表転記",
+    createdAt: new Date().toLocaleString("ja-JP"),
+  });
+  state.selectedId = page.shapes.at(-1).id;
+  manualAreaInput.value = "";
+  setStatus(`${quantityKind.value}を面積表の数値(${formatNumber(area, 2)}m2)として記録しました。図面名「${page.name}」が根拠になります。`, "success");
   renderAllPanels();
   syncControls();
   draw();
@@ -973,13 +1153,14 @@ function categoryRank(value = "") {
   return {
     外壁面積: 0,
     開口控除: 1,
-    縦目地: 2,
-    横目地: 3,
-    打継シール: 4,
-    サッシ周りシール: 5,
-    防水面積: 6,
-    防水目地: 7,
-    建物周長: 8,
+    伸縮目地: 2,
+    打継シール: 3,
+    サッシ周りシール: 4,
+    防水面積: 5,
+    防水目地: 6,
+    建物周長: 7,
+    床面積: 8,
+    建築面積: 9,
   }[value] ?? 99;
 }
 
@@ -1000,66 +1181,214 @@ function compareOutputRows(a, b) {
   );
 }
 
-function summaryRank(value = "") {
+function sumFields(rows) {
   return {
-    棟別: 0,
-    仕上別: 1,
-    棟_仕上別: 2,
-    立面方位別: 3,
-    立面範囲別: 4,
-    外壁開口率: 5,
-    建具周長合計: 6,
-    足場概算: 7,
-  }[value] ?? 99;
+    面積m2: rows.reduce((sum, row) => sum + (row.面積m2 || 0), 0),
+    延長m: rows.reduce((sum, row) => sum + (row.延長m || 0), 0),
+    周長m: rows.reduce((sum, row) => sum + (row.周長m || 0), 0),
+  };
+}
+
+function buildBreakdownWithCheck(rows, categoryTotal, breakdownKey, title) {
+  const withKey = rows.filter((row) => row[breakdownKey] && row[breakdownKey] !== "-");
+  if (withKey.length === 0) return [];
+  const map = new Map();
+  withKey.forEach((row) => addSummary(map, ["棟", breakdownKey, "分類"], row));
+  const breakdownRows = [...map.values()]
+    .sort((a, b) => compareText(a[breakdownKey], b[breakdownKey]))
+    .map((value) => ({ 集計区分: title, ...value }));
+  const sum = sumFields(breakdownRows);
+  const diff = Math.abs(sum.面積m2 - categoryTotal.面積m2) + Math.abs(sum.延長m - categoryTotal.延長m) + Math.abs(sum.周長m - categoryTotal.周長m);
+  breakdownRows.push({
+    集計区分: `${title}計`,
+    棟: breakdownRows[0].棟,
+    分類: breakdownRows[0].分類,
+    ...sum,
+    備考: diff < 0.01 ? "棟計と一致" : `棟計との差 ${formatNumber(diff, 3)}(要確認)`,
+  });
+  return breakdownRows;
 }
 
 function buildSummaryRows(quantityRows) {
   const rows = [];
-  const groups = [
-    { title: "棟別", keys: ["棟", "分類"] },
-    { title: "仕上別", keys: ["仕上", "分類"] },
-    { title: "棟_仕上別", keys: ["棟", "仕上", "分類"] },
-    { title: "立面方位別", keys: ["棟", "立面方位", "仕上", "分類"] },
-    { title: "立面範囲別", keys: ["棟", "立面範囲", "仕上", "分類"] },
-  ];
-  groups.forEach((group) => {
-    const summary = new Map();
-    quantityRows.filter((row) => row.入力種別 !== "概算").forEach((row) => addSummary(summary, group.keys, row));
-    summary.forEach((value) => rows.push({ 集計区分: group.title, ...value }));
+  const activeRows = quantityRows.filter((row) => row.入力種別 !== "概算");
+
+  const overallMap = new Map();
+  activeRows.forEach((row) => addSummary(overallMap, ["分類"], row));
+
+  const buildingRowsBlock = [];
+  const buildingTotalByCategory = new Map();
+  const buildings = [...new Set(activeRows.map((row) => row.棟).filter((building) => building && building !== "-"))].sort(compareText);
+  buildings.forEach((building) => {
+    const buildingRows = activeRows.filter((row) => (row.棟 || "-") === building);
+    const categories = [...new Set(buildingRows.map((row) => row.分類))].sort((a, b) => categoryRank(a) - categoryRank(b));
+    categories.forEach((category) => {
+      const categoryRows = buildingRows.filter((row) => row.分類 === category);
+      const total = sumFields(categoryRows);
+      buildingRowsBlock.push({
+        集計区分: "棟計",
+        棟: building,
+        分類: category,
+        ...total,
+        備考: category === "外壁面積" ? "開口控除前の数値です(開口控除後は棟別外壁差引を参照)" : undefined,
+      });
+      buildingRowsBlock.push(...buildBreakdownWithCheck(categoryRows, total, "仕上", "仕上内訳"));
+      buildingRowsBlock.push(...buildBreakdownWithCheck(categoryRows, total, "立面方位", "方位内訳"));
+      buildingRowsBlock.push(...buildBreakdownWithCheck(categoryRows, total, "立面範囲", "範囲内訳"));
+      const prev = buildingTotalByCategory.get(category) || { 面積m2: 0, 延長m: 0, 周長m: 0 };
+      buildingTotalByCategory.set(category, {
+        面積m2: prev.面積m2 + total.面積m2,
+        延長m: prev.延長m + total.延長m,
+        周長m: prev.周長m + total.周長m,
+      });
+    });
+    const wallArea = buildingRows.filter((row) => row.分類 === "外壁面積").reduce((sum, row) => sum + (row.面積m2 || 0), 0);
+    const openingArea = buildingRows.filter((row) => row.分類 === "開口控除").reduce((sum, row) => sum + (row.面積m2 || 0), 0);
+    if (wallArea > 0 || openingArea > 0) {
+      buildingRowsBlock.push({
+        集計区分: "棟別外壁差引",
+        棟: building,
+        分類: "外壁差引",
+        面積m2: wallArea - openingArea,
+        備考: `外壁面積${formatNumber(wallArea)}m2 - 開口控除${formatNumber(openingArea)}m2`,
+      });
+      buildingRowsBlock.push({
+        集計区分: "棟別開口率",
+        棟: building,
+        分類: "開口率",
+        面積m2: wallArea > 0 ? (openingArea / wallArea) * 100 : 0,
+        備考: `開口控除${formatNumber(openingArea)}m2 / 外壁面積${formatNumber(wallArea)}m2`,
+      });
+    }
   });
-  const wallArea = quantityRows.filter((row) => row.分類 === "外壁面積").reduce((sum, row) => sum + (row.面積m2 || 0), 0);
-  const openingArea = quantityRows.filter((row) => row.分類 === "開口控除").reduce((sum, row) => sum + (row.面積m2 || 0), 0);
-  const openingPerimeter = quantityRows.filter((row) => row.分類 === "開口控除").reduce((sum, row) => sum + (row.周長m || 0), 0);
+
+  [...overallMap.values()]
+    .sort((a, b) => categoryRank(a.分類) - categoryRank(b.分類))
+    .forEach((value) => {
+      const buildingSum = buildingTotalByCategory.get(value.分類) || { 面積m2: 0, 延長m: 0, 周長m: 0 };
+      const diff = Math.abs(buildingSum.面積m2 - value.面積m2) + Math.abs(buildingSum.延長m - value.延長m) + Math.abs(buildingSum.周長m - value.周長m);
+      const checkNote = diff < 0.01 ? "棟計の合計と一致" : `棟計合計との差 ${formatNumber(diff, 3)}(棟未入力分の可能性、要確認)`;
+      const openingNote = value.分類 === "外壁面積" ? "開口控除前の数値です(開口控除後は全体外壁開口率を参照)" : null;
+      rows.push({
+        集計区分: "総合計",
+        ...value,
+        備考: [checkNote, openingNote].filter(Boolean).join(" / "),
+      });
+    });
+
+  const wallAreaAll = activeRows.filter((row) => row.分類 === "外壁面積").reduce((sum, row) => sum + (row.面積m2 || 0), 0);
+  const openingAreaAll = activeRows.filter((row) => row.分類 === "開口控除").reduce((sum, row) => sum + (row.面積m2 || 0), 0);
+  const openingPerimeterAll = activeRows.filter((row) => row.分類 === "開口控除").reduce((sum, row) => sum + (row.周長m || 0), 0);
+  const buildingPerimeterAll = activeRows.filter((row) => row.分類 === "建物周長").reduce((sum, row) => sum + (row.延長m || 0), 0);
   rows.push({
-    集計区分: "外壁開口率",
+    集計区分: "全体外壁開口率",
     分類: "開口率",
-    面積m2: wallArea > 0 ? (openingArea / wallArea) * 100 : 0,
-    備考: `開口控除 ${formatNumber(openingArea)}m2 / 外壁面積 ${formatNumber(wallArea)}m2`,
+    面積m2: wallAreaAll > 0 ? (openingAreaAll / wallAreaAll) * 100 : 0,
+    備考: `開口控除${formatNumber(openingAreaAll)}m2 / 外壁面積${formatNumber(wallAreaAll)}m2`,
   });
   rows.push({
     集計区分: "建具周長合計",
     分類: "開口控除",
-    周長m: openingPerimeter,
+    周長m: openingPerimeterAll,
     備考: "開口控除(建具)の周長合計。額縁・シーリングなど建具周り施工数量の目安。",
   });
-  const buildingPerimeter = quantityRows.filter((row) => row.分類 === "建物周長").reduce((sum, row) => sum + (row.延長m || 0), 0);
-  if (wallArea > 0) {
+  if (wallAreaAll > 0) {
     rows.push({
       集計区分: "足場概算",
       分類: "外部足場概算面積",
-      面積m2: wallArea,
+      面積m2: wallAreaAll,
       備考: "外壁面積を足場概算数量として転用。正確な足場計画数量ではありません。",
     });
   }
-  if (buildingPerimeter > 0) {
+  if (buildingPerimeterAll > 0) {
     rows.push({
       集計区分: "足場概算",
       分類: "安全手すり概算延長",
-      延長m: buildingPerimeter,
+      延長m: buildingPerimeterAll,
       備考: "建物周長を安全手すり概算数量として転用。正確な足場計画数量ではありません。",
     });
   }
-  return rows.sort((a, b) => summaryRank(a.集計区分) - summaryRank(b.集計区分) || compareOutputRows(a, b));
+
+  const unassignedRows = activeRows.filter((row) => !row.棟 || row.棟 === "-");
+  if (unassignedRows.length > 0) {
+    const unassignedMap = new Map();
+    unassignedRows.forEach((row) => addSummary(unassignedMap, ["分類"], row));
+    [...unassignedMap.values()]
+      .sort((a, b) => categoryRank(a.分類) - categoryRank(b.分類))
+      .forEach((value) =>
+        rows.push({
+          集計区分: "棟未入力",
+          ...value,
+          備考: "棟が未入力です。数量表・根拠一覧で棟が空欄の行を確認してください。",
+        }),
+      );
+  }
+
+  rows.push(...buildingRowsBlock);
+  return rows;
+}
+
+function buildPrimarySummaryRows(quantityRows) {
+  const activeRows = quantityRows.filter((row) => row.入力種別 !== "概算");
+  const openingNote = (category) => (category === "外壁面積" ? "開口控除前の数値です" : undefined);
+
+  const detailMap = new Map();
+  activeRows.forEach((row) => addSummary(detailMap, ["棟", "仕上", "分類"], row));
+  const detailRows = [...detailMap.values()]
+    .sort((a, b) => compareText(a.棟, b.棟) || compareText(a.仕上, b.仕上) || categoryRank(a.分類) - categoryRank(b.分類))
+    .map((value) => ({ 集計区分: "明細", ...value, 備考: openingNote(value.分類) }));
+
+  const buildingMap = new Map();
+  activeRows.forEach((row) => addSummary(buildingMap, ["棟", "分類"], row));
+  const buildingRows = [...buildingMap.values()]
+    .sort((a, b) => compareText(a.棟, b.棟) || categoryRank(a.分類) - categoryRank(b.分類))
+    .map((value) => ({ 集計区分: "棟計", ...value, 備考: openingNote(value.分類) }));
+
+  const openingPerimeterAll = activeRows.filter((row) => row.分類 === "開口控除").reduce((sum, row) => sum + (row.周長m || 0), 0);
+  const openingPerimeterRows =
+    openingPerimeterAll > 0
+      ? [
+          {
+            集計区分: "開口周長合計",
+            分類: "開口控除",
+            周長m: openingPerimeterAll,
+            備考: "開口控除(建具)の周長合計です。額縁・シーリングなど建具周り施工数量の目安。",
+          },
+        ]
+      : [];
+
+  return [...detailRows, ...buildingRows, ...openingPerimeterRows];
+}
+
+const QUANTITY_HEADERS = [
+  "図面名", "図面種別", "対象ID", "棟", "立面方位", "立面範囲", "仕上", "分類", "入力種別",
+  "実測幅m", "実測高さm", "実測延長m", "実測面積m2", "実測周長m",
+  "幅m", "高さm", "延長m", "面積m2", "周長m",
+  "手修正", "縮尺", "実寸補正係数", "補正確認m", "画像DPI", "備考",
+];
+const EVIDENCE_HEADERS = [
+  "図面名", "図面種別", "対象ID", "棟", "立面方位", "立面範囲", "仕上", "分類", "入力種別",
+  "採用幅m", "採用高さm", "採用延長m", "採用面積m2", "採用周長m",
+  "根拠番号", "AI候補人確定", "縮尺確定", "実寸補正係数", "補正確認m", "概算区分", "座標", "承認日時", "備考",
+];
+const SUMMARY_HEADERS = ["集計区分", "棟", "仕上", "立面方位", "立面範囲", "分類", "面積m2", "延長m", "周長m", "備考"];
+const PRIMARY_SUMMARY_HEADERS = ["集計区分", "棟", "仕上", "分類", "面積m2", "延長m", "周長m", "備考"];
+
+const COLUMN_WIDTHS = {
+  図面名: 22, 図面種別: 10, 対象ID: 12, 棟: 8, 立面方位: 8, 立面範囲: 14, 仕上: 16,
+  分類: 12, 入力種別: 8, 集計区分: 12,
+  実測幅m: 9, 実測高さm: 9, 実測延長m: 9, 実測面積m2: 10, 実測周長m: 9,
+  幅m: 8, 高さm: 8, 延長m: 8, 面積m2: 9, 周長m: 8,
+  採用幅m: 8, 採用高さm: 8, 採用延長m: 8, 採用面積m2: 9, 採用周長m: 8,
+  手修正: 7, 縮尺: 8, 実寸補正係数: 10, 補正確認m: 9, 画像DPI: 7,
+  根拠番号: 8, AI候補人確定: 10, 縮尺確定: 8, 概算区分: 8, 座標: 30, 承認日時: 16, 備考: 24,
+};
+
+function buildPrintSheet(rows, headers) {
+  const sheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+  sheet["!cols"] = headers.map((key) => ({ wch: COLUMN_WIDTHS[key] || 10 }));
+  sheet["!margins"] = { left: 0.35, right: 0.35, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 };
+  return sheet;
 }
 
 function exportWorkbook() {
@@ -1126,16 +1455,93 @@ function exportWorkbook() {
   quantityRows.sort(compareOutputRows);
   evidenceRows.sort(compareOutputRows);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(quantityRows), "数量表");
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(evidenceRows), "根拠一覧");
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(buildSummaryRows(quantityRows)), "集計");
+  XLSX.utils.book_append_sheet(workbook, buildPrintSheet(quantityRows, QUANTITY_HEADERS), "数量表");
+  XLSX.utils.book_append_sheet(workbook, buildPrintSheet(evidenceRows, EVIDENCE_HEADERS), "根拠一覧");
+  XLSX.utils.book_append_sheet(workbook, buildPrintSheet(buildPrimarySummaryRows(quantityRows), PRIMARY_SUMMARY_HEADERS), "一次集計");
+  XLSX.utils.book_append_sheet(workbook, buildPrintSheet(buildSummaryRows(quantityRows), SUMMARY_HEADERS), "二次集計");
   XLSX.writeFile(workbook, `図面数量拾い_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+function sanitizeFileName(name) {
+  return String(name || "図面").replace(/[\\/:*?"<>|]/g, "_");
+}
+
+function exportCanvasImage() {
+  const page = activePage();
+  if (!page || !page.image) {
+    setStatus("先に図面を読み込んでください。");
+    return;
+  }
+  const hadHorizontal = state.ruler.horizontal.visible;
+  const hadVertical = state.ruler.vertical.visible;
+  if (hadHorizontal || hadVertical) {
+    state.ruler.horizontal.visible = false;
+    state.ruler.vertical.visible = false;
+    draw();
+  }
+  const dataUrl = canvas.toDataURL("image/png");
+  if (hadHorizontal || hadVertical) {
+    state.ruler.horizontal.visible = hadHorizontal;
+    state.ruler.vertical.visible = hadVertical;
+    draw();
+  }
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = `${sanitizeFileName(page.name)}_数量拾い.png`;
+  link.click();
+  setStatus(`「${page.name}」の画像を保存しました。`, "success");
+}
+
+async function exportAllImagesZip() {
+  const targetPages = state.pages.filter((page) => page.image && page.shapes.length > 0);
+  if (targetPages.length === 0) {
+    setStatus("数量を確定した図面がありません。1件以上確定してから実行してください。");
+    return;
+  }
+  const originalActiveId = state.activePageId;
+  const hadHorizontal = state.ruler.horizontal.visible;
+  const hadVertical = state.ruler.vertical.visible;
+  state.ruler.horizontal.visible = false;
+  state.ruler.vertical.visible = false;
+  const usedNames = new Set();
+  const entries = [];
+  for (const page of targetPages) {
+    state.activePageId = page.id;
+    draw();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    let name = `${sanitizeFileName(page.name)}.png`;
+    let counter = 2;
+    while (usedNames.has(name)) {
+      name = `${sanitizeFileName(page.name)}_${counter}.png`;
+      counter += 1;
+    }
+    usedNames.add(name);
+    entries.push({ path: name, blob });
+  }
+  state.activePageId = originalActiveId;
+  state.ruler.horizontal.visible = hadHorizontal;
+  state.ruler.vertical.visible = hadVertical;
+  draw();
+  const zipBlob = await createZip(entries);
+  const url = URL.createObjectURL(zipBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `図面数量拾い画像_${new Date().toISOString().slice(0, 10)}.zip`;
+  link.click();
+  URL.revokeObjectURL(url);
+  setStatus(`確定済み図面 ${entries.length}件をZIPで保存しました。`, "success");
 }
 
 fileInput.addEventListener("change", (event) => handleFiles(event.target.files));
 saveWork.addEventListener("click", saveCurrentWork);
 loadWork.addEventListener("click", loadSelectedWork);
 deleteWork.addEventListener("click", deleteSelectedWork);
+exportWorkFile.addEventListener("click", exportWorkToFile);
+importWorkFile.addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  importWorkFromFile(file);
+  event.target.value = "";
+});
 applySelected.addEventListener("click", applySelectedEdits);
 editWidth.addEventListener("input", refreshAreaPreview);
 editHeight.addEventListener("input", refreshAreaPreview);
@@ -1197,15 +1603,39 @@ setCorrection.addEventListener("click", () => {
   draw();
   scheduleAutosave();
 });
+rulerHorizontal.addEventListener("change", () => {
+  state.ruler.horizontal.visible = rulerHorizontal.checked;
+  draw();
+});
+rulerVertical.addEventListener("change", () => {
+  state.ruler.vertical.visible = rulerVertical.checked;
+  draw();
+});
+rulerLength.addEventListener("input", () => {
+  const value = Number(rulerLength.value);
+  if (Number.isFinite(value) && value > 0) state.ruler.lengthM = value;
+  draw();
+});
+rulerStep.addEventListener("input", () => {
+  const value = Number(rulerStep.value);
+  if (Number.isFinite(value) && value > 0) state.ruler.stepM = value;
+  draw();
+});
+function setDrawTypeButton(activeButton) {
+  [selectEdit, drawPolygon, drawRect, drawManual].forEach((button) => button.classList.toggle("selected", button === activeButton));
+  manualAreaField.hidden = activeButton !== drawManual;
+}
 document.querySelectorAll(".mode-button").forEach((button) => {
   button.addEventListener("click", () => {
     document.querySelectorAll(".mode-button").forEach((item) => item.classList.remove("selected"));
     button.classList.add("selected");
     state.mode = button.dataset.mode;
     state.interaction = "draw";
+    state.drawType = "polygon";
     state.currentPoints = [];
     state.calibrating = false;
-    selectEdit.classList.remove("selected");
+    drawManual.disabled = state.mode === "line";
+    setDrawTypeButton(drawPolygon);
     updateKindOptions();
     draw();
   });
@@ -1214,25 +1644,27 @@ selectEdit.addEventListener("click", () => {
   state.interaction = "select";
   state.currentPoints = [];
   state.calibrating = false;
-  selectEdit.classList.add("selected");
-  drawPolygon.classList.remove("selected");
-  drawRect.classList.remove("selected");
+  setDrawTypeButton(selectEdit);
   setStatus("選択/編集モードです。図形をクリックして選択、角点をドラッグして修正、選択削除で削除できます。");
   draw();
 });
 drawPolygon.addEventListener("click", () => {
   state.interaction = "draw";
   state.drawType = "polygon";
-  selectEdit.classList.remove("selected");
-  drawPolygon.classList.add("selected");
-  drawRect.classList.remove("selected");
+  setDrawTypeButton(drawPolygon);
 });
 drawRect.addEventListener("click", () => {
   state.interaction = "draw";
   state.drawType = "rect";
-  selectEdit.classList.remove("selected");
-  drawRect.classList.add("selected");
-  drawPolygon.classList.remove("selected");
+  setDrawTypeButton(drawRect);
+});
+drawManual.addEventListener("click", () => {
+  state.interaction = "manual";
+  state.drawType = "manual";
+  state.currentPoints = [];
+  setDrawTypeButton(drawManual);
+  setStatus("手入力モードです。面積表に書かれた数値をそのまま入力して確定してください。");
+  draw();
 });
 scalePresetButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -1245,6 +1677,7 @@ canvas.addEventListener("pointerdown", (event) => {
   if (!page || page.unsupported) return;
   const point = canvasPoint(event);
   const vertex = state.interaction === "select" && !state.calibrating && state.currentPoints.length === 0 ? hitVertex(point) : null;
+  const rulerOrientation = !vertex && !state.calibrating ? hitRulerOrientation(point) : null;
   const canDrawRect = page.scaleConfirmed && !state.calibrating && isRectangleDragMode();
   state.pointer = {
     startClientX: event.clientX,
@@ -1252,8 +1685,9 @@ canvas.addEventListener("pointerdown", (event) => {
     lastClientX: event.clientX,
     lastClientY: event.clientY,
     startPoint: point,
-    type: vertex ? "vertex" : canDrawRect ? "rect" : "pan",
+    type: vertex ? "vertex" : rulerOrientation ? "ruler" : canDrawRect ? "rect" : "pan",
     vertex,
+    rulerOrientation,
     moved: false,
   };
   if (vertex) {
@@ -1272,6 +1706,11 @@ canvas.addEventListener("pointermove", (event) => {
     draw();
   } else if (state.pointer.type === "vertex" && state.pointer.vertex) {
     state.pointer.vertex.shape.points[state.pointer.vertex.pointIndex] = canvasPoint(event);
+    draw();
+  } else if (state.pointer.type === "ruler") {
+    const r = state.ruler[state.pointer.rulerOrientation];
+    r.x += dx / state.zoom;
+    r.y += dy / state.zoom;
     draw();
   } else if (state.pointer.moved) {
     canvasWrap.classList.add("is-panning");
@@ -1350,6 +1789,7 @@ canvas.addEventListener("click", (event) => {
       return;
     }
   }
+  if (state.interaction === "manual") return;
   const hit = state.interaction === "select" ? hitShape(point) : null;
   if (hit && state.currentPoints.length === 0) {
     state.selectedId = hit.id;
@@ -1371,7 +1811,13 @@ canvas.addEventListener("mousemove", (event) => {
   const point = canvasPoint(event);
   cursorReadout.textContent = `x:${Math.round(point.x)} y:${Math.round(point.y)}`;
 });
-finishShape.addEventListener("click", () => addShape(state.currentPoints));
+finishShape.addEventListener("click", () => {
+  if (state.drawType === "manual") {
+    addManualShape();
+  } else {
+    addShape(state.currentPoints);
+  }
+});
 undoPoint.addEventListener("click", () => {
   state.currentPoints.pop();
   if (state.calibrating) {
@@ -1394,6 +1840,8 @@ zoomIn.addEventListener("click", () => setZoom(state.zoom + 0.1));
 prevPage.addEventListener("click", () => selectPageByIndex(activePageIndex() - 1));
 nextPage.addEventListener("click", () => selectPageByIndex(activePageIndex() + 1));
 exportExcel.addEventListener("click", exportWorkbook);
+exportImage.addEventListener("click", exportCanvasImage);
+exportImagesZip.addEventListener("click", exportAllImagesZip);
 
 updateKindOptions();
 renderSavedWorks();

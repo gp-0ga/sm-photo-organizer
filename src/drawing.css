@@ -107,6 +107,22 @@ label { display: grid; gap: .35rem; color: #34444f; font-size: .9rem; font-weigh
 .scale-grid { display: grid; gap: .55rem; }
 .save-tools { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .45rem; }
 .save-tools button { padding: .55rem .35rem; }
+.save-tools:has(#export-work-file) { grid-template-columns: 1fr 1fr; }
+.file-import-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #b9c4cc;
+  border-radius: 6px;
+  padding: .55rem .35rem;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: .9rem;
+  text-align: center;
+}
+.file-import-button:hover { border-color: #27708b; background: #eef8fb; }
+.file-import-button input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
 .scale-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
 .scale-presets button { padding: .5rem .4rem; }
 .scale-presets button.selected { color: #fff; border-color: #176b4d; background: #176b4d; }
@@ -116,9 +132,14 @@ label { display: grid; gap: .35rem; color: #34444f; font-size: .9rem; font-weigh
 .apply-scale-tools button { padding: .5rem .4rem; }
 .manual-correction { display: grid; grid-template-columns: 1fr 7rem; gap: .45rem; align-items: end; }
 .manual-correction button { min-height: 2.75rem; }
+.ruler-toggle { display: flex; align-items: center; gap: .5rem; font-weight: 700; }
+.ruler-toggle input { width: auto; }
+.ruler-orientation { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+.ruler-orientation button.selected { color: #fff; border-color: #176b4d; background: #176b4d; }
 .mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
 .draw-type { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .4rem; }
+.draw-type--4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 .draw-type button.selected { color: #fff; border-color: #176b4d; background: #176b4d; }
 .mode-button.selected { color: #fff; border-color: #176b4d; background: #176b4d; }
 .primary { color: #fff; border-color: #176b4d; background: #176b4d; }

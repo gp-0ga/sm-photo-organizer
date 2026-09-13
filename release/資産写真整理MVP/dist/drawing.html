@@ -4,9 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>図面数量拾いMVP</title>
-    <script type="module" crossorigin src="/assets/drawing-Ckn_rT_G.js"></script>
+    <script type="module" crossorigin src="/assets/drawing-CNj5TD8o.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/xlsx-B6miiLSx.js">
-    <link rel="stylesheet" crossorigin href="/assets/drawing-BM9RHq-s.css">
+    <link rel="modulepreload" crossorigin href="/assets/zip-DhXGBq_l.js">
+    <link rel="stylesheet" crossorigin href="/assets/drawing-zYfEM6Vs.css">
   </head>
   <body class="drawing-app">
     <header class="drawing-header">
@@ -44,6 +45,14 @@
             <select id="saved-work-list"></select>
           </label>
           <p class="small-note">保存先はこのPCのブラウザ内です。外部送信はしません。</p>
+          <div class="save-tools">
+            <button id="export-work-file" type="button">ファイルへ書き出し</button>
+            <label class="file-import-button">
+              ファイルから読込
+              <input id="import-work-file" type="file" accept="application/json,.json" />
+            </label>
+          </div>
+          <p class="small-note">PCの買い替えや他の人への引き継ぎに使えます。図面画像を含むファイルとして保存・復元できます(外部送信はしません)。</p>
         </section>
 
         <section class="tool-panel">
@@ -93,6 +102,31 @@
           <p id="scale-note" class="small-note">縮尺未確定</p>
           <p id="action-status" class="action-status" aria-live="polite"></p>
         </section>
+
+        <section class="tool-panel">
+          <h2>ものさし</h2>
+          <div class="ruler-orientation">
+            <label class="ruler-toggle">
+              <input id="ruler-horizontal" type="checkbox" />
+              水平を表示
+            </label>
+            <label class="ruler-toggle">
+              <input id="ruler-vertical" type="checkbox" />
+              垂直を表示
+            </label>
+          </div>
+          <div class="detail-grid">
+            <label>
+              全長m
+              <input id="ruler-length" type="number" min="0.1" step="0.1" value="20" />
+            </label>
+            <label>
+              区切りm
+              <input id="ruler-step" type="number" min="0.1" step="0.1" value="4" />
+            </label>
+          </div>
+          <p class="small-note">縮尺確定後に使えます。目地などを一定間隔でプロットする際の目安にしてください。数量には計上されません。</p>
+        </section>
       </aside>
 
       <section class="drawing-workspace">
@@ -129,11 +163,16 @@
             分類
             <select id="quantity-kind"></select>
           </label>
-          <div class="draw-type">
+          <div class="draw-type draw-type--4">
             <button id="select-edit" type="button">選択/編集</button>
             <button id="draw-polygon" class="selected" type="button">多角形</button>
             <button id="draw-rect" type="button">四角形</button>
+            <button id="draw-manual" type="button">手入力</button>
           </div>
+          <label id="manual-area-field" hidden>
+            面積表からの面積m2
+            <input id="manual-area-input" type="number" min="0" step="0.01" placeholder="例: 65.32" />
+          </label>
           <div class="detail-grid">
             <label>
               棟
@@ -157,7 +196,7 @@
             <button id="undo-point" type="button">1点戻す</button>
             <button id="delete-selected" type="button">選択削除</button>
           </div>
-          <p class="small-note">多角形は点を順にクリック。四角形と開口はドラッグでも作成できます。Shift/Ctrlを押しながらクリックすると水平/垂直に揃えます。図面はドラッグで移動できます。</p>
+          <p class="small-note">多角形は点を順にクリック。四角形と開口はドラッグでも作成できます。Shift/Ctrlを押しながらクリックすると水平/垂直に揃えます。図面はドラッグで移動できます。手入力は面積表に書かれた数値をそのまま記録し、図面名が根拠になります。</p>
         </section>
 
         <section class="tool-panel">
@@ -207,6 +246,9 @@
         <section class="tool-panel">
           <h2>5. 出力</h2>
           <button id="export-excel" class="primary" type="button">Excel出力</button>
+          <button id="export-image" type="button">この図面をPNG画像で保存</button>
+          <button id="export-images-zip" type="button">確定済み図面をまとめてZIP保存</button>
+          <p class="small-note">現在表示中のページを画像保存、または数量を1件以上確定した図面だけをまとめてZIPで保存します。未使用のページは含まれません。</p>
           <div id="totals" class="totals"></div>
         </section>
       </aside>
