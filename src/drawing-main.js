@@ -1,6 +1,10 @@
 import * as XLSX from "xlsx";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { createZip } from "./zip.js";
 import "./drawing.css";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 const pageKinds = ["平面図", "立面図", "屋上平面図", "断面図", "矩計図", "面積表", "使わない"];
 const kindOptions = {
@@ -526,26 +530,55 @@ function imagePageFromSource({ name, fileType, src, kind = "平面図" }) {
   });
 }
 
-async function loadPdfFile(file) {
-  const response = await fetch(`/api/render-pdf?dpi=${PDF_RENDER_DPI}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/pdf" },
-    body: await file.arrayBuffer(),
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("timeout")), ms);
   });
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(result.error || "PDFの画像化に失敗しました。");
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function getPdfDocument(arrayBuffer) {
+  try {
+    return await withTimeout(pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer.slice(0)) }).promise, 8000);
+  } catch {
+    return pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer.slice(0)), disableWorker: true }).promise;
   }
-  return Promise.all(
-    result.pages.map((page) =>
-      imagePageFromSource({
-        name: `${file.name} p.${page.pageNumber}`,
+}
+
+async function loadPdfFile(file) {
+  const scale = PDF_RENDER_DPI / 72;
+  const arrayBuffer = await file.arrayBuffer();
+  let pdf;
+  try {
+    pdf = await getPdfDocument(arrayBuffer);
+  } catch (error) {
+    throw new Error(`PDFの画像化に失敗しました。${error?.message || ""}`.trim());
+  }
+  const pageLimit = Math.min(pdf.numPages, 30);
+  const pages = [];
+  for (let pageNumber = 1; pageNumber <= pageLimit; pageNumber += 1) {
+    const pdfPage = await pdf.getPage(pageNumber);
+    const viewport = pdfPage.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const context = canvas.getContext("2d");
+    try {
+      await withTimeout(pdfPage.render({ canvasContext: context, viewport }).promise, 30000);
+    } catch (error) {
+      throw new Error(`PDFページ${pageNumber}の描画に失敗しました。${error?.message || ""}`.trim());
+    }
+    pages.push(
+      await imagePageFromSource({
+        name: `${file.name} p.${pageNumber}${pdf.numPages > pageLimit && pageNumber === pageLimit ? "(以降省略)" : ""}`,
         fileType: "application/pdf",
-        src: page.dataUrl,
+        src: canvas.toDataURL("image/png"),
         kind: "平面図",
       }),
-    ),
-  );
+    );
+  }
+  return pages;
 }
 
 function unsupportedPage(file) {
