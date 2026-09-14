@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>図面数量拾いMVP</title>
-    <script type="module" crossorigin src="/assets/drawing-DH-ejJ8r.js"></script>
+    <script type="module" crossorigin src="/assets/drawing-D8Z5N0On.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/xlsx-CSDiKpwJ.js">
     <link rel="modulepreload" crossorigin href="/assets/zip-DhXGBq_l.js">
-    <link rel="stylesheet" crossorigin href="/assets/drawing-3QgdKShE.css">
+    <link rel="stylesheet" crossorigin href="/assets/drawing-Ou6iGuSP.css">
   </head>
   <body class="drawing-app">
     <header class="drawing-header">
@@ -163,6 +163,52 @@
             分類
             <select id="quantity-kind"></select>
           </label>
+          <fieldset class="classification-fields">
+            <legend>標準書式の分類</legend>
+            <div class="detail-grid">
+              <label>
+                工事種目
+                <select id="work-type"></select>
+              </label>
+              <label>
+                科目
+                <input id="subject-input" type="text" list="subject-options" placeholder="選択または直接入力" />
+                <datalist id="subject-options"></datalist>
+              </label>
+            </div>
+            <label>
+              中科目
+              <select id="standard-category"></select>
+            </label>
+            <div class="detail-grid">
+              <label>
+                区分
+                <select id="standard-division"></select>
+              </label>
+              <label>
+                単位
+                <select id="standard-unit"></select>
+              </label>
+            </div>
+            <label>
+              部位
+              <input id="part-input" type="text" list="part-options" placeholder="候補選択または直接入力" />
+              <datalist id="part-options"></datalist>
+            </label>
+            <label>
+              細目
+              <input id="standard-item" type="text" list="standard-item-options" placeholder="候補選択または直接入力" />
+              <datalist id="standard-item-options"></datalist>
+            </label>
+            <div class="standard-guide">
+              <div class="standard-guide-heading">
+                <strong>計測基準</strong>
+                <span id="standard-rule-source"></span>
+              </div>
+              <p id="standard-rule-note" class="standard-rule-note"></p>
+              <p id="standard-measurement-advice" class="standard-measurement-advice"></p>
+            </div>
+          </fieldset>
           <div class="draw-type draw-type--4">
             <button id="select-edit" class="icon-btn" data-label="選択/編集" title="選択/編集" type="button" aria-label="選択/編集">↖</button>
             <button id="draw-polygon" class="icon-btn selected" data-label="多角形" title="多角形" type="button" aria-label="多角形">⬠</button>
@@ -183,9 +229,23 @@
               <input id="elevation-input" type="text" list="elevation-options" placeholder="選択または直接入力" />
             </label>
           </div>
+          <div class="detail-grid">
+            <label>
+              階
+              <input id="floor-input" type="text" placeholder="例: 2階" />
+            </label>
+            <label>
+              室名
+              <input id="room-input" type="text" placeholder="例: 事務室" />
+            </label>
+          </div>
           <label>
             仕上
-            <input id="finish-input" type="text" placeholder="例: 窯業系サイディング、ALC" />
+            <input id="finish-input" type="text" list="finish-options" placeholder="例: 窯業系サイディング、ALC" />
+            <datalist id="finish-options">
+              <option value="仕上塗材"></option><option value="タイル"></option><option value="モルタル"></option>
+              <option value="ALC"></option><option value="窯業系サイディング"></option><option value="塗装"></option>
+            </datalist>
           </label>
           <label>
             備考
@@ -204,6 +264,43 @@
           <h2>4. 確定済み数量</h2>
           <div id="quantity-list" class="quantity-list"></div>
           <div id="selected-editor" class="selected-editor" hidden>
+            <fieldset class="classification-fields">
+              <legend>標準書式の分類</legend>
+              <div class="detail-grid">
+                <label>
+                  工事種目
+                  <select id="edit-work-type"></select>
+                </label>
+                <label>
+                  科目
+                  <input id="edit-subject" type="text" list="subject-options" />
+                </label>
+              </div>
+              <label>
+                中科目
+                <select id="edit-standard-category"></select>
+              </label>
+              <div class="detail-grid">
+                <label>
+                  区分
+                  <select id="edit-standard-division"></select>
+                </label>
+                <label>
+                  単位
+                  <select id="edit-standard-unit"></select>
+                </label>
+              </div>
+              <label>
+                部位
+                <input id="edit-part" type="text" list="edit-part-options" />
+                <datalist id="edit-part-options"></datalist>
+              </label>
+              <label>
+                細目
+                <input id="edit-standard-item" type="text" list="edit-standard-item-options" />
+                <datalist id="edit-standard-item-options"></datalist>
+              </label>
+            </fieldset>
             <label>
               棟
               <input id="edit-building" type="text" />
@@ -216,6 +313,16 @@
               仕上
               <input id="edit-finish" type="text" />
             </label>
+            <div class="detail-grid">
+              <label>
+                階
+                <input id="edit-floor" type="text" />
+              </label>
+              <label>
+                室名
+                <input id="edit-room" type="text" />
+              </label>
+            </div>
             <label>
               備考
               <input id="edit-memo" type="text" />
@@ -262,6 +369,8 @@
           <button id="close-summary" type="button">閉じる</button>
         </div>
         <div class="summary-dialog-body">
+          <h3>標準書式別集計</h3>
+          <div id="summary-standard-table"></div>
           <h3>一次集計(棟x仕上x分類)</h3>
           <div id="summary-primary-table"></div>
           <h3>二次集計(棟計・総合計)</h3>

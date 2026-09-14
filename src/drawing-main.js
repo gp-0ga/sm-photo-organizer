@@ -2,6 +2,19 @@ import * as XLSX from "xlsx";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { createZip } from "./zip.js";
+import {
+  STANDARD_CATEGORIES,
+  STANDARD_UNITS,
+  SUBJECTS,
+  WORK_TYPES,
+  breakdownQuantityDigits,
+  categoryById,
+  measurementSuggestion,
+  partsForCategory,
+  roundBreakdownQuantity,
+  roundMeasurementQuantity,
+  standardClassificationLabel,
+} from "./quantity-classification.js";
 import "./drawing.css";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
@@ -64,6 +77,19 @@ const rulerStep = document.querySelector("#ruler-step");
 const rulerHorizontal = document.querySelector("#ruler-horizontal");
 const rulerVertical = document.querySelector("#ruler-vertical");
 const quantityKind = document.querySelector("#quantity-kind");
+const standardCategory = document.querySelector("#standard-category");
+const workType = document.querySelector("#work-type");
+const subjectInput = document.querySelector("#subject-input");
+const subjectOptions = document.querySelector("#subject-options");
+const standardDivision = document.querySelector("#standard-division");
+const standardUnit = document.querySelector("#standard-unit");
+const standardItem = document.querySelector("#standard-item");
+const standardItemOptions = document.querySelector("#standard-item-options");
+const partInput = document.querySelector("#part-input");
+const partOptions = document.querySelector("#part-options");
+const standardRuleNote = document.querySelector("#standard-rule-note");
+const standardRuleSource = document.querySelector("#standard-rule-source");
+const standardMeasurementAdvice = document.querySelector("#standard-measurement-advice");
 const selectEdit = document.querySelector("#select-edit");
 const drawPolygon = document.querySelector("#draw-polygon");
 const drawRect = document.querySelector("#draw-rect");
@@ -73,12 +99,25 @@ const manualAreaInput = document.querySelector("#manual-area-input");
 const buildingInput = document.querySelector("#building-input");
 const elevationInput = document.querySelector("#elevation-input");
 const finishInput = document.querySelector("#finish-input");
+const floorInput = document.querySelector("#floor-input");
+const roomInput = document.querySelector("#room-input");
 const memoInput = document.querySelector("#memo-input");
 const quantityList = document.querySelector("#quantity-list");
 const selectedEditor = document.querySelector("#selected-editor");
 const editBuilding = document.querySelector("#edit-building");
 const editElevation = document.querySelector("#edit-elevation");
 const editFinish = document.querySelector("#edit-finish");
+const editFloor = document.querySelector("#edit-floor");
+const editRoom = document.querySelector("#edit-room");
+const editStandardCategory = document.querySelector("#edit-standard-category");
+const editWorkType = document.querySelector("#edit-work-type");
+const editSubject = document.querySelector("#edit-subject");
+const editStandardDivision = document.querySelector("#edit-standard-division");
+const editStandardUnit = document.querySelector("#edit-standard-unit");
+const editStandardItem = document.querySelector("#edit-standard-item");
+const editStandardItemOptions = document.querySelector("#edit-standard-item-options");
+const editPart = document.querySelector("#edit-part");
+const editPartOptions = document.querySelector("#edit-part-options");
 const editMemo = document.querySelector("#edit-memo");
 const editWidth = document.querySelector("#edit-width");
 const editHeight = document.querySelector("#edit-height");
@@ -95,6 +134,7 @@ const exportImagesZip = document.querySelector("#export-images-zip");
 const showSummary = document.querySelector("#show-summary");
 const closeSummary = document.querySelector("#close-summary");
 const summaryOverlay = document.querySelector("#summary-overlay");
+const summaryStandardTable = document.querySelector("#summary-standard-table");
 const summaryPrimaryTable = document.querySelector("#summary-primary-table");
 const summarySecondaryTable = document.querySelector("#summary-secondary-table");
 const totals = document.querySelector("#totals");
@@ -565,6 +605,113 @@ function updateKindOptions() {
   );
 }
 
+function replaceOptions(select, options, selected = "") {
+  select.replaceChildren(
+    ...options.map(({ value, label }) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      return option;
+    }),
+  );
+  if (options.some((option) => option.value === selected)) select.value = selected;
+}
+
+function populateCategoryOptions(select, selected = "") {
+  replaceOptions(select, [
+    { value: "", label: "未分類" },
+    ...STANDARD_CATEGORIES.map((category) => ({ value: category.id, label: category.label })),
+  ], selected);
+}
+
+function populateSimpleOptions(select, values, selected = "") {
+  replaceOptions(select, values.map((value) => ({ value, label: value })), selected);
+}
+
+function populateDatalist(datalist, values) {
+  datalist.replaceChildren(
+    ...values.map((value) => {
+      const option = document.createElement("option");
+      option.value = value;
+      return option;
+    }),
+  );
+}
+
+function populateClassificationFields(categorySelect, divisionSelect, unitSelect, itemInput, datalist, values = {}) {
+  populateCategoryOptions(categorySelect, values.categoryId || categorySelect.value);
+  const category = categoryById(categorySelect.value);
+  const divisions = category
+    ? Object.entries(category.divisions).map(([value, division]) => ({ value, label: division.label }))
+    : [{ value: "", label: "未選択" }];
+  replaceOptions(divisionSelect, divisions, values.divisionId || divisionSelect.value);
+  replaceOptions(unitSelect, STANDARD_UNITS.map((unit) => ({ value: unit, label: unit })), values.unit || unitSelect.value || "㎡");
+  const division = category?.divisions[divisionSelect.value];
+  datalist.replaceChildren(
+    ...(division?.items || []).map((item) => {
+      const option = document.createElement("option");
+      option.value = item;
+      return option;
+    }),
+  );
+  if (Object.hasOwn(values, "item")) itemInput.value = values.item || "";
+}
+
+function populatePartOptions(categorySelect, partField, datalist, selected = undefined) {
+  populateDatalist(datalist, partsForCategory(categorySelect.value));
+  if (selected !== undefined) partField.value = selected || "";
+}
+
+function updateStandardRuleNote() {
+  const category = categoryById(standardCategory.value);
+  const division = category?.divisions[standardDivision.value];
+  const suggestion = measurementSuggestion(standardItem.value);
+  standardRuleNote.textContent = division?.guidance || "分類を選ぶと、数量積算基準の計測ガイドを表示します。";
+  standardRuleSource.textContent = division?.sourcePage ? `数量積算基準 PDF ${division.sourcePage}ページ` : "";
+  standardMeasurementAdvice.textContent = standardItem.value
+    ? `推奨: ${suggestion.mode} / ${suggestion.unit}`
+    : "細目を選ぶと推奨する拾い方と単位を表示します。";
+}
+
+function classificationFromFields(categorySelect, divisionSelect, unitSelect, itemInput, workTypeSelect, subjectField, partField) {
+  const category = categoryById(categorySelect.value);
+  const division = category?.divisions[divisionSelect.value];
+  return {
+    workTypeId: workTypeSelect.value === "建築工事" ? "building_work" : "building_renovation",
+    workTypeLabel: workTypeSelect.value || "建築改修工事",
+    subject: subjectField.value.trim(),
+    categoryId: category?.id || "",
+    categoryLabel: category?.label || "",
+    categoryOrder: category?.order ?? 99,
+    divisionId: division ? divisionSelect.value : "",
+    divisionLabel: division?.label || "",
+    item: itemInput.value.trim(),
+    part: partField.value.trim(),
+    unit: unitSelect.value,
+  };
+}
+
+function suggestClassificationForKind() {
+  const mapping = {
+    外壁面積: "exterior_wall_renovation",
+    開口控除: "opening_renovation",
+    サッシ周りシール: "opening_renovation",
+    防水面積: "waterproofing_renovation",
+    防水目地: "waterproofing_renovation",
+    伸縮目地: "waterproofing_renovation",
+    床面積: "interior_renovation",
+  };
+  const categoryId = mapping[quantityKind.value];
+  if (!categoryId || standardCategory.value) return;
+  populateClassificationFields(standardCategory, standardDivision, standardUnit, standardItem, standardItemOptions, {
+    categoryId,
+    divisionId: "renovation",
+    unit: state.mode === "line" ? "m" : "㎡",
+  });
+  populatePartOptions(standardCategory, partInput, partOptions);
+  updateStandardRuleNote();
+}
+
 function imagePageFromSource({ name, fileType, src, kind = "平面図" }) {
   return new Promise((resolve) => {
     const image = new Image();
@@ -867,7 +1014,8 @@ function renderQuantityList() {
         const item = document.createElement("button");
         item.type = "button";
         item.className = `quantity-item${shape.id === state.selectedId ? " selected" : ""}`;
-        item.innerHTML = `<strong>${shape.kind} ${quantityLabel(page, shape)}</strong><span>${page.kind} / ${shape.building || "-"} / ${shape.elevation || "-"} / ${shape.finish || "-"} / No.${index + 1}</span>`;
+        const standardLabel = standardClassificationLabel(shape.classification) || "標準分類未設定";
+        item.innerHTML = `<strong>${shape.kind} ${quantityLabel(page, shape)}</strong><span>${standardLabel} / ${page.kind} / ${shape.building || "-"} / ${shape.floor || "-"} / ${shape.room || shape.elevation || "-"} / No.${index + 1}</span>`;
         item.addEventListener("click", () => {
           state.selectedId = shape.id;
           state.activePageId = page.id;
@@ -893,7 +1041,20 @@ function renderSelectedEditor() {
   editBuilding.value = entry.shape.building || "";
   editElevation.value = entry.shape.elevation || "";
   editFinish.value = entry.shape.finish || "";
+  editFloor.value = entry.shape.floor || "";
+  editRoom.value = entry.shape.room || "";
   editMemo.value = entry.shape.memo || "";
+  populateSimpleOptions(editWorkType, WORK_TYPES, entry.shape.classification?.workTypeLabel || "建築改修工事");
+  editSubject.value = entry.shape.classification?.subject || "";
+  populateClassificationFields(
+    editStandardCategory,
+    editStandardDivision,
+    editStandardUnit,
+    editStandardItem,
+    editStandardItemOptions,
+    entry.shape.classification || {},
+  );
+  populatePartOptions(editStandardCategory, editPart, editPartOptions, entry.shape.classification?.part || "");
   editWidth.value = entry.shape.mode === "line" || isManual ? "" : formatNumber(q.width, 3);
   editHeight.value = entry.shape.mode === "line" || isManual ? "" : formatNumber(q.height, 3);
   editArea.value = entry.shape.mode === "line" ? "" : formatNumber(q.area, 3);
@@ -933,7 +1094,10 @@ function applySelectedEdits() {
   shape.building = editBuilding.value.trim();
   shape.elevation = editElevation.value.trim();
   shape.finish = editFinish.value.trim();
+  shape.floor = editFloor.value.trim();
+  shape.room = editRoom.value.trim();
   shape.memo = editMemo.value.trim();
+  shape.classification = classificationFromFields(editStandardCategory, editStandardDivision, editStandardUnit, editStandardItem, editWorkType, editSubject, editPart);
   shape.adopted = shape.adopted || {};
   if (shape.mode === "line") {
     const length = Number(editLength.value);
@@ -1234,7 +1398,10 @@ function addShape(points) {
     building: buildingInput.value.trim(),
     elevation: elevationInput.value.trim(),
     finish: finishInput.value.trim(),
+    floor: floorInput.value.trim(),
+    room: roomInput.value.trim(),
     memo: memoInput.value.trim(),
+    classification: classificationFromFields(standardCategory, standardDivision, standardUnit, standardItem, workType, subjectInput, partInput),
     points: points.map((point) => ({ ...point })),
     source: "人確定",
     createdAt: new Date().toLocaleString("ja-JP"),
@@ -1263,7 +1430,10 @@ function addManualShape() {
     building: buildingInput.value.trim(),
     elevation: elevationInput.value.trim(),
     finish: finishInput.value.trim(),
+    floor: floorInput.value.trim(),
+    room: roomInput.value.trim(),
     memo: memoInput.value.trim(),
+    classification: classificationFromFields(standardCategory, standardDivision, standardUnit, standardItem, workType, subjectInput, partInput),
     points: [],
     drawType: "manual",
     adopted: { area },
@@ -1412,6 +1582,12 @@ function compareText(a = "", b = "") {
 
 function compareOutputRows(a, b) {
   return (
+    compareText(a.工事種目, b.工事種目) ||
+    compareText(a.科目, b.科目) ||
+    (Number(a.標準分類順) || 99) - (Number(b.標準分類順) || 99) ||
+    compareText(a.区分, b.区分) ||
+    compareText(a.部位, b.部位) ||
+    compareText(a.細目, b.細目) ||
     compareText(a.棟, b.棟) ||
     directionRank(a.立面方位 || a.立面範囲) - directionRank(b.立面方位 || b.立面範囲) ||
     compareText(a.立面範囲, b.立面範囲) ||
@@ -1421,6 +1597,34 @@ function compareOutputRows(a, b) {
     compareText(a.図面名, b.図面名) ||
     compareText(a.対象ID, b.対象ID)
   );
+}
+
+function adoptedQuantityForUnit(row) {
+  if (row.単位 === "㎡") return row.面積m2 || 0;
+  if (row.単位 === "m") return row.延長m || row.周長m || 0;
+  if (row.単位 === "か所" || row.単位 === "枚" || row.単位 === "本") return 1;
+  return row.面積m2 || row.延長m || 0;
+}
+
+function buildStandardSummaryRows(quantityRows) {
+  const map = new Map();
+  quantityRows.forEach((row) => {
+    const keyFields = ["工事種目", "科目", "中科目", "区分", "部位", "細目", "摘要", "単位"];
+    const key = keyFields.map((field) => row[field] || "-").join("\t");
+    const current = map.get(key) || Object.fromEntries(keyFields.map((field) => [field, row[field] || "-"]));
+    current.計測数量未丸め = (current.計測数量未丸め || 0) + adoptedQuantityForUnit(row);
+    current.根拠件数 = (current.根拠件数 || 0) + 1;
+    current.標準分類順 = row.標準分類順;
+    map.set(key, current);
+  });
+  return [...map.values()]
+    .map((row) => ({
+      ...row,
+      計測数量: roundMeasurementQuantity(row.計測数量未丸め),
+      内訳数量: roundBreakdownQuantity(row.計測数量未丸め),
+      丸め: Number(row.計測数量未丸め) >= 100 ? "整数" : "小数第1位",
+    }))
+    .sort(compareOutputRows);
 }
 
 function sumFields(rows) {
@@ -1603,21 +1807,24 @@ function buildPrimarySummaryRows(quantityRows) {
 }
 
 const QUANTITY_HEADERS = [
-  "図面名", "図面種別", "対象ID", "棟", "立面方位", "立面範囲", "仕上", "分類", "入力種別",
+  "図面名", "図面種別", "対象ID", "工事種目", "科目", "中科目", "区分", "部位", "細目", "摘要", "単位", "棟", "階", "室名", "立面方位", "立面範囲", "仕上", "分類", "入力種別",
   "実測幅m", "実測高さm", "実測延長m", "実測面積m2", "実測周長m",
   "幅m", "高さm", "延長m", "面積m2", "周長m",
   "手修正", "縮尺", "実寸補正係数", "補正確認m", "画像DPI", "備考",
 ];
 const EVIDENCE_HEADERS = [
-  "図面名", "図面種別", "対象ID", "棟", "立面方位", "立面範囲", "仕上", "分類", "入力種別",
+  "図面名", "図面種別", "対象ID", "工事種目", "科目", "中科目", "区分", "部位", "細目", "摘要", "単位", "棟", "階", "室名", "立面方位", "立面範囲", "仕上", "分類", "入力種別",
   "採用幅m", "採用高さm", "採用延長m", "採用面積m2", "採用周長m",
   "根拠番号", "AI候補人確定", "縮尺確定", "実寸補正係数", "補正確認m", "概算区分", "座標", "承認日時", "備考",
 ];
 const SUMMARY_HEADERS = ["集計区分", "棟", "仕上", "立面方位", "立面範囲", "分類", "面積m2", "延長m", "周長m", "備考"];
 const PRIMARY_SUMMARY_HEADERS = ["集計区分", "棟", "仕上", "分類", "面積m2", "延長m", "周長m", "備考"];
+const STANDARD_SUMMARY_HEADERS = ["工事種目", "科目", "中科目", "区分", "部位", "細目", "摘要", "計測数量", "内訳数量", "単位", "丸め", "根拠件数"];
 
 const COLUMN_WIDTHS = {
   図面名: 22, 図面種別: 10, 対象ID: 12, 棟: 8, 立面方位: 8, 立面範囲: 14, 仕上: 16,
+  工事種目: 14, 科目: 12, 中科目: 12, 区分: 8, 部位: 12, 細目: 24, 摘要: 20, 単位: 7, 階: 8, 室名: 14,
+  計測数量: 10, 内訳数量: 10, 丸め: 10, 根拠件数: 9,
   分類: 12, 入力種別: 8, 集計区分: 12,
   実測幅m: 9, 実測高さm: 9, 実測延長m: 9, 実測面積m2: 10, 実測周長m: 9,
   幅m: 8, 高さm: 8, 延長m: 8, 面積m2: 9, 周長m: 8,
@@ -1642,7 +1849,18 @@ function buildQuantityRows() {
         図面名: page.name,
         図面種別: page.kind,
         対象ID: shape.id,
+        工事種目: shape.classification?.workTypeLabel || "未分類",
+        科目: shape.classification?.subject || "未分類",
+        中科目: shape.classification?.categoryLabel || "未分類",
+        区分: shape.classification?.divisionLabel || "未分類",
+        部位: shape.classification?.part || "未分類",
+        細目: shape.classification?.item || "未分類",
+        摘要: shape.finish || shape.memo || "",
+        単位: shape.classification?.unit || (shape.mode === "line" ? "m" : "㎡"),
+        標準分類順: shape.classification?.categoryOrder ?? 99,
         棟: shape.building,
+        階: shape.floor,
+        室名: shape.room,
         立面方位: elevationDirection(shape.elevation),
         立面範囲: shape.elevation,
         仕上: shape.finish,
@@ -1676,7 +1894,7 @@ function renderSummaryTable(container, rows, headers) {
     container.innerHTML = "<p class=\"small-note\">数量がまだありません。</p>";
     return;
   }
-  const numericHeaders = new Set(["面積m2", "延長m", "周長m"]);
+  const numericHeaders = new Set(["面積m2", "延長m", "周長m", "計測数量", "内訳数量", "根拠件数"]);
   const table = document.createElement("table");
   table.className = "summary-table";
   const thead = document.createElement("thead");
@@ -1690,7 +1908,8 @@ function renderSummaryTable(container, rows, headers) {
         .map((header) => {
           const value = row[header];
           if (numericHeaders.has(header)) {
-            return `<td>${Number(value) ? formatNumber(Number(value), 2) : ""}</td>`;
+            const digits = header === "内訳数量" ? breakdownQuantityDigits(value) : header === "根拠件数" ? 0 : 2;
+            return `<td>${Number(value) ? formatNumber(Number(value), digits) : ""}</td>`;
           }
           return `<td>${value ?? ""}</td>`;
         })
@@ -1704,6 +1923,7 @@ function renderSummaryTable(container, rows, headers) {
 
 function renderSummaryDialog() {
   const quantityRows = buildQuantityRows();
+  renderSummaryTable(summaryStandardTable, buildStandardSummaryRows(quantityRows), STANDARD_SUMMARY_HEADERS);
   renderSummaryTable(summaryPrimaryTable, buildPrimarySummaryRows(quantityRows), PRIMARY_SUMMARY_HEADERS);
   renderSummaryTable(summarySecondaryTable, buildSummaryRows(quantityRows), SUMMARY_HEADERS);
 }
@@ -1718,7 +1938,18 @@ function exportWorkbook() {
         図面名: page.name,
         図面種別: page.kind,
         対象ID: shape.id,
+        工事種目: shape.classification?.workTypeLabel || "未分類",
+        科目: shape.classification?.subject || "未分類",
+        中科目: shape.classification?.categoryLabel || "未分類",
+        区分: shape.classification?.divisionLabel || "未分類",
+        部位: shape.classification?.part || "未分類",
+        細目: shape.classification?.item || "未分類",
+        摘要: shape.finish || shape.memo || "",
+        単位: shape.classification?.unit || (shape.mode === "line" ? "m" : "㎡"),
+        標準分類順: shape.classification?.categoryOrder ?? 99,
         棟: shape.building,
+        階: shape.floor,
+        室名: shape.room,
         立面方位: elevationDirection(shape.elevation),
         立面範囲: shape.elevation,
         仕上: shape.finish,
@@ -1746,6 +1977,7 @@ function exportWorkbook() {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, buildPrintSheet(quantityRows, QUANTITY_HEADERS), "数量表");
   XLSX.utils.book_append_sheet(workbook, buildPrintSheet(evidenceRows, EVIDENCE_HEADERS), "根拠一覧");
+  XLSX.utils.book_append_sheet(workbook, buildPrintSheet(buildStandardSummaryRows(quantityRows), STANDARD_SUMMARY_HEADERS), "標準書式別集計");
   XLSX.utils.book_append_sheet(workbook, buildPrintSheet(buildPrimarySummaryRows(quantityRows), PRIMARY_SUMMARY_HEADERS), "一次集計");
   XLSX.utils.book_append_sheet(workbook, buildPrintSheet(buildSummaryRows(quantityRows), SUMMARY_HEADERS), "二次集計");
   XLSX.writeFile(workbook, `図面数量拾い_${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -1832,6 +2064,30 @@ importWorkFile.addEventListener("change", (event) => {
   event.target.value = "";
 });
 applySelected.addEventListener("click", applySelectedEdits);
+standardCategory.addEventListener("change", () => {
+  standardItem.value = "";
+  partInput.value = "";
+  populateClassificationFields(standardCategory, standardDivision, standardUnit, standardItem, standardItemOptions);
+  populatePartOptions(standardCategory, partInput, partOptions);
+  updateStandardRuleNote();
+});
+standardDivision.addEventListener("change", () => {
+  standardItem.value = "";
+  populateClassificationFields(standardCategory, standardDivision, standardUnit, standardItem, standardItemOptions);
+  updateStandardRuleNote();
+});
+editStandardCategory.addEventListener("change", () => {
+  editStandardItem.value = "";
+  editPart.value = "";
+  populateClassificationFields(editStandardCategory, editStandardDivision, editStandardUnit, editStandardItem, editStandardItemOptions);
+  populatePartOptions(editStandardCategory, editPart, editPartOptions);
+});
+editStandardDivision.addEventListener("change", () => {
+  editStandardItem.value = "";
+  populateClassificationFields(editStandardCategory, editStandardDivision, editStandardUnit, editStandardItem, editStandardItemOptions);
+});
+quantityKind.addEventListener("change", suggestClassificationForKind);
+standardItem.addEventListener("input", updateStandardRuleNote);
 editWidth.addEventListener("input", refreshAreaPreview);
 editHeight.addEventListener("input", refreshAreaPreview);
 pageKind.addEventListener("change", () => {
@@ -1926,6 +2182,8 @@ document.querySelectorAll(".mode-button").forEach((button) => {
     drawManual.disabled = state.mode === "line";
     setDrawTypeButton(drawPolygon);
     updateKindOptions();
+    standardUnit.value = state.mode === "line" ? "m" : "㎡";
+    suggestClassificationForKind();
     draw();
   });
 });
@@ -2175,6 +2433,15 @@ exportImage.addEventListener("click", exportCanvasImage);
 exportImagesZip.addEventListener("click", exportAllImagesZip);
 
 updateKindOptions();
+populateClassificationFields(standardCategory, standardDivision, standardUnit, standardItem, standardItemOptions, { unit: "㎡" });
+populateSimpleOptions(workType, WORK_TYPES, "建築改修工事");
+populateDatalist(subjectOptions, SUBJECTS);
+subjectInput.value = "庁舎";
+populatePartOptions(standardCategory, partInput, partOptions);
+suggestClassificationForKind();
+updateStandardRuleNote();
+populateCategoryOptions(editStandardCategory);
+populateSimpleOptions(editWorkType, WORK_TYPES, "建築改修工事");
 renderSavedWorks();
 updateZoomReadout();
 syncControls();
