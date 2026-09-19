@@ -6,7 +6,7 @@ import { analyzePhotoFiles, compressToJpeg, jpegFileName, targetBytesFromKilobyt
 import { albumEntries, createPhotoAlbum, inspectPhotoAlbumTemplate } from "./album.js";
 import { cameraFileName, captureVideoFrame, openRearCamera, stopCamera } from "./camera.js";
 import { createAssetPhotoZip, zipFileName } from "./zip.js";
-import { loadPhotoSession, savePhotoSession } from "./photo-session-storage.js";
+import { listPhotoSnapshots, loadPhotoSession, savePhotoSession, savePhotoSnapshot } from "./photo-session-storage.js";
 
 const hostedOrganizer = /\/organize(?:\.html)?$/i.test(window.location.pathname);
 if (hostedOrganizer) document.body.classList.add("hosted-organizer");
@@ -22,6 +22,10 @@ const summary = document.querySelector("#summary");
 const photoInput = document.querySelector("#photo-input");
 const photoStatus = document.querySelector("#photo-status");
 const sessionStatus = document.querySelector("#session-status");
+const sessionName = document.querySelector("#session-name");
+const saveSessionSnapshotButton = document.querySelector("#save-session-snapshot");
+const savedSessionSelect = document.querySelector("#saved-session-select");
+const loadSessionSnapshotButton = document.querySelector("#load-session-snapshot");
 const photoSummary = document.querySelector("#photo-summary");
 const photoList = document.querySelector("#photo-list");
 const photoTemplate = document.querySelector("#photo-template");
@@ -236,10 +240,7 @@ function scheduleSessionSave() {
   saveTimer = window.setTimeout(() => { void saveSessionNow(); }, 350);
 }
 
-async function restoreSession() {
-  try {
-    const saved = await loadPhotoSession();
-    if (!saved || (!saved.assets?.length && !saved.photos?.length)) return;
+function applyLoadedSession(saved, message = "") {
     assets = saved.assets ?? [];
     photos = saved.photos ?? [];
     healthWorkbookFile = saved.healthWorkbookFile;
@@ -254,8 +255,29 @@ async function restoreSession() {
     setStatus(excelStatus, `${assets.length}資産を前回の作業から復元しました。`, "success");
     setStatus(photoStatus, `${photos.length}枚の写真を前回の作業から復元しました。`, "success");
     setStatus(albumTemplateStatus, albumTemplateFile ? "写真帳様式も復元しました。" : "写真帳様式を選択してください。", "neutral");
-    setSessionStatus(`前回の作業を復元しました（${formatSavedAt(saved.savedAt)}）。`, "saved");
+    setSessionStatus(message || `作業を復元しました（${formatSavedAt(saved.savedAt)}）。`, "saved");
     updateAlbumReadiness();
+}
+
+async function refreshSnapshotList() {
+  const snapshots = await listPhotoSnapshots();
+  savedSessionSelect.replaceChildren(new Option(snapshots.length ? "保存済み作業を選択" : "保存済み作業はありません", ""));
+  for (const snapshot of snapshots) {
+    const label = `${snapshot.name || "名称未設定"}（${formatSavedAt(snapshot.savedAt)}・${snapshot.photos?.length ?? 0}枚）`;
+    savedSessionSelect.add(new Option(label, snapshot.id));
+  }
+  loadSessionSnapshotButton.disabled = snapshots.length === 0;
+}
+
+async function restoreSession() {
+  try {
+    const saved = await loadPhotoSession();
+    if (!saved || (!saved.assets?.length && !saved.photos?.length)) {
+      await refreshSnapshotList();
+      return;
+    }
+    applyLoadedSession(saved, `前回の作業を復元しました（${formatSavedAt(saved.savedAt)}）。`);
+    await refreshSnapshotList();
   } catch (error) {
     setSessionStatus(`前回の作業を復元できませんでした：${error.message ?? String(error)}`, "error");
   }
@@ -603,5 +625,50 @@ createAlbumButton.addEventListener("click", async () => {
 });
 
 photoTargetKb.addEventListener("change", scheduleSessionSave);
+
+saveSessionSnapshotButton.addEventListener("click", async () => {
+  if (!assets.length && !photos.length) {
+    setSessionStatus("保存する作業がありません。先にExcelまたは写真を読み込んでください。", "error");
+    return;
+  }
+  saveSessionSnapshotButton.disabled = true;
+  try {
+    const name = sessionName.value.trim() || `写真整理_${new Date().toLocaleDateString("ja-JP")}`;
+    const snapshot = await savePhotoSnapshot({
+      name,
+      assets,
+      photos,
+      healthWorkbookFile,
+      albumTemplateFile,
+      photoTargetKb: photoTargetKb.value,
+    });
+    sessionName.value = name;
+    setSessionStatus(`「${name}」として保存しました。後から一覧から開けます。`, "saved");
+    await refreshSnapshotList();
+    const option = [...savedSessionSelect.options].find((item) => item.value === snapshot.id);
+    if (option) savedSessionSelect.value = snapshot.id;
+  } catch (error) {
+    setSessionStatus(`作業を保存できませんでした：${error.message ?? String(error)}`, "error");
+  } finally {
+    saveSessionSnapshotButton.disabled = false;
+  }
+});
+
+loadSessionSnapshotButton.addEventListener("click", async () => {
+  const id = savedSessionSelect.value;
+  if (!id) return;
+  loadSessionSnapshotButton.disabled = true;
+  try {
+    const saved = await loadPhotoSession(id);
+    if (!saved) throw new Error("保存済み作業が見つかりません。");
+    applyLoadedSession(saved, `「${saved.name || "名称未設定"}」を開きました。修正後は再度「この作業を保存」を押してください。`);
+    sessionName.value = saved.name || "";
+    scheduleSessionSave();
+  } catch (error) {
+    setSessionStatus(`保存済み作業を開けませんでした：${error.message ?? String(error)}`, "error");
+  } finally {
+    await refreshSnapshotList();
+  }
+});
 
 void restoreSession();

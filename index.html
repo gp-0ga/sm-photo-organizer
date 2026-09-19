@@ -103,6 +103,12 @@
           </label>
           <div id="photo-status" class="status neutral" role="status">先にExcelを読み込んでください。</div>
           <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
+          <div class="session-tools">
+            <label>作業名<input id="session-name" type="text" placeholder="例：管理本館 1回目" /></label>
+            <button id="save-session-snapshot" class="secondary" type="button">この作業を保存</button>
+            <select id="saved-session-select" aria-label="保存済み作業"></select>
+            <button id="load-session-snapshot" class="secondary" type="button" disabled>保存済み作業を開く</button>
+          </div>
           <div id="bulk-tools" class="bulk-tools" hidden>
             <label><input id="select-all-photos" type="checkbox" /> 表示中をすべて選択</label>
             <select id="bulk-asset"></select>
