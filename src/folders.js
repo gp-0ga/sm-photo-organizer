@@ -24,10 +24,26 @@ export async function createAssetFolders(assets) {
 }
 
 async function writeBlob(directory, fileName, blob) {
-  const handle = await directory.getFileHandle(fileName, { create: true });
-  const writable = await handle.createWritable();
-  await writable.write(blob);
-  await writable.close();
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    let writable = null;
+    try {
+      const handle = await directory.getFileHandle(fileName, { create: true });
+      writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (error) {
+      lastError = error;
+      try { await writable?.abort(); } catch { /* 保存途中の一時状態を破棄 */ }
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 120 * (attempt + 1)));
+    }
+  }
+  const message = String(lastError?.message ?? lastError ?? "");
+  if (/state cached|changed since it was read from disk|状態が変わ/i.test(message)) {
+    throw new Error("保存先フォルダの状態が変わりました。OneDrive同期中の場合は同期完了を待ち、同じフォルダを選び直して再実行してください。");
+  }
+  throw lastError;
 }
 
 function timestamp() {
