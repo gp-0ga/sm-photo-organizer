@@ -87,6 +87,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .privacy-banner { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .8rem 1rem; padding: 1rem 1.2rem; border: 2px solid #2a658f; border-radius: 12px; background: #edf7fc; color: #163a5f; }
 .privacy-banner strong { font-size: 1.05rem; }
 .privacy-banner span { line-height: 1.5; }
+.marker-privacy-banner { width: min(960px, calc(100% - 2rem)); margin: 1rem auto 0; }
 .organizer-back-link { white-space: nowrap; }
 .hosted-organizer #camera-panel { display: none; }
 .marker-card.special { border-width: 2px; }
@@ -196,6 +197,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 @media (max-width: 520px) {
   .marker-site.marker-ready { background: white; }
   .marker-site.marker-ready .app-header,
+  .marker-site.marker-ready .marker-privacy-banner,
   .marker-site.marker-ready .marker-load-panel,
   .marker-site.marker-ready .marker-room-panel,
   .marker-site.marker-ready .browser-notice,
