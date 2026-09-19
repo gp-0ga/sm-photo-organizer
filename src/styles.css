@@ -37,6 +37,15 @@ p { line-height: 1.65; }
 .marker-file-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: 1rem; }
 .marker-file-row .file-picker { display: grid; align-content: center; min-width: 0; }
 .marker-file-row .file-picker input { width: 100%; max-width: 100%; min-width: 0; }
+.room-input-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .65rem; margin: 1rem 0 .75rem; }
+.room-input-grid label { display: grid; gap: .3rem; color: #42515c; font-size: .82rem; font-weight: 700; }
+.room-input-grid input, .room-input-grid select { width: 100%; min-width: 0; padding: .55rem; border: 1px solid #aebdc7; border-radius: 7px; background: white; font: inherit; font-weight: 400; }
+.room-source-picker { margin-top: 1rem; }
+.room-candidate-list, .room-list { display: grid; gap: .55rem; margin-top: .8rem; }
+.room-candidate, .room-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .65rem .75rem; border: 1px solid #d5dfe5; border-radius: 8px; background: #f7fafb; }
+.room-candidate span, .room-row span { overflow-wrap: anywhere; }
+.room-assets { color: #52616d; font-size: .78rem; }
+.room-row button, .room-candidate button { flex: 0 0 auto; padding: .45rem .65rem; font-size: .8rem; }
 button { border: 0; border-radius: 9px; padding: .72rem 1rem; cursor: pointer; font-weight: 700; }
 button:disabled { cursor: not-allowed; opacity: .45; }
 .primary { color: white; background: #176b4d; }
@@ -156,6 +165,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .file-picker { display: grid; width: 100%; }
   .file-picker input { width: 100%; max-width: 100%; min-width: 0; }
   .marker-file-row { grid-template-columns: 1fr; }
+  .room-input-grid { grid-template-columns: 1fr 1fr; }
   .panel { grid-template-columns: 2.4rem 1fr; }
   .step-body { padding: 1.1rem 1rem 1.3rem; }
   .section-heading-row { display: grid; }
@@ -182,6 +192,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .marker-site.marker-ready { background: white; }
   .marker-site.marker-ready .app-header,
   .marker-site.marker-ready .marker-load-panel,
+  .marker-site.marker-ready .marker-room-panel,
   .marker-site.marker-ready .browser-notice,
   .marker-site.marker-ready #marker-print-panel,
   .marker-site.marker-ready .marker-heading-row,

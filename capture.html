@@ -43,6 +43,29 @@
         </div>
       </section>
 
+      <section id="room-panel" class="panel marker-room-panel" aria-labelledby="room-heading" hidden>
+        <div class="step-label">試</div>
+        <div class="step-body">
+          <h2 id="room-heading">部屋単位の切り替え（試験機能）</h2>
+          <p>棟名・部屋名を登録し、その部屋で使う床・壁・天井の資産をまとめます。登録後は部屋から各資産マーカーへすぐ切り替えられます。</p>
+          <div class="room-input-grid">
+            <label>棟名<input id="room-building-input" type="text" placeholder="例：管理本館" /></label>
+            <label>部屋名<input id="room-name-input" type="text" placeholder="例：会議室1" /></label>
+            <label>床<select id="room-floor-select"></select></label>
+            <label>壁<select id="room-wall-select"></select></label>
+            <label>天井<select id="room-ceiling-select"></select></label>
+          </div>
+          <button id="room-save" class="secondary" type="button">部屋を登録・更新</button>
+          <label class="file-picker room-source-picker">
+            <span>図面PDF・画像から部屋名候補を読み込む</span>
+            <input id="room-source-input" type="file" accept=".pdf,image/*,.tif,.tiff" />
+          </label>
+          <div id="room-source-status" class="status neutral" role="status">PDFの文字情報を優先して候補化します。スキャン画像は候補確認後に手入力で修正してください。</div>
+          <div id="room-candidate-list" class="room-candidate-list"></div>
+          <div id="room-list" class="room-list"></div>
+        </div>
+      </section>
+
       <section id="marker-view-panel" class="panel" aria-labelledby="marker-view-heading" hidden>
         <div class="step-label">2</div>
         <div class="step-body">
