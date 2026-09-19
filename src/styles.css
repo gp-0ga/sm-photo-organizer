@@ -76,8 +76,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .privacy-banner strong { font-size: 1.05rem; }
 .privacy-banner span { line-height: 1.5; }
 .organizer-back-link { white-space: nowrap; }
-.hosted-organizer #camera-panel,
-.hosted-organizer #album-panel { display: none; }
+.hosted-organizer #camera-panel { display: none; }
 .marker-card.special { border-width: 2px; }
 .marker-card.review { border-color: #b23838; background: #fff4f4; }
 .marker-card.unknown { border-color: #bd7a13; background: #fff9ed; }
