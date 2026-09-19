@@ -29,14 +29,16 @@
         <div class="step-body">
           <h2 id="marker-excel-heading">資産一覧を読み込む</h2>
           <p>健全度判定表の「No11」から資産番号と資産名だけを読み取り、このブラウザ内に保存します。Excelは外部へ送信しません。</p>
-          <label class="file-picker marker-file-picker">
-            <span>Excelを選択</span>
-            <input id="marker-excel-input" type="file" accept=".xlsx" />
-          </label>
-          <label class="file-picker marker-file-picker">
-            <span>印刷用PDFを選択</span>
-            <input id="marker-pdf-input" type="file" accept=".pdf" />
-          </label>
+          <div class="marker-file-row">
+            <label class="file-picker marker-file-picker">
+              <span>Excelを選択</span>
+              <input id="marker-excel-input" type="file" accept=".xlsx" />
+            </label>
+            <label class="file-picker marker-file-picker">
+              <span>印刷用PDFを選択</span>
+              <input id="marker-pdf-input" type="file" accept=".pdf" />
+            </label>
+          </div>
           <p class="setting-note">PCで作成したこのアプリの印刷用PDFをiPhoneへ送り、ここから読み込めます。読み込み後は資産を選択してマーカーを表示できます。</p>
           <div id="marker-excel-status" class="status neutral" role="status">Excelを選択してください。</div>
         </div>
