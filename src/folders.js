@@ -12,7 +12,7 @@ export async function createAssetFolders(assets) {
   }
   const root = await window.showDirectoryPicker({ mode: "readwrite", id: "sm-photo-output" });
   const created = [];
-  for (const asset of assets) {
+  for (const asset of [...assets, OTHER_ASSET]) {
     const assetDir = await ensureDirectory(root, asset.folderName);
     await ensureDirectory(assetDir, "全景");
     for (const item of asset.items) {
@@ -46,7 +46,7 @@ export async function exportOrganizedPhotos(assets, photos, compress, fileNameFo
   const selectedRoot = await window.showDirectoryPicker({ mode: "readwrite", id: "sm-photo-export" });
   const output = await ensureDirectory(selectedRoot, `写真整理出力_${timestamp()}`);
   const directories = new Map();
-  for (const asset of assets) {
+  for (const asset of [...assets, OTHER_ASSET]) {
     const assetDir = await ensureDirectory(output, asset.folderName);
     const children = new Map();
     children.set("全景", await ensureDirectory(assetDir, "全景"));
@@ -75,3 +75,4 @@ export async function exportOrganizedPhotos(assets, photos, compress, fileNameFo
   }
   return { outputName: output.name, photoCount: active.length };
 }
+import { OTHER_ASSET } from "./domain.js";

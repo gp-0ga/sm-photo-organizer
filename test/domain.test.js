@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classifyDecodedEntries, parseAssetsFromRows, parseMarkerPayload, markerPayload, sanitizeFolderSegment } from "../src/domain.js";
+import { classifyDecodedEntries, parseAssetsFromRows, parseMarkerPayload, markerPayload, sanitizeFolderSegment, OTHER_ASSET_NUMBER } from "../src/domain.js";
 
 test("No11の行から資産を重複排除し、経過年数を除外する", () => {
   const rows = [
@@ -37,4 +37,14 @@ test("要確認マーカーは直前区間だけを要確認にする", () => {
   assert.equal(result.photos.length, 3);
   assert.deepEqual(result.photos.map((photo) => photo.reviewRequired), [true, true, false]);
   assert.deepEqual(result.photos.map((photo) => photo.assetNumber), ["12001_01", "12001_01", "12002_01"]);
+});
+
+test("その他マーカーは資産不明写真をその他へ分類する", () => {
+  const fake = (name) => ({ name });
+  const result = classifyDecodedEntries([
+    { id: "o1", file: fake("other.jpg"), decodedValue: "SM-OTHER|1" },
+    { id: "p1", file: fake("1.jpg"), decodedValue: null },
+  ], ["12001_01"]);
+  assert.deepEqual(parseMarkerPayload("SM-OTHER|1"), { type: "other" });
+  assert.equal(result.photos[0].assetNumber, OTHER_ASSET_NUMBER);
 });

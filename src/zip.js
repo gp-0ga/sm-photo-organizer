@@ -83,7 +83,7 @@ export async function createZip(entries) {
 }
 
 export async function createAssetPhotoZip(assets, photos) {
-  const assetByNumber = new Map(assets.map((asset) => [asset.assetNumber, asset]));
+  const assetByNumber = new Map([...assets, OTHER_ASSET].map((asset) => [asset.assetNumber, asset]));
   const captured = photos.filter((photo) => photo.source === "camera" && photo.assetNumber && !photo.excluded);
   if (!captured.length) throw new Error("保存する撮影写真がありません。");
   const entries = captured.map((photo) => {
@@ -103,3 +103,4 @@ export function zipFileName(date = new Date()) {
   const time = [String(date.getHours()).padStart(2, "0"), String(date.getMinutes()).padStart(2, "0")].join("");
   return `資産写真_${day}_${time}.zip`;
 }
+import { OTHER_ASSET } from "./domain.js";

@@ -81,8 +81,17 @@ export function markerPayload(assetNumber) {
   return `SM-ASSET|1|${assetNumber}`;
 }
 
+export const OTHER_ASSET_NUMBER = "__OTHER__";
+export const OTHER_ASSET = {
+  assetNumber: OTHER_ASSET_NUMBER,
+  assetName: "その他",
+  folderName: "その他",
+  items: [],
+};
+
 export const SPECIAL_MARKERS = [
   { type: "review", label: "要確認", payload: "SM-REVIEW|1" },
+  { type: "other", label: "その他", payload: "SM-OTHER|1" },
   { type: "unknown", label: "未確認01", payload: "SM-UNKNOWN|1|01" },
   { type: "unknown", label: "未確認02", payload: "SM-UNKNOWN|1|02" },
   { type: "unknown", label: "未確認03", payload: "SM-UNKNOWN|1|03" },
@@ -94,6 +103,7 @@ export function parseMarkerPayload(value) {
   const asset = /^SM-ASSET\|1\|(.+)$/.exec(normalized);
   if (asset) return { type: "asset", assetNumber: asset[1] };
   if (normalized === "SM-REVIEW|1") return { type: "review" };
+  if (normalized === "SM-OTHER|1") return { type: "other" };
   const unknown = /^SM-UNKNOWN\|1\|(.+)$/.exec(normalized);
   if (unknown) return { type: "unknown", unknownId: unknown[1] };
   if (normalized === "SM-END|1") return { type: "end" };
@@ -119,6 +129,10 @@ export function classifyDecodedEntries(entries, validAssetNumbers) {
       } else if (marker.type === "unknown") {
         currentAssetNumber = null;
         currentUnknownId = marker.unknownId;
+        currentSegment = [];
+      } else if (marker.type === "other") {
+        currentAssetNumber = OTHER_ASSET_NUMBER;
+        currentUnknownId = null;
         currentSegment = [];
       } else if (marker.type === "review") {
         for (const photo of currentSegment) photo.reviewRequired = true;

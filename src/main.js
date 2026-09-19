@@ -3,7 +3,7 @@ import { readAssetsFromWorkbook } from "./excel.js";
 import { createAssetQr } from "./qr.js";
 import { createQr } from "./qr.js";
 import { createAssetFolders, exportOrganizedPhotos } from "./folders.js";
-import { SPECIAL_MARKERS } from "./domain.js";
+import { OTHER_ASSET, OTHER_ASSET_NUMBER, SPECIAL_MARKERS } from "./domain.js";
 import { analyzePhotoFiles, compressToJpeg, jpegFileName, targetBytesFromKilobytes } from "./photos.js";
 import { albumEntries, createPhotoAlbum, inspectPhotoAlbumTemplate } from "./album.js";
 import { cameraFileName, captureVideoFrame, openRearCamera, stopCamera } from "./camera.js";
@@ -102,7 +102,7 @@ function renderAssets() {
 }
 
 function renderCameraAssets() {
-  cameraAsset.innerHTML = `<option value="">資産を選択</option>${assets
+  cameraAsset.innerHTML = `<option value="">資産を選択</option>${[...assets, OTHER_ASSET]
     .map((asset) => `<option value="${asset.assetNumber}">${asset.assetNumber} ${asset.assetName}</option>`)
     .join("")}`;
   cameraAsset.disabled = false;
@@ -112,7 +112,7 @@ function renderCameraAssets() {
 }
 
 function currentCameraAsset() {
-  return assets.find((asset) => asset.assetNumber === cameraAsset.value) ?? null;
+  return [...assets, OTHER_ASSET].find((asset) => asset.assetNumber === cameraAsset.value) ?? null;
 }
 
 function updateCameraCurrent() {
@@ -134,7 +134,7 @@ function updateCameraCounts() {
   for (const photo of captured) counts.set(photo.assetNumber, (counts.get(photo.assetNumber) ?? 0) + 1);
   cameraCounts.innerHTML = [...counts.entries()]
     .map(([assetNumber, count]) => {
-      const asset = assets.find((item) => item.assetNumber === assetNumber);
+      const asset = [...assets, OTHER_ASSET].find((item) => item.assetNumber === assetNumber);
       return `<div><strong>${assetNumber} ${asset?.assetName ?? ""}</strong><span>${count}枚</span></div>`;
     })
     .join("");
@@ -173,10 +173,12 @@ async function renderMarkers() {
 function assetOptions(selectedValue = "") {
   const options = [{ value: "", label: "未分類" }];
   for (const asset of assets) options.push({ value: asset.assetNumber, label: `${asset.assetNumber} ${asset.assetName}` });
+  options.push({ value: OTHER_ASSET_NUMBER, label: "その他（資産不明）" });
   return options.map(({ value, label }) => `<option value="${value}"${value === selectedValue ? " selected" : ""}>${label}</option>`).join("");
 }
 
 function destinationOptions(photo) {
+  if (photo.assetNumber === OTHER_ASSET_NUMBER) return `<option value="">写真帳には使わない</option>`;
   const asset = assets.find((item) => item.assetNumber === photo.assetNumber);
   const options = [{ value: "", label: "写真帳には使わない" }];
   if (asset) {
