@@ -8,6 +8,7 @@ const pdfInput = document.querySelector("#marker-pdf-input");
 const excelStatus = document.querySelector("#marker-excel-status");
 const viewPanel = document.querySelector("#marker-view-panel");
 const printPanel = document.querySelector("#marker-print-panel");
+const assetSearch = document.querySelector("#marker-asset-search");
 const assetSelect = document.querySelector("#marker-asset-select");
 const displayQr = document.querySelector("#marker-display-qr");
 const displayNumber = document.querySelector("#marker-display-number");
@@ -90,6 +91,23 @@ async function showAsset(index) {
   document.querySelector(`[data-asset-number="${CSS.escape(asset.assetNumber)}"]`)?.classList.add("selected");
 }
 
+function renderAssetOptions(query = "") {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const matches = assets.filter((asset) => {
+    if (!normalizedQuery) return true;
+    return `${asset.assetNumber} ${asset.assetName}`.toLocaleLowerCase().includes(normalizedQuery);
+  });
+  const selected = assets[currentIndex]?.assetNumber;
+  assetSelect.replaceChildren();
+  for (const asset of matches) {
+    assetSelect.add(new Option(`${asset.assetNumber} ${asset.assetName}`, asset.assetNumber));
+  }
+  assetSelect.disabled = matches.length === 0;
+  if (!matches.length) return;
+  const next = matches.some((asset) => asset.assetNumber === selected) ? selected : matches[0].assetNumber;
+  assetSelect.value = next;
+}
+
 async function renderMarkerCards() {
   if (cardsRendered) return;
   cardList.replaceChildren();
@@ -127,8 +145,8 @@ async function useAssets(nextAssets, message) {
   qrUrls.clear();
   cardsRendered = false;
   cardList.replaceChildren();
-  assetSelect.replaceChildren();
-  for (const asset of assets) assetSelect.add(new Option(`${asset.assetNumber} ${asset.assetName}`, asset.assetNumber));
+  assetSearch.value = "";
+  renderAssetOptions();
   viewPanel.hidden = false;
   printPanel.hidden = true;
   document.body.classList.add("marker-ready");
@@ -178,6 +196,12 @@ pdfInput.addEventListener("change", async () => {
 assetSelect.addEventListener("change", () => {
   const index = assets.findIndex((asset) => asset.assetNumber === assetSelect.value);
   if (index >= 0) showAsset(index);
+});
+assetSearch.addEventListener("input", () => {
+  const before = assets[currentIndex]?.assetNumber;
+  renderAssetOptions(assetSearch.value);
+  const next = assets.findIndex((asset) => asset.assetNumber === assetSelect.value);
+  if (next >= 0 && assets[next].assetNumber !== before) showAsset(next);
 });
 previousButton.addEventListener("click", () => showAsset(currentIndex - 1));
 nextButton.addEventListener("click", () => showAsset(currentIndex + 1));
