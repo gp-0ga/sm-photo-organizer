@@ -92,30 +92,17 @@
         </div>
       </section>
 
-      <section id="marker-panel" class="panel" aria-labelledby="marker-heading">
+      <section class="panel" aria-labelledby="photos-heading">
         <div class="step-label">3</div>
         <div class="step-body">
-          <div class="section-heading-row">
-            <div>
-              <h2 id="marker-heading">資産切替マーカーを作る</h2>
-              <p>資産が変わるときに標準カメラで撮影するQR一覧です。</p>
-            </div>
-            <button id="print-markers" class="secondary" disabled>QR一覧を印刷</button>
-          </div>
-          <div id="marker-list" class="marker-grid"></div>
-        </div>
-      </section>
-
-      <section class="panel" aria-labelledby="photos-heading">
-        <div class="step-label">4</div>
-        <div class="step-body">
           <h2 id="photos-heading">撮影写真を読み込んで確認する</h2>
-          <p>端末1台分ずつ選択してください。ファイル名順にQRを読み取り、マーカー写真は納品対象から除外します。</p>
+          <p>端末1台分ずつ選択してください。資産マーカーの作成・表示は専用ページで行います。写真整理の途中経過はこのPCのブラウザ内へ自動保存されます。</p>
           <label class="file-picker">
             <span>写真をまとめて選択</span>
             <input id="photo-input" type="file" accept="image/*,.heic,.heif" multiple disabled />
           </label>
           <div id="photo-status" class="status neutral" role="status">先にExcelを読み込んでください。</div>
+          <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
           <div id="bulk-tools" class="bulk-tools" hidden>
             <label><input id="select-all-photos" type="checkbox" /> 表示中をすべて選択</label>
             <select id="bulk-asset"></select>
@@ -128,7 +115,7 @@
       </section>
 
       <section class="panel" aria-labelledby="export-heading">
-        <div class="step-label">5</div>
+        <div class="step-label">4</div>
         <div class="step-body">
           <div class="section-heading-row">
             <div>
@@ -147,7 +134,7 @@
       </section>
 
       <section id="album-panel" class="panel" aria-labelledby="album-heading">
-        <div class="step-label">6</div>
+        <div class="step-label">5</div>
         <div class="step-body">
           <div class="section-heading-row">
             <div>

@@ -1,13 +1,12 @@
 import "./styles.css";
 import { readAssetsFromWorkbook } from "./excel.js";
-import { createAssetQr } from "./qr.js";
-import { createQr } from "./qr.js";
 import { createAssetFolders, exportOrganizedPhotos } from "./folders.js";
-import { OTHER_ASSET, OTHER_ASSET_NUMBER, SPECIAL_MARKERS } from "./domain.js";
+import { OTHER_ASSET, OTHER_ASSET_NUMBER } from "./domain.js";
 import { analyzePhotoFiles, compressToJpeg, jpegFileName, targetBytesFromKilobytes } from "./photos.js";
 import { albumEntries, createPhotoAlbum, inspectPhotoAlbumTemplate } from "./album.js";
 import { cameraFileName, captureVideoFrame, openRearCamera, stopCamera } from "./camera.js";
 import { createAssetPhotoZip, zipFileName } from "./zip.js";
+import { loadPhotoSession, savePhotoSession } from "./photo-session-storage.js";
 
 const hostedOrganizer = /\/organize\.html$/i.test(window.location.pathname);
 if (hostedOrganizer) document.body.classList.add("hosted-organizer");
@@ -16,14 +15,13 @@ const excelInput = document.querySelector("#excel-input");
 const excelStatus = document.querySelector("#excel-status");
 const folderStatus = document.querySelector("#folder-status");
 const createFoldersButton = document.querySelector("#create-folders");
-const printMarkersButton = document.querySelector("#print-markers");
 const assetList = document.querySelector("#asset-list");
-const markerList = document.querySelector("#marker-list");
 const assetTemplate = document.querySelector("#asset-template");
 const assetsEmpty = document.querySelector("#assets-empty");
 const summary = document.querySelector("#summary");
 const photoInput = document.querySelector("#photo-input");
 const photoStatus = document.querySelector("#photo-status");
+const sessionStatus = document.querySelector("#session-status");
 const photoSummary = document.querySelector("#photo-summary");
 const photoList = document.querySelector("#photo-list");
 const photoTemplate = document.querySelector("#photo-template");
@@ -62,6 +60,9 @@ let albumTemplateFile = null;
 const thumbnailUrls = new Set();
 let cameraStream = null;
 let captureInProgress = false;
+let saveTimer = null;
+let saveInProgress = false;
+let saveQueued = false;
 
 function setStatus(element, message, tone = "neutral") {
   element.hidden = false;
@@ -140,36 +141,6 @@ function updateCameraCounts() {
     .join("");
 }
 
-async function renderMarkers() {
-  markerList.replaceChildren();
-  for (const asset of assets) {
-    const card = document.createElement("article");
-    card.className = "marker-card";
-    const image = document.createElement("img");
-    image.alt = `${asset.assetNumber} ${asset.assetName} 資産切替QR`;
-    image.src = await createAssetQr(asset.assetNumber);
-    const number = document.createElement("strong");
-    number.textContent = asset.assetNumber;
-    const name = document.createElement("span");
-    name.textContent = asset.assetName;
-    card.append(image, number, name);
-    markerList.append(card);
-  }
-  for (const special of SPECIAL_MARKERS) {
-    const card = document.createElement("article");
-    card.className = `marker-card special ${special.type}`;
-    const image = document.createElement("img");
-    image.alt = `${special.label} QR`;
-    image.src = await createQr(special.payload);
-    const label = document.createElement("strong");
-    label.textContent = special.label;
-    const note = document.createElement("span");
-    note.textContent = special.type === "review" ? "後でPC確認" : "特殊マーカー";
-    card.append(image, label, note);
-    markerList.append(card);
-  }
-}
-
 function assetOptions(selectedValue = "") {
   const options = [{ value: "", label: "未分類" }];
   for (const asset of assets) options.push({ value: asset.assetNumber, label: `${asset.assetNumber} ${asset.assetName}` });
@@ -223,6 +194,73 @@ function updateAlbumReadiness() {
   }
 }
 
+function formatSavedAt(value) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("ja-JP", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+}
+
+function setSessionStatus(message, tone = "") {
+  sessionStatus.className = `session-status${tone ? ` ${tone}` : ""}`;
+  sessionStatus.textContent = message;
+}
+
+async function saveSessionNow() {
+  if (!assets.length && !photos.length && !healthWorkbookFile && !albumTemplateFile) return;
+  if (saveInProgress) {
+    saveQueued = true;
+    return;
+  }
+  saveInProgress = true;
+  try {
+    const savedAt = await savePhotoSession({
+      assets,
+      photos,
+      healthWorkbookFile,
+      albumTemplateFile,
+      photoTargetKb: photoTargetKb.value,
+    });
+    setSessionStatus(`自動保存済み：${formatSavedAt(savedAt)}`, "saved");
+  } catch (error) {
+    setSessionStatus(`自動保存できませんでした：${error.message ?? String(error)}`, "error");
+  } finally {
+    saveInProgress = false;
+    if (saveQueued) {
+      saveQueued = false;
+      scheduleSessionSave();
+    }
+  }
+}
+
+function scheduleSessionSave() {
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => { void saveSessionNow(); }, 350);
+}
+
+async function restoreSession() {
+  try {
+    const saved = await loadPhotoSession();
+    if (!saved || (!saved.assets?.length && !saved.photos?.length)) return;
+    assets = saved.assets ?? [];
+    photos = saved.photos ?? [];
+    healthWorkbookFile = saved.healthWorkbookFile;
+    albumTemplateFile = saved.albumTemplateFile;
+    if (saved.photoTargetKb) photoTargetKb.value = saved.photoTargetKb;
+    renderAssets();
+    renderCameraAssets();
+    renderPhotos();
+    createFoldersButton.disabled = assets.length === 0;
+    photoInput.disabled = assets.length === 0;
+    albumInput.disabled = assets.length === 0;
+    setStatus(excelStatus, `${assets.length}資産を前回の作業から復元しました。`, "success");
+    setStatus(photoStatus, `${photos.length}枚の写真を前回の作業から復元しました。`, "success");
+    setStatus(albumTemplateStatus, albumTemplateFile ? "写真帳様式も復元しました。" : "写真帳様式を選択してください。", "neutral");
+    setSessionStatus(`前回の作業を復元しました（${formatSavedAt(saved.savedAt)}）。`, "saved");
+    updateAlbumReadiness();
+  } catch (error) {
+    setSessionStatus(`前回の作業を復元できませんでした：${error.message ?? String(error)}`, "error");
+  }
+}
+
 function renderPhotos() {
   for (const url of thumbnailUrls) URL.revokeObjectURL(url);
   thumbnailUrls.clear();
@@ -250,15 +288,18 @@ function renderPhotos() {
       photo.destination = "";
       destinationSelect.innerHTML = destinationOptions(photo);
       updatePhotoSummary();
+      scheduleSessionSave();
     });
     destinationSelect.addEventListener("change", () => {
       photo.destination = destinationSelect.value;
       updateAlbumReadiness();
+      scheduleSessionSave();
     });
     node.querySelector(".photo-exclude").addEventListener("change", (event) => {
       photo.excluded = event.target.checked;
       card.classList.toggle("excluded", photo.excluded);
       updatePhotoSummary();
+      scheduleSessionSave();
     });
     photoList.append(node);
   }
@@ -277,7 +318,6 @@ excelInput.addEventListener("change", async () => {
   const file = excelInput.files?.[0];
   if (!file) return;
   createFoldersButton.disabled = true;
-  printMarkersButton.disabled = true;
   setStatus(excelStatus, `${file.name} を読み込んでいます…`, "working");
   try {
     assets = await readAssetsFromWorkbook(file);
@@ -286,22 +326,20 @@ excelInput.addEventListener("change", async () => {
     albumInput.value = "";
     renderAssets();
     renderCameraAssets();
-    await renderMarkers();
     createFoldersButton.disabled = false;
-    printMarkersButton.disabled = false;
     photoInput.disabled = false;
     albumInput.disabled = false;
     setStatus(photoStatus, "写真を端末1台分ずつ選択してください。", "neutral");
     setStatus(albumTemplateStatus, "この健全度判定表と対になる写真帳様式を選択してください。", "neutral");
     setStatus(excelStatus, `${assets.length}資産を読み込みました。元のExcelは変更していません。`, "success");
     updateAlbumReadiness();
+    scheduleSessionSave();
   } catch (error) {
     assets = [];
     healthWorkbookFile = null;
     albumTemplateFile = null;
     albumInput.disabled = true;
     assetList.replaceChildren();
-    markerList.replaceChildren();
     summary.hidden = true;
     assetsEmpty.hidden = false;
     cameraAsset.disabled = true;
@@ -382,6 +420,7 @@ cameraShutter.addEventListener("click", async () => {
       source: "camera",
     });
     renderPhotos();
+    scheduleSessionSave();
     updateCameraCounts();
     if (navigator.vibrate) navigator.vibrate(35);
     setStatus(
@@ -425,7 +464,10 @@ cameraSaveZip.addEventListener("click", async () => {
   }
 });
 
-window.addEventListener("pagehide", () => stopCamera(cameraStream));
+window.addEventListener("pagehide", () => {
+  stopCamera(cameraStream);
+  void saveSessionNow();
+});
 
 albumInput.addEventListener("change", async () => {
   const file = albumInput.files?.[0];
@@ -444,6 +486,7 @@ albumInput.addEventListener("change", async () => {
     setStatus(albumTemplateStatus, error.message ?? String(error), "error");
   }
   updateAlbumReadiness();
+  scheduleSessionSave();
 });
 
 createFoldersButton.addEventListener("click", async () => {
@@ -463,8 +506,6 @@ createFoldersButton.addEventListener("click", async () => {
   }
 });
 
-printMarkersButton.addEventListener("click", () => window.print());
-
 photoInput.addEventListener("change", async () => {
   const files = photoInput.files;
   if (!files?.length) return;
@@ -482,6 +523,7 @@ photoInput.addEventListener("change", async () => {
     setStatus(photoStatus, error.message ?? String(error), "error");
   } finally {
     photoInput.disabled = false;
+    scheduleSessionSave();
   }
 });
 
@@ -499,6 +541,7 @@ applyBulkAsset.addEventListener("click", () => {
     }
   }
   renderPhotos();
+  scheduleSessionSave();
 });
 
 clearReview.addEventListener("click", () => {
@@ -510,6 +553,7 @@ clearReview.addEventListener("click", () => {
     }
   }
   renderPhotos();
+  scheduleSessionSave();
 });
 
 exportPhotosButton.addEventListener("click", async () => {
@@ -557,3 +601,7 @@ createAlbumButton.addEventListener("click", async () => {
     }
   }
 });
+
+photoTargetKb.addEventListener("change", scheduleSessionSave);
+
+void restoreSession();

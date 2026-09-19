@@ -47,6 +47,9 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .status.working { border-color: #2677a8; background: #edf7fc; }
 .status.success { border-color: #21815c; background: #ecf8f1; }
 .status.error { border-color: #b23838; background: #fff0f0; }
+.session-status { margin-top: .55rem; color: #52616d; font-size: .82rem; }
+.session-status.saved { color: #176b4d; }
+.session-status.error { color: #9b2929; }
 
 .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin: .9rem 0 1rem; }
 .summary-grid div { padding: .85rem; border-radius: 10px; background: #f2f6f8; text-align: center; }
