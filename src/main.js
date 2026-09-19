@@ -31,6 +31,7 @@ const photoList = document.querySelector("#photo-list");
 const photoTemplate = document.querySelector("#photo-template");
 const bulkTools = document.querySelector("#bulk-tools");
 const selectAllPhotos = document.querySelector("#select-all-photos");
+const bulkSelectionStatus = document.querySelector("#bulk-selection-status");
 const bulkAsset = document.querySelector("#bulk-asset");
 const applyBulkAsset = document.querySelector("#apply-bulk-asset");
 const clearReview = document.querySelector("#clear-review");
@@ -323,17 +324,33 @@ function renderPhotos() {
       updatePhotoSummary();
       scheduleSessionSave();
     });
+    node.querySelector(".photo-select").addEventListener("change", updateBulkControls);
     photoList.append(node);
   }
   bulkTools.hidden = photos.length === 0;
   bulkAsset.innerHTML = assetOptions();
+  selectAllPhotos.checked = false;
+  selectAllPhotos.indeterminate = false;
   updatePhotoSummary();
+  updateBulkControls();
 }
 
 function selectedPhotoIds() {
   return new Set([...document.querySelectorAll(".photo-card")]
     .filter((card) => card.querySelector(".photo-select").checked)
     .map((card) => card.dataset.photoId));
+}
+
+function updateBulkControls() {
+  const checkboxes = [...document.querySelectorAll(".photo-select")];
+  const selectedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+  const total = checkboxes.length;
+  bulkSelectionStatus.textContent = `${selectedCount}枚選択中`;
+  selectAllPhotos.indeterminate = selectedCount > 0 && selectedCount < total;
+  selectAllPhotos.checked = total > 0 && selectedCount === total;
+  bulkAsset.disabled = selectedCount === 0;
+  applyBulkAsset.disabled = selectedCount === 0 || !bulkAsset.value;
+  clearReview.disabled = selectedCount === 0;
 }
 
 excelInput.addEventListener("change", async () => {
@@ -551,7 +568,10 @@ photoInput.addEventListener("change", async () => {
 
 selectAllPhotos.addEventListener("change", () => {
   for (const checkbox of document.querySelectorAll(".photo-select")) checkbox.checked = selectAllPhotos.checked;
+  updateBulkControls();
 });
+
+bulkAsset.addEventListener("change", updateBulkControls);
 
 applyBulkAsset.addEventListener("click", () => {
   const ids = selectedPhotoIds();

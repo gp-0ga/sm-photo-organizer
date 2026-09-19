@@ -124,6 +124,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 
 .bulk-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin: 1rem 0; padding: .8rem; border-radius: 10px; background: #f2f6f8; }
 .bulk-tools select { min-width: min(360px, 100%); padding: .6rem; }
+.bulk-selection-status { color: #176b4d; font-size: .82rem; font-weight: 800; }
 .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .8rem; margin-top: 1rem; }
 .photo-card { position: relative; overflow: hidden; border: 1px solid #d5dfe5; border-radius: 10px; background: white; }
 .photo-card.needs-review { border: 3px solid #b23838; }

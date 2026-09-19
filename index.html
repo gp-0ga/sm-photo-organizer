@@ -111,9 +111,10 @@
           </div>
           <div id="bulk-tools" class="bulk-tools" hidden>
             <label><input id="select-all-photos" type="checkbox" /> 表示中をすべて選択</label>
-            <select id="bulk-asset"></select>
-            <button id="apply-bulk-asset" class="secondary">選択写真の資産を変更</button>
-            <button id="clear-review" class="secondary">選択写真を確認済みにする</button>
+            <span id="bulk-selection-status" class="bulk-selection-status">0枚選択中</span>
+            <select id="bulk-asset" aria-label="選択写真に設定する資産"></select>
+            <button id="apply-bulk-asset" class="secondary" type="button" disabled>選択写真の資産を一括変更</button>
+            <button id="clear-review" class="secondary" type="button" disabled>選択写真を確認済みにする</button>
           </div>
           <div id="photo-summary" class="summary-grid" hidden></div>
           <div id="photo-list" class="photo-grid"></div>
