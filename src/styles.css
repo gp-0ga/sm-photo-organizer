@@ -45,7 +45,11 @@ main { width: min(1440px, calc(100% - 2rem)); margin: 1.5rem auto 4rem; }
 .work-select-panel { display: grid; gap: .55rem; padding: .75rem; border: 1px solid #d7e0e7; border-radius: 10px; background: linear-gradient(180deg, #f7fafb, #eef5f8); }
 .work-select-panel h2 { color: #163a5f; font-size: 1rem; }
 .work-select-list { display: grid; gap: .35rem; }
-.work-select-list .workspace-tab { width: 100%; padding: .55rem .65rem; text-align: left; }
+.work-select-list .workspace-tab { width: 100%; min-height: 2.45rem; padding: .6rem .7rem; border: 1px solid #a9c0ce; border-radius: 8px; color: #23485d; background: white; box-shadow: 0 2px 4px rgb(23 33 43 / 8%); cursor: pointer; font-weight: 800; text-align: left; transition: border-color .15s ease, background .15s ease, transform .15s ease; }
+.work-select-list .workspace-tab:hover { border-color: #2f6f95; background: #f2f8fb; }
+.work-select-list .workspace-tab:active { transform: translateY(1px); }
+.work-select-list .workspace-tab.active { border-color: #163a5f; color: white; background: #163a5f; box-shadow: 0 3px 7px rgb(22 58 95 / 22%); }
+.card-icon { display: inline-grid; place-items: center; width: 1.35rem; height: 1.35rem; margin-right: .35rem; border: 1px solid #8eb1c5; border-radius: .3rem; color: #2f6f95; background: #e8f3f8; font-size: .9rem; line-height: 1; vertical-align: -.15rem; }
 .workspace-side .panel { grid-template-columns: 2rem minmax(0, 1fr); min-width: 0; border-radius: 11px; box-shadow: 0 5px 14px rgb(23 33 43 / 6%); }
 .workspace-side .step-label { border-radius: 11px 0 0 11px; font-size: 1rem; }
 .workspace-side .step-body { min-width: 0; overflow: hidden; padding: .7rem; }
