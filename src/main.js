@@ -1511,11 +1511,23 @@ deleteSessionSnapshotButton.addEventListener("click", async () => {
   deleteSessionSnapshotButton.disabled = true;
   try {
     await deletePhotoSnapshot(id);
+    const deletedIndex = savedSessionSelect.selectedIndex;
+    savedSessionSelect.querySelector(`option[value="${CSS.escape(id)}"]`)?.remove();
+    if (savedSessionSelect.options.length <= 1) {
+      savedSessionSelect.options[0].textContent = "保存済み作業はありません";
+      loadSessionSnapshotButton.disabled = true;
+      deleteSessionSnapshotButton.disabled = true;
+    } else {
+      const nextIndex = Math.min(Math.max(deletedIndex, 1), savedSessionSelect.options.length - 1);
+      savedSessionSelect.selectedIndex = nextIndex;
+      loadSessionSnapshotButton.disabled = false;
+      deleteSessionSnapshotButton.disabled = false;
+    }
     setSessionStatus("保存済み作業を削除しました。", "saved");
   } catch (error) {
     setSessionStatus(`保存済み作業を削除できませんでした：${error.message ?? String(error)}`, "error");
   } finally {
-    await refreshSnapshotList();
+    void refreshSnapshotList();
   }
 });
 
