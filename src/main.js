@@ -42,6 +42,7 @@ const photoSummary = document.querySelector("#photo-summary");
 const photoList = document.querySelector("#photo-list");
 const gridDensity6Button = document.querySelector("#grid-density-6");
 const gridDensity3Button = document.querySelector("#grid-density-3");
+const photoViewMode = document.querySelector("#photo-view-mode");
 const photoFilterAssetSelect = document.querySelector("#photo-filter-asset");
 const photoFilterStatus = document.querySelector("#photo-filter-status");
 const photoTemplate = document.querySelector("#photo-template");
@@ -179,6 +180,7 @@ function renderPhotoFilterOptions() {
 }
 
 function matchesPhotoFilter(photo) {
+  if (photoViewMode.value === "needs" && photo.assetNumber && !photo.reviewRequired && !photo.qrReadError) return false;
   const filterValue = photoFilterAssetSelect.value;
   if (!filterValue) return true;
   if (filterValue === UNCLASSIFIED_FILTER_VALUE) return !photo.assetNumber;
@@ -194,6 +196,10 @@ function applyPhotoFilter() {
     if (matches) visibleCount += 1;
   }
   photoFilterStatus.textContent = photoFilterAssetSelect.value ? `${visibleCount}枚を表示中（全${photos.length}枚）` : "";
+  for (const heading of photoList.querySelectorAll(".photo-group-heading")) {
+    heading.hidden = ![...photoList.querySelectorAll(".photo-card")]
+      .some((card) => card.dataset.groupKey === heading.dataset.groupKey && !card.hidden);
+  }
   selectAllPhotos.checked = false;
   selectAllPhotos.indeterminate = false;
   updateBulkControls();
@@ -527,7 +533,40 @@ function renderPhotos() {
   for (const url of thumbnailUrls) URL.revokeObjectURL(url);
   thumbnailUrls.clear();
   photoList.replaceChildren();
-  for (const photo of photos) photoList.append(createPhotoCard(photo));
+  let displayPhotos = photos.slice();
+  if (photoViewMode.value === "asset") {
+    const assetOrder = new Map([...assets, OTHER_ASSET].map((asset, index) => [asset.assetNumber, index]));
+    displayPhotos.sort((left, right) => {
+      const leftGroup = left.assetNumber ?? "__unclassified__";
+      const rightGroup = right.assetNumber ?? "__unclassified__";
+      const groupCompare = (assetOrder.get(leftGroup) ?? assets.length + 1) - (assetOrder.get(rightGroup) ?? assets.length + 1);
+      return groupCompare || photos.indexOf(left) - photos.indexOf(right);
+    });
+  } else if (photoViewMode.value === "needs") {
+    displayPhotos = displayPhotos.filter((photo) => !photo.assetNumber || photo.reviewRequired || photo.qrReadError);
+  }
+  let previousGroupKey = null;
+  for (const photo of displayPhotos) {
+    if (photoViewMode.value === "asset") {
+      const groupKey = photo.assetNumber ?? "__unclassified__";
+      if (groupKey !== previousGroupKey) {
+        const heading = document.createElement("div");
+        heading.className = "photo-group-heading";
+        heading.dataset.groupKey = groupKey;
+        const asset = [...assets, OTHER_ASSET].find((item) => item.assetNumber === photo.assetNumber);
+        const groupPhotos = photos.filter((item) => (item.assetNumber ?? "__unclassified__") === groupKey);
+        const needs = groupPhotos.filter((item) => !item.assetNumber || item.reviewRequired || item.qrReadError).length;
+        heading.innerHTML = `<strong>${asset ? `${asset.assetNumber} ${asset.assetName}` : "未分類"}</strong><span>${groupPhotos.length}枚${needs ? `・要確認 ${needs}枚` : ""}</span>`;
+        photoList.append(heading);
+        previousGroupKey = groupKey;
+      }
+      const card = createPhotoCard(photo);
+      card.querySelector(".photo-card").dataset.groupKey = groupKey;
+      photoList.append(card);
+    } else {
+      photoList.append(createPhotoCard(photo));
+    }
+  }
   bulkTools.hidden = assets.length === 0 && photos.length === 0;
   bulkAsset.innerHTML = assetOptions();
   selectAllPhotos.checked = false;
@@ -539,6 +578,7 @@ function renderPhotos() {
 }
 
 photoFilterAssetSelect.addEventListener("change", applyPhotoFilter);
+photoViewMode.addEventListener("change", renderPhotos);
 
 function scrollToBookmark() {
   if (!bookmarkPhotoId) return;
