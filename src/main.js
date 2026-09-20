@@ -47,6 +47,7 @@ const gridDensity6Button = document.querySelector("#grid-density-6");
 const gridDensity3Button = document.querySelector("#grid-density-3");
 const photoViewMode = document.querySelector("#photo-view-mode");
 const photoFilterAssetSelect = document.querySelector("#photo-filter-asset");
+const photoFilterKeyword = document.querySelector("#photo-filter-keyword");
 const photoFilterStatus = document.querySelector("#photo-filter-status");
 const photoTemplate = document.querySelector("#photo-template");
 const bulkTools = document.querySelector("#bulk-tools");
@@ -204,9 +205,17 @@ function renderPhotoFilterOptions() {
 function matchesPhotoFilter(photo) {
   if (photoViewMode.value === "needs" && photo.assetNumber && !photo.reviewRequired && !photo.qrReadError) return false;
   const filterValue = photoFilterAssetSelect.value;
-  if (!filterValue) return true;
-  if (filterValue === UNCLASSIFIED_FILTER_VALUE) return !photo.assetNumber;
-  return photo.assetNumber === filterValue;
+  if (filterValue === UNCLASSIFIED_FILTER_VALUE && photo.assetNumber) return false;
+  if (filterValue && filterValue !== UNCLASSIFIED_FILTER_VALUE && photo.assetNumber !== filterValue) return false;
+  return matchesPhotoKeyword(photo);
+}
+
+function matchesPhotoKeyword(photo) {
+  const keyword = photoFilterKeyword?.value.trim().toLocaleLowerCase() || "";
+  if (!keyword) return true;
+  const asset = assets.find((item) => item.assetNumber === photo.assetNumber);
+  const haystack = [photo.file.name, photo.assetNumber, asset?.assetName, ...photoDestinations(photo)].filter(Boolean).join(" ").toLocaleLowerCase();
+  return haystack.includes(keyword);
 }
 
 function applyPhotoFilter() {
@@ -218,7 +227,8 @@ function applyPhotoFilter() {
     if (matches) visibleCount += 1;
   }
   const matchingCount = photos.filter(matchesPhotoFilter).length;
-  photoFilterStatus.textContent = photoFilterAssetSelect.value ? `${matchingCount}枚を表示中（全${photos.length}枚）` : "";
+  const hasFilter = photoFilterAssetSelect.value || photoFilterKeyword?.value.trim();
+  photoFilterStatus.textContent = hasFilter ? `${matchingCount}枚を表示中（全${photos.length}枚）` : "";
   for (const heading of photoList.querySelectorAll(".photo-group-heading")) {
     heading.hidden = ![...photoList.querySelectorAll(".photo-card")]
       .some((card) => card.dataset.groupKey === heading.dataset.groupKey && !card.hidden);
@@ -361,9 +371,15 @@ function updatePhotoSummary() {
 function updatePhotoDestinationAlert() {
   if (!photoDestinationAlert) return;
   const issues = destinationIssues();
-  if (!issues.length) {
+  if (!photos.length) {
     photoDestinationAlert.hidden = true;
     photoDestinationAlert.textContent = "";
+    return;
+  }
+  if (!issues.length) {
+    photoDestinationAlert.hidden = false;
+    photoDestinationAlert.className = "photo-destination-alert is-ok";
+    photoDestinationAlert.textContent = "確認済み：全景・サブフォルダーの枚数に問題ありません。";
     return;
   }
   const fullIssues = issues.filter((issue) => issue.title.includes("全景"));
@@ -374,6 +390,7 @@ function updatePhotoDestinationAlert() {
   ];
   const remaining = issues.length - labels.length;
   photoDestinationAlert.hidden = false;
+  photoDestinationAlert.className = "photo-destination-alert";
   photoDestinationAlert.textContent = `出力前に確認：${labels.join("、")}${remaining > 0 ? `、ほか${remaining}件` : ""}`;
 }
 
@@ -788,6 +805,7 @@ function renderPhotos() {
 }
 
 photoFilterAssetSelect.addEventListener("change", renderPhotos);
+photoFilterKeyword?.addEventListener("input", renderPhotos);
 photoViewMode.addEventListener("change", renderPhotos);
 
 function selectWorkspaceTab(name) {
