@@ -41,7 +41,7 @@ function restoreFile(record) {
   });
 }
 
-function createRecord({ id, name, assets, photos, healthWorkbookFile, albumTemplateFile, photoTargetKb }) {
+function createRecord({ id, name, assets, photos, healthWorkbookFile, albumTemplateFile, photoTargetKb, bookmarkPhotoId }) {
   return {
     id,
     kind: id === SESSION_ID ? "current" : "snapshot",
@@ -52,13 +52,14 @@ function createRecord({ id, name, assets, photos, healthWorkbookFile, albumTempl
     healthWorkbookFile: serializeFile(healthWorkbookFile),
     albumTemplateFile: serializeFile(albumTemplateFile),
     photoTargetKb: String(photoTargetKb ?? "200"),
+    bookmarkPhotoId: bookmarkPhotoId ?? null,
   };
 }
 
-export async function savePhotoSession({ assets, photos, healthWorkbookFile, albumTemplateFile, photoTargetKb, id = SESSION_ID, name = "" }) {
+export async function savePhotoSession({ assets, photos, healthWorkbookFile, albumTemplateFile, photoTargetKb, bookmarkPhotoId, id = SESSION_ID, name = "" }) {
   if (!globalThis.indexedDB) throw new Error("このブラウザは端末内保存に対応していません。");
   const database = await openDatabase();
-  const record = createRecord({ id, name, assets, photos, healthWorkbookFile, albumTemplateFile, photoTargetKb });
+  const record = createRecord({ id, name, assets, photos, healthWorkbookFile, albumTemplateFile, photoTargetKb, bookmarkPhotoId });
   await requestAsPromise(database.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME).put(record));
   database.close();
   return record.savedAt;
@@ -81,9 +82,9 @@ export async function loadPhotoSession(id = SESSION_ID) {
   };
 }
 
-export async function savePhotoSnapshot({ name, assets, photos, healthWorkbookFile, albumTemplateFile, photoTargetKb }) {
+export async function savePhotoSnapshot({ name, assets, photos, healthWorkbookFile, albumTemplateFile, photoTargetKb, bookmarkPhotoId }) {
   const id = `snapshot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const savedAt = await savePhotoSession({ id, name, assets, photos, healthWorkbookFile, albumTemplateFile, photoTargetKb });
+  const savedAt = await savePhotoSession({ id, name, assets, photos, healthWorkbookFile, albumTemplateFile, photoTargetKb, bookmarkPhotoId });
   return { id, savedAt };
 }
 

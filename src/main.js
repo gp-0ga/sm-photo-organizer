@@ -26,6 +26,7 @@ const sessionName = document.querySelector("#session-name");
 const saveSessionSnapshotButton = document.querySelector("#save-session-snapshot");
 const savedSessionSelect = document.querySelector("#saved-session-select");
 const loadSessionSnapshotButton = document.querySelector("#load-session-snapshot");
+const jumpToBookmarkButton = document.querySelector("#jump-to-bookmark");
 const photoSummary = document.querySelector("#photo-summary");
 const photoList = document.querySelector("#photo-list");
 const photoTemplate = document.querySelector("#photo-template");
@@ -60,6 +61,7 @@ const cameraSaveStatus = document.querySelector("#camera-save-status");
 let assets = [];
 let photos = [];
 let markerCount = 0;
+let bookmarkPhotoId = null;
 let healthWorkbookFile = null;
 let albumTemplateFile = null;
 const thumbnailUrls = new Set();
@@ -223,6 +225,7 @@ async function saveSessionNow() {
       healthWorkbookFile,
       albumTemplateFile,
       photoTargetKb: photoTargetKb.value,
+      bookmarkPhotoId,
     });
     setSessionStatus(`自動保存済み：${formatSavedAt(savedAt)}`, "saved");
   } catch (error) {
@@ -246,10 +249,12 @@ function applyLoadedSession(saved, message = "") {
     photos = saved.photos ?? [];
     healthWorkbookFile = saved.healthWorkbookFile;
     albumTemplateFile = saved.albumTemplateFile;
+    bookmarkPhotoId = photos.some((photo) => photo.id === saved.bookmarkPhotoId) ? saved.bookmarkPhotoId : null;
     if (saved.photoTargetKb) photoTargetKb.value = saved.photoTargetKb;
     renderAssets();
     renderCameraAssets();
     renderPhotos();
+    if (bookmarkPhotoId) scrollToBookmark();
     createFoldersButton.disabled = assets.length === 0;
     photoInput.disabled = assets.length === 0;
     albumInput.disabled = assets.length === 0;
@@ -305,6 +310,16 @@ function renderPhotos() {
     destinationSelect.innerHTML = destinationOptions(photo);
     node.querySelector(".photo-exclude").checked = photo.excluded;
     node.querySelector(".review-badge").hidden = !(photo.reviewRequired || photo.qrReadError);
+    const bookmarkButton = node.querySelector(".photo-bookmark");
+    const isBookmarked = photo.id === bookmarkPhotoId;
+    card.classList.toggle("bookmarked", isBookmarked);
+    bookmarkButton.textContent = isBookmarked ? "🔖 ここまで確認中" : "🔖 ここまで確認";
+    bookmarkButton.setAttribute("aria-pressed", String(isBookmarked));
+    bookmarkButton.addEventListener("click", () => {
+      bookmarkPhotoId = isBookmarked ? null : photo.id;
+      renderPhotos();
+      scheduleSessionSave();
+    });
 
     assetSelect.addEventListener("change", () => {
       photo.assetNumber = assetSelect.value || null;
@@ -333,6 +348,16 @@ function renderPhotos() {
   selectAllPhotos.indeterminate = false;
   updatePhotoSummary();
   updateBulkControls();
+  jumpToBookmarkButton.disabled = !bookmarkPhotoId;
+}
+
+function scrollToBookmark() {
+  if (!bookmarkPhotoId) return;
+  const card = photoList.querySelector(`.photo-card[data-photo-id="${bookmarkPhotoId}"]`);
+  if (!card) return;
+  card.scrollIntoView({ behavior: "smooth", block: "center" });
+  card.classList.add("bookmark-flash");
+  window.setTimeout(() => card.classList.remove("bookmark-flash"), 1200);
 }
 
 function selectedPhotoIds() {
@@ -556,6 +581,7 @@ photoInput.addEventListener("change", async () => {
     });
     photos = result.photos;
     markerCount = result.markers.length;
+    bookmarkPhotoId = null;
     renderPhotos();
     setStatus(photoStatus, `${photos.length}枚の写真と${markerCount}枚のマーカーを読み取りました。`, "success");
   } catch (error) {
@@ -661,6 +687,7 @@ saveSessionSnapshotButton.addEventListener("click", async () => {
       healthWorkbookFile,
       albumTemplateFile,
       photoTargetKb: photoTargetKb.value,
+      bookmarkPhotoId,
     });
     sessionName.value = name;
     setSessionStatus(`「${name}」として保存しました。後から一覧から開けます。`, "saved");
@@ -673,6 +700,8 @@ saveSessionSnapshotButton.addEventListener("click", async () => {
     saveSessionSnapshotButton.disabled = false;
   }
 });
+
+jumpToBookmarkButton.addEventListener("click", scrollToBookmark);
 
 loadSessionSnapshotButton.addEventListener("click", async () => {
   const id = savedSessionSelect.value;
