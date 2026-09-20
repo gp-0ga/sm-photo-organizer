@@ -57,6 +57,8 @@ const bulkSelectionStatus = document.querySelector("#bulk-selection-status");
 const bulkAsset = document.querySelector("#bulk-asset");
 const applyBulkAsset = document.querySelector("#apply-bulk-asset");
 const clearReview = document.querySelector("#clear-review");
+const bulkExclude = document.querySelector("#bulk-exclude");
+const bulkInclude = document.querySelector("#bulk-include");
 const exportPhotosButton = document.querySelector("#export-photos");
 const exportStatus = document.querySelector("#export-status");
 const exportToolbarStatus = document.querySelector("#export-toolbar-status");
@@ -738,7 +740,16 @@ function createPhotoCard(photo) {
   };
   renderDestinationChooser();
   node.querySelector(".photo-exclude").checked = photo.excluded;
-  node.querySelector(".review-badge").hidden = !(photo.reviewRequired || photo.qrReadError);
+  const reviewBadge = node.querySelector(".review-badge");
+  reviewBadge.hidden = !(photo.reviewRequired || photo.qrReadError);
+  reviewBadge.addEventListener("click", () => {
+    photo.reviewRequired = false;
+    photo.qrReadError = false;
+    reviewBadge.hidden = true;
+    card.classList.remove("needs-review");
+    updatePhotoSummary();
+    scheduleSessionSave();
+  });
   const bookmarkButton = node.querySelector(".photo-bookmark");
   const isBookmarked = photo.id === bookmarkPhotoId;
   card.classList.toggle("bookmarked", isBookmarked);
@@ -984,6 +995,8 @@ function updateBulkControls() {
   bulkAsset.disabled = selectedCount === 0;
   applyBulkAsset.disabled = selectedCount === 0 || !bulkAsset.value;
   clearReview.disabled = selectedCount === 0;
+  bulkExclude.disabled = selectedCount === 0;
+  bulkInclude.disabled = selectedCount === 0;
 }
 
 excelInput.addEventListener("change", async () => {
@@ -1295,14 +1308,21 @@ selectAllPhotos.addEventListener("change", () => {
 
 bulkAsset.addEventListener("change", updateBulkControls);
 
+function cardsByPhotoId() {
+  const map = new Map();
+  for (const card of document.querySelectorAll(".photo-card")) map.set(card.dataset.photoId, card);
+  return map;
+}
+
 applyBulkAsset.addEventListener("click", () => {
   const ids = selectedPhotoIds();
   if (!ids.size || !bulkAsset.value) return;
+  const cards = cardsByPhotoId();
   for (const photo of photos) {
     if (ids.has(photo.id)) {
       photo.assetNumber = bulkAsset.value;
       setPhotoDestinations(photo, []);
-      const card = photoList.querySelector(`.photo-card[data-photo-id="${photo.id}"]`);
+      const card = cards.get(photo.id);
       if (!card) continue;
       card.querySelector(".photo-asset").value = photo.assetNumber;
       card.querySelector(".photo-destination").textContent = "分類なし";
@@ -1329,6 +1349,26 @@ clearReview.addEventListener("click", () => {
   renderPhotos();
   scheduleSessionSave();
 });
+
+function setExcludedForSelection(excluded) {
+  const ids = selectedPhotoIds();
+  if (!ids.size) return;
+  const cards = cardsByPhotoId();
+  for (const photo of photos) {
+    if (!ids.has(photo.id)) continue;
+    photo.excluded = excluded;
+    const card = cards.get(photo.id);
+    if (!card) continue;
+    card.querySelector(".photo-exclude").checked = excluded;
+    card.classList.toggle("excluded", excluded);
+  }
+  updatePhotoSummary();
+  updateBulkControls();
+  scheduleSessionSave();
+}
+
+bulkExclude.addEventListener("click", () => setExcludedForSelection(true));
+bulkInclude.addEventListener("click", () => setExcludedForSelection(false));
 
 exportPhotosButton.addEventListener("click", async () => {
   exportPhotosButton.disabled = true;

@@ -333,7 +333,8 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .photo-info strong { display: block; max-height: 2.4em; overflow: hidden; overflow-wrap: anywhere; font-size: .7rem; line-height: 1.2; }
 .photo-info label { display: grid; gap: .12rem; font-size: .66rem; color: #53616c; }
 .photo-info select { width: 100%; padding: .28rem .25rem; border: 1px solid #becbd3; border-radius: 5px; background: white; font-size: .68rem; }
-.review-badge { justify-self: start; padding: .25rem .5rem; border-radius: 999px; color: #8b2020; background: #ffe6e6; font-size: .78rem; font-weight: 700; }
+.review-badge { justify-self: start; padding: .25rem .5rem; border: 1px solid #e2a0a0; border-radius: 999px; color: #8b2020; background: #ffe6e6; font-size: .78rem; font-weight: 700; cursor: pointer; }
+.review-badge:hover { background: #ffd2d2; }
 .caution-note { margin: 12px 0 0; color: #704d11; font-size: .9rem; }
 
 .stage-badge { display: inline-block; margin: 0 0 .4rem; padding: .25rem .55rem; border-radius: 999px; color: #15583f; background: #dff4ea; font-size: .78rem; font-weight: 800; }

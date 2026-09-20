@@ -161,6 +161,8 @@
               <select id="bulk-asset" aria-label="選択写真に設定する資産"></select>
               <button id="apply-bulk-asset" class="secondary" type="button" disabled>資産を一括変更</button>
               <button id="clear-review" class="secondary" type="button" disabled>確認済みにする</button>
+              <button id="bulk-exclude" class="secondary" type="button" disabled>選択写真を除外にする</button>
+              <button id="bulk-include" class="secondary" type="button" disabled>選択写真の除外を解除</button>
             </div>
             <button id="edit-destination-order" class="secondary" type="button">分類順を編集</button>
             <button id="view-selection-summary" class="secondary" type="button">選択状況一覧</button>
@@ -292,7 +294,7 @@
             <button class="photo-destination secondary" type="button">分類なし</button>
             <div class="photo-destination-options" hidden></div>
           </div>
-          <span class="review-badge" hidden>要確認</span>
+          <button class="review-badge" type="button" hidden>要確認（押して解除）</button>
         </div>
       </article>
     </template>
