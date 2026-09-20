@@ -25,9 +25,9 @@ button, input { font: inherit; }
 .local-badge { padding: .45rem .75rem; border: 1px solid #8eb1d3; border-radius: 999px; font-size: .85rem; white-space: nowrap; }
 
 main { width: min(1120px, calc(100% - 2rem)); margin: 1.5rem auto 4rem; display: grid; gap: 1rem; }
-.panel { display: grid; grid-template-columns: 3rem 1fr; background: white; border: 1px solid #d7e0e7; border-radius: 14px; box-shadow: 0 8px 22px rgb(23 33 43 / 7%); overflow: hidden; }
-.step-label { display: grid; place-items: start center; padding-top: 1.4rem; color: #fff; background: #2a658f; font-weight: 700; font-size: 1.2rem; }
-.step-body { padding: 1.35rem 1.5rem 1.6rem; min-width: 0; }
+.panel { display: grid; grid-template-columns: 3rem 1fr; background: white; border: 1px solid #d7e0e7; border-radius: 14px; box-shadow: 0 8px 22px rgb(23 33 43 / 7%); }
+.step-label { display: grid; place-items: start center; padding-top: 1.4rem; color: #fff; background: #2a658f; font-weight: 700; font-size: 1.2rem; border-radius: 14px 0 0 14px; }
+.step-body { padding: 1.35rem 1.5rem 1.6rem; min-width: 0; border-radius: 0 14px 14px 0; }
 h2 { margin: 0; color: #163a5f; font-size: 1.18rem; }
 p { line-height: 1.65; }
 .section-heading-row { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
@@ -123,9 +123,17 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .size-input-row input { width: 7rem; padding: .55rem; border: 1px solid #8195a3; border-radius: 7px; background: white; text-align: right; font-weight: 800; }
 .setting-note { margin: .45rem 0 0; color: #5d6973; font-size: .88rem; }
 
-.bulk-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin: 1rem 0; padding: .8rem; border-radius: 10px; background: #f2f6f8; }
-.bulk-tools select { min-width: min(360px, 100%); padding: .6rem; }
-.bulk-selection-status { color: #176b4d; font-size: .82rem; font-weight: 800; }
+.bulk-tools {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+  margin: 1rem 0; padding: .55rem .7rem; border-radius: 10px;
+  background: #f2f6f8;
+  position: sticky; top: 0; z-index: 5;
+  transition: box-shadow .15s ease, background .15s ease;
+}
+.bulk-tools.is-stuck { background: #e7f0f5; box-shadow: 0 4px 10px rgb(23 33 43 / 15%); border: 1px solid #c3d5df; }
+.bulk-tools select { min-width: min(280px, 100%); padding: .45rem; }
+.bulk-tools button { padding: .45rem .7rem; }
+.bulk-selection-status { color: #176b4d; font-size: .82rem; font-weight: 800; white-space: nowrap; }
 .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .8rem; margin-top: 1rem; }
 .photo-card { position: relative; overflow: hidden; border: 1px solid #d5dfe5; border-radius: 10px; background: white; }
 .photo-card.needs-review { border: 3px solid #b23838; }

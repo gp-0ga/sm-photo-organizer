@@ -31,6 +31,7 @@ const photoSummary = document.querySelector("#photo-summary");
 const photoList = document.querySelector("#photo-list");
 const photoTemplate = document.querySelector("#photo-template");
 const bulkTools = document.querySelector("#bulk-tools");
+const bulkToolsSentinel = document.querySelector("#bulk-tools-sentinel");
 const selectAllPhotos = document.querySelector("#select-all-photos");
 const bulkSelectionStatus = document.querySelector("#bulk-selection-status");
 const bulkAsset = document.querySelector("#bulk-asset");
@@ -358,6 +359,13 @@ function scrollToBookmark() {
   card.scrollIntoView({ behavior: "smooth", block: "center" });
   card.classList.add("bookmark-flash");
   window.setTimeout(() => card.classList.remove("bookmark-flash"), 1200);
+}
+
+if (bulkToolsSentinel && "IntersectionObserver" in window) {
+  new IntersectionObserver(
+    ([entry]) => bulkTools.classList.toggle("is-stuck", !entry.isIntersecting),
+    { threshold: 1 },
+  ).observe(bulkToolsSentinel);
 }
 
 function selectedPhotoIds() {
