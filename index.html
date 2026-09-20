@@ -174,14 +174,16 @@
 
     <template id="photo-template">
       <article class="photo-card">
-        <label class="photo-check"><input class="photo-select" type="checkbox" /> 選択</label>
+        <div class="photo-card-checks">
+          <label class="photo-check"><input class="photo-select" type="checkbox" /> 選択</label>
+          <label class="photo-check"><input class="photo-exclude" type="checkbox" /> 除外</label>
+        </div>
         <button class="photo-bookmark" type="button" title="ここまで確認">🔖</button>
         <img class="photo-thumb" alt="" loading="lazy" />
         <div class="photo-info">
           <strong class="photo-name"></strong>
           <label>資産<select class="photo-asset"></select></label>
           <label>写真帳分類<select class="photo-destination"></select></label>
-          <label><input class="photo-exclude" type="checkbox" /> 納品から除外</label>
           <span class="review-badge" hidden>要確認</span>
         </div>
       </article>
