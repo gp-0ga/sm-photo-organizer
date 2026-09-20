@@ -150,23 +150,23 @@
             <button id="clear-review" class="secondary" type="button" disabled>確認済みにする</button>
             <button id="edit-destination-order" class="secondary" type="button">分類順を編集</button>
             <span id="export-toolbar-status" class="toolbar-status" role="status" hidden></span>
+            <div class="photo-toolbar-row bulk-photo-controls">
+              <label class="photo-filter">表示順<select id="photo-view-mode" aria-label="写真の表示順">
+                <option value="capture">撮影順</option>
+                <option value="asset">資産ごと</option>
+                <option value="needs">未分類・要確認</option>
+              </select></label>
+              <label class="photo-filter">資産で絞り込み<select id="photo-filter-asset"><option value="">すべて表示</option></select></label>
+              <span id="photo-filter-status" class="photo-filter-status"></span>
+              <div class="grid-density-toggle" role="group" aria-label="写真の表示サイズ">
+                <span>写真の大きさ</span>
+                <button id="grid-density-6" type="button" class="secondary" aria-pressed="true">1列に6枚</button>
+                <button id="grid-density-3" type="button" class="secondary" aria-pressed="false">1列に3枚</button>
+              </div>
+            </div>
+            <div id="photo-summary" class="summary-grid bulk-photo-summary" hidden></div>
             </div>
           </div>
-          <div class="photo-toolbar-row">
-            <label class="photo-filter">表示順<select id="photo-view-mode" aria-label="写真の表示順">
-              <option value="capture">撮影順</option>
-              <option value="asset">資産ごと</option>
-              <option value="needs">未分類・要確認</option>
-            </select></label>
-            <label class="photo-filter">資産で絞り込み<select id="photo-filter-asset"><option value="">すべて表示</option></select></label>
-            <span id="photo-filter-status" class="photo-filter-status"></span>
-            <div class="grid-density-toggle" role="group" aria-label="写真の表示サイズ">
-              <span>写真の大きさ</span>
-              <button id="grid-density-6" type="button" class="secondary" aria-pressed="true">1列に6枚</button>
-              <button id="grid-density-3" type="button" class="secondary" aria-pressed="false">1列に3枚</button>
-            </div>
-          </div>
-          <div id="photo-summary" class="summary-grid" hidden></div>
           <div id="photo-list" class="photo-grid"></div>
         </div>
       </section>

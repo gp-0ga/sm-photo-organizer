@@ -236,6 +236,11 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .bulk-selection-status { color: #176b4d; font-size: .82rem; font-weight: 800; white-space: nowrap; }
 .photo-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .55rem; margin-top: 1rem; }
 .photo-toolbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem 1.2rem; margin-top: .8rem; }
+.bulk-photo-controls { flex: 1 1 100%; margin-top: .05rem; padding-top: .45rem; border-top: 1px solid #cbd9e1; }
+.bulk-photo-summary { flex: 1 1 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; margin: 0; }
+.bulk-photo-summary div { padding: .35rem .45rem; }
+.bulk-photo-summary strong { font-size: 1rem; }
+.bulk-photo-summary span { font-size: .7rem; }
 .photo-filter { display: flex; align-items: center; gap: .5rem; font-size: .82rem; color: #52616d; font-weight: 700; }
 .photo-filter select { padding: .42rem .5rem; border: 1px solid #b9c9d4; border-radius: 7px; background: white; font: inherit; min-width: 200px; }
 .photo-filter-status { color: #176b4d; font-size: .8rem; font-weight: 700; }
