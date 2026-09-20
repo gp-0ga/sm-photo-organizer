@@ -594,7 +594,9 @@ function createPhotoCard(photo) {
     const destinations = photoDestinations(photo);
     destinationButton.textContent = destinations.length ? destinations.join("・") : "分類なし";
     destinationOptionsPanel.innerHTML = destinationChoices(photo);
-    destinationOptionsPanel.hidden = destinationOptionsPanel.dataset.open !== "true";
+    destinationButton.hidden = true;
+    destinationOptionsPanel.dataset.open = "true";
+    destinationOptionsPanel.hidden = false;
   };
   renderDestinationChooser();
   node.querySelector(".photo-exclude").checked = photo.excluded;
@@ -1111,7 +1113,8 @@ applyBulkAsset.addEventListener("click", () => {
       card.querySelector(".photo-destination").textContent = "分類なし";
       const destinationPanel = card.querySelector(".photo-destination-options");
       destinationPanel.innerHTML = destinationChoices(photo);
-      destinationPanel.hidden = true;
+      destinationPanel.dataset.open = "true";
+      destinationPanel.hidden = false;
     }
   }
   updatePhotoSummary();
