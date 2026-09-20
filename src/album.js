@@ -108,9 +108,46 @@ export function albumEntries(assets, photos) {
   return entries;
 }
 
-async function postBinary(url, body) {
-  const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body });
-  if (!response.ok) throw new Error(await response.text() || "ファイルの受け渡しに失敗しました。");
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function postBinary(url, body, label, { timeoutMs = 120000, retries = 2 } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body,
+        signal: controller.signal,
+      });
+      const responseText = await response.text();
+      if (response.ok) return;
+
+      const detail = responseText.trim().replace(/\s+/g, " ").slice(0, 240);
+      const error = new Error(`${label}の受け渡しに失敗しました（HTTP ${response.status}${detail ? `：${detail}` : ""}）。`);
+      // 4xxは再試行しても同じ入力では直らないため、すぐに表示する。
+      if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) {
+        error.noRetry = true;
+        throw error;
+      }
+      lastError = error;
+    } catch (error) {
+      if (error?.noRetry) throw error;
+      if (error?.name === "AbortError") {
+        lastError = new Error(`${label}の送信がタイムアウトしました（${Math.round(timeoutMs / 1000)}秒）。通信状態を確認して再実行してください。`);
+      } else if (error instanceof TypeError) {
+        lastError = new Error(`${label}を送信できませんでした。通信状態を確認して再実行してください。`);
+      } else {
+        lastError = error;
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (attempt < retries) await sleep(600 * (attempt + 1));
+  }
+  throw lastError ?? new Error(`${label}の受け渡しに失敗しました。`);
 }
 
 export async function createPhotoAlbum({ healthWorkbook, albumTemplate, assets, photos, compress, onProgress = () => {} }) {
@@ -119,16 +156,16 @@ export async function createPhotoAlbum({ healthWorkbook, albumTemplate, assets, 
   const base = `/api/session/${sessionId}`;
 
   onProgress(0, entries.length + 3, "健全度判定表を準備中");
-  await postBinary(`${base}/health`, healthWorkbook);
+  await postBinary(`${base}/health`, healthWorkbook, `健全度判定表「${healthWorkbook.name}」`);
   onProgress(1, entries.length + 3, "写真帳様式を準備中");
-  await postBinary(`${base}/album`, albumTemplate);
+  await postBinary(`${base}/album`, albumTemplate, `写真帳様式「${albumTemplate.name}」`);
 
   const manifestEntries = [];
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index];
     const fileKey = String(index + 1).padStart(4, "0");
     const blob = await compress(entry.photo.file);
-    await postBinary(`${base}/photo/${fileKey}`, blob);
+    await postBinary(`${base}/photo/${fileKey}`, blob, `写真「${entry.photo.file.name}」`, { timeoutMs: 60000 });
     manifestEntries.push({
       fileKey,
       sourceName: entry.photo.file.name,
