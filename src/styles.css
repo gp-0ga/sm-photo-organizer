@@ -252,6 +252,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .bulk-tools button { padding: .45rem .7rem; }
 .bulk-selection-status { color: #176b4d; font-size: .82rem; font-weight: 800; white-space: nowrap; }
 .photo-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .4rem; margin-top: .65rem; }
+.photo-render-sentinel { grid-column: 1 / -1; min-height: 1px; }
 .photo-toolbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem 1.2rem; margin-top: .8rem; }
 .bulk-photo-controls { flex: 1 1 100%; margin-top: .05rem; padding-top: .45rem; border-top: 1px solid #cbd9e1; }
 .bulk-photo-summary { flex: 1 1 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; margin: 0; }

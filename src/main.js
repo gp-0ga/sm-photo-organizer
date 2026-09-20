@@ -105,6 +105,11 @@ let captureInProgress = false;
 let saveTimer = null;
 let saveInProgress = false;
 let saveQueued = false;
+const selectedPhotoIdsState = new Set();
+const PHOTO_RENDER_CHUNK_SIZE = 80;
+let photoRenderQueue = [];
+let photoRenderCursor = 0;
+let photoRenderObserver = null;
 
 function setupPanelToggle(panel, button, storageKey) {
   if (!panel || !button) return;
@@ -211,13 +216,12 @@ function applyPhotoFilter() {
     card.hidden = !matches;
     if (matches) visibleCount += 1;
   }
-  photoFilterStatus.textContent = photoFilterAssetSelect.value ? `${visibleCount}枚を表示中（全${photos.length}枚）` : "";
+  const matchingCount = photos.filter(matchesPhotoFilter).length;
+  photoFilterStatus.textContent = photoFilterAssetSelect.value ? `${matchingCount}枚を表示中（全${photos.length}枚）` : "";
   for (const heading of photoList.querySelectorAll(".photo-group-heading")) {
     heading.hidden = ![...photoList.querySelectorAll(".photo-card")]
       .some((card) => card.dataset.groupKey === heading.dataset.groupKey && !card.hidden);
   }
-  selectAllPhotos.checked = false;
-  selectAllPhotos.indeterminate = false;
   updateBulkControls();
 }
 
@@ -586,6 +590,7 @@ function createPhotoCard(photo) {
   const node = photoTemplate.content.cloneNode(true);
   const card = node.querySelector(".photo-card");
   card.dataset.photoId = photo.id;
+  node.querySelector(".photo-select").checked = selectedPhotoIdsState.has(photo.id);
   if (photo.reviewRequired || photo.qrReadError) card.classList.add("needs-review");
   const thumbnail = node.querySelector(".photo-thumb");
   const url = URL.createObjectURL(photo.file);
@@ -672,13 +677,48 @@ function createPhotoCard(photo) {
     updatePhotoSummary();
     scheduleSessionSave();
   });
-  node.querySelector(".photo-select").addEventListener("change", updateBulkControls);
+  node.querySelector(".photo-select").addEventListener("change", (event) => {
+    if (event.target.checked) selectedPhotoIdsState.add(photo.id);
+    else selectedPhotoIdsState.delete(photo.id);
+    updateBulkControls();
+  });
   return node;
+}
+
+function appendPhotoRenderChunk() {
+  const sentinel = photoList.querySelector(".photo-render-sentinel");
+  sentinel?.remove();
+  const fragment = document.createDocumentFragment();
+  const chunkSize = photoRenderObserver ? PHOTO_RENDER_CHUNK_SIZE : photoRenderQueue.length;
+  const end = Math.min(photoRenderCursor + chunkSize, photoRenderQueue.length);
+  for (; photoRenderCursor < end; photoRenderCursor += 1) {
+    const entry = photoRenderQueue[photoRenderCursor];
+    if (entry.type === "heading") {
+      const heading = document.createElement("div");
+      heading.className = "photo-group-heading";
+      heading.dataset.groupKey = entry.groupKey;
+      heading.innerHTML = `<strong>${entry.label}</strong><span>${entry.count}枚${entry.needs ? `・要確認 ${entry.needs}枚` : ""}</span>`;
+      fragment.append(heading);
+      continue;
+    }
+    const card = createPhotoCard(entry.photo);
+    card.querySelector(".photo-card").dataset.groupKey = entry.groupKey || "";
+    fragment.append(card);
+  }
+  photoList.append(fragment);
+  if (photoRenderCursor < photoRenderQueue.length) {
+    const next = document.createElement("div");
+    next.className = "photo-render-sentinel";
+    photoList.append(next);
+    photoRenderObserver?.observe(next);
+  }
+  applyPhotoFilter();
 }
 
 function renderPhotos() {
   for (const url of thumbnailUrls) URL.revokeObjectURL(url);
   thumbnailUrls.clear();
+  photoRenderObserver?.disconnect();
   photoList.replaceChildren();
   let displayPhotos = photos.slice();
   if (photoViewMode.value === "asset") {
@@ -689,31 +729,32 @@ function renderPhotos() {
       const groupCompare = (assetOrder.get(leftGroup) ?? assets.length + 1) - (assetOrder.get(rightGroup) ?? assets.length + 1);
       return groupCompare || photos.indexOf(left) - photos.indexOf(right);
     });
-  } else if (photoViewMode.value === "needs") {
-    displayPhotos = displayPhotos.filter((photo) => !photo.assetNumber || photo.reviewRequired || photo.qrReadError);
   }
+  displayPhotos = displayPhotos.filter(matchesPhotoFilter);
+  photoRenderQueue = [];
   let previousGroupKey = null;
   for (const photo of displayPhotos) {
     if (photoViewMode.value === "asset") {
       const groupKey = photo.assetNumber ?? "__unclassified__";
       if (groupKey !== previousGroupKey) {
-        const heading = document.createElement("div");
-        heading.className = "photo-group-heading";
-        heading.dataset.groupKey = groupKey;
         const asset = [...assets, OTHER_ASSET].find((item) => item.assetNumber === photo.assetNumber);
-        const groupPhotos = photos.filter((item) => (item.assetNumber ?? "__unclassified__") === groupKey);
+        const groupPhotos = displayPhotos.filter((item) => (item.assetNumber ?? "__unclassified__") === groupKey);
         const needs = groupPhotos.filter((item) => !item.assetNumber || item.reviewRequired || item.qrReadError).length;
-        heading.innerHTML = `<strong>${asset ? `${asset.assetNumber} ${asset.assetName}` : "未分類"}</strong><span>${groupPhotos.length}枚${needs ? `・要確認 ${needs}枚` : ""}</span>`;
-        photoList.append(heading);
+        photoRenderQueue.push({ type: "heading", groupKey, label: asset ? `${asset.assetNumber} ${asset.assetName}` : "未分類", count: groupPhotos.length, needs });
         previousGroupKey = groupKey;
       }
-      const card = createPhotoCard(photo);
-      card.querySelector(".photo-card").dataset.groupKey = groupKey;
-      photoList.append(card);
+      photoRenderQueue.push({ type: "photo", photo, groupKey });
     } else {
-      photoList.append(createPhotoCard(photo));
+      photoRenderQueue.push({ type: "photo", photo, groupKey: "" });
     }
   }
+  if (!photoRenderObserver && "IntersectionObserver" in window) {
+    photoRenderObserver = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) appendPhotoRenderChunk();
+    }, { rootMargin: "600px 0px" });
+  }
+  photoRenderCursor = 0;
+  appendPhotoRenderChunk();
   bulkTools.hidden = assets.length === 0 && photos.length === 0;
   bulkAsset.innerHTML = assetOptions();
   selectAllPhotos.checked = false;
@@ -724,7 +765,7 @@ function renderPhotos() {
   applyPhotoFilter();
 }
 
-photoFilterAssetSelect.addEventListener("change", applyPhotoFilter);
+photoFilterAssetSelect.addEventListener("change", renderPhotos);
 photoViewMode.addEventListener("change", renderPhotos);
 
 function selectWorkspaceTab(name) {
@@ -803,15 +844,14 @@ function visiblePhotoCards() {
 }
 
 function selectedPhotoIds() {
-  return new Set(visiblePhotoCards()
-    .filter((card) => card.querySelector(".photo-select").checked)
-    .map((card) => card.dataset.photoId));
+  const visibleIds = new Set(visiblePhotoCards().map((card) => card.dataset.photoId));
+  return new Set([...selectedPhotoIdsState].filter((id) => visibleIds.has(id)));
 }
 
 function updateBulkControls() {
-  const checkboxes = visiblePhotoCards().map((card) => card.querySelector(".photo-select"));
-  const selectedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
-  const total = checkboxes.length;
+  const visibleIds = photos.filter(matchesPhotoFilter).map((photo) => photo.id);
+  const selectedCount = visibleIds.filter((id) => selectedPhotoIdsState.has(id)).length;
+  const total = visibleIds.length;
   bulkSelectionStatus.textContent = `${selectedCount}枚選択中`;
   selectAllPhotos.indeterminate = selectedCount > 0 && selectedCount < total;
   selectAllPhotos.checked = total > 0 && selectedCount === total;
@@ -1116,7 +1156,14 @@ photoInput.addEventListener("change", async () => {
 });
 
 selectAllPhotos.addEventListener("change", () => {
-  for (const card of visiblePhotoCards()) card.querySelector(".photo-select").checked = selectAllPhotos.checked;
+  for (const photo of photos) {
+    if (!matchesPhotoFilter(photo)) continue;
+    if (selectAllPhotos.checked) selectedPhotoIdsState.add(photo.id);
+    else selectedPhotoIdsState.delete(photo.id);
+  }
+  for (const card of document.querySelectorAll(".photo-card")) {
+    card.querySelector(".photo-select").checked = selectedPhotoIdsState.has(card.dataset.photoId);
+  }
   updateBulkControls();
 });
 
