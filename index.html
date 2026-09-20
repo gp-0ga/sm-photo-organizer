@@ -178,6 +178,7 @@
     <template id="photo-template">
       <article class="photo-card">
         <label class="photo-check"><input class="photo-select" type="checkbox" /> 選択</label>
+        <button class="photo-bookmark" type="button" title="ここまで確認">🔖</button>
         <img class="photo-thumb" alt="" loading="lazy" />
         <div class="photo-info">
           <strong class="photo-name"></strong>
@@ -185,7 +186,6 @@
           <label>写真帳分類<select class="photo-destination"></select></label>
           <label><input class="photo-exclude" type="checkbox" /> 納品から除外</label>
           <span class="review-badge" hidden>要確認</span>
-          <button class="photo-bookmark secondary" type="button">🔖 ここまで確認</button>
         </div>
       </article>
     </template>
