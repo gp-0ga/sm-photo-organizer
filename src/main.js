@@ -290,59 +290,61 @@ async function restoreSession() {
   }
 }
 
+function createPhotoCard(photo) {
+  const node = photoTemplate.content.cloneNode(true);
+  const card = node.querySelector(".photo-card");
+  card.dataset.photoId = photo.id;
+  if (photo.reviewRequired || photo.qrReadError) card.classList.add("needs-review");
+  const thumbnail = node.querySelector(".photo-thumb");
+  const url = URL.createObjectURL(photo.file);
+  thumbnailUrls.add(url);
+  thumbnail.src = url;
+  thumbnail.alt = photo.file.name;
+  node.querySelector(".photo-name").textContent = photo.file.name;
+  const assetSelect = node.querySelector(".photo-asset");
+  assetSelect.innerHTML = assetOptions(photo.assetNumber ?? "");
+  const destinationSelect = node.querySelector(".photo-destination");
+  destinationSelect.innerHTML = destinationOptions(photo);
+  node.querySelector(".photo-exclude").checked = photo.excluded;
+  node.querySelector(".review-badge").hidden = !(photo.reviewRequired || photo.qrReadError);
+  const bookmarkButton = node.querySelector(".photo-bookmark");
+  const isBookmarked = photo.id === bookmarkPhotoId;
+  card.classList.toggle("bookmarked", isBookmarked);
+  bookmarkButton.title = isBookmarked ? "ここまで確認済み（解除）" : "ここまで確認";
+  bookmarkButton.setAttribute("aria-pressed", String(isBookmarked));
+  bookmarkButton.addEventListener("click", () => {
+    bookmarkPhotoId = isBookmarked ? null : photo.id;
+    renderPhotos();
+    scheduleSessionSave();
+  });
+
+  assetSelect.addEventListener("change", () => {
+    photo.assetNumber = assetSelect.value || null;
+    photo.destination = "";
+    destinationSelect.innerHTML = destinationOptions(photo);
+    updatePhotoSummary();
+    scheduleSessionSave();
+  });
+  destinationSelect.addEventListener("change", () => {
+    photo.destination = destinationSelect.value;
+    updateAlbumReadiness();
+    scheduleSessionSave();
+  });
+  node.querySelector(".photo-exclude").addEventListener("change", (event) => {
+    photo.excluded = event.target.checked;
+    card.classList.toggle("excluded", photo.excluded);
+    updatePhotoSummary();
+    scheduleSessionSave();
+  });
+  node.querySelector(".photo-select").addEventListener("change", updateBulkControls);
+  return node;
+}
+
 function renderPhotos() {
   for (const url of thumbnailUrls) URL.revokeObjectURL(url);
   thumbnailUrls.clear();
   photoList.replaceChildren();
-  for (const photo of photos) {
-    const node = photoTemplate.content.cloneNode(true);
-    const card = node.querySelector(".photo-card");
-    card.dataset.photoId = photo.id;
-    if (photo.reviewRequired || photo.qrReadError) card.classList.add("needs-review");
-    const thumbnail = node.querySelector(".photo-thumb");
-    const url = URL.createObjectURL(photo.file);
-    thumbnailUrls.add(url);
-    thumbnail.src = url;
-    thumbnail.alt = photo.file.name;
-    node.querySelector(".photo-name").textContent = photo.file.name;
-    const assetSelect = node.querySelector(".photo-asset");
-    assetSelect.innerHTML = assetOptions(photo.assetNumber ?? "");
-    const destinationSelect = node.querySelector(".photo-destination");
-    destinationSelect.innerHTML = destinationOptions(photo);
-    node.querySelector(".photo-exclude").checked = photo.excluded;
-    node.querySelector(".review-badge").hidden = !(photo.reviewRequired || photo.qrReadError);
-    const bookmarkButton = node.querySelector(".photo-bookmark");
-    const isBookmarked = photo.id === bookmarkPhotoId;
-    card.classList.toggle("bookmarked", isBookmarked);
-    bookmarkButton.textContent = isBookmarked ? "🔖 ここまで確認中" : "🔖 ここまで確認";
-    bookmarkButton.setAttribute("aria-pressed", String(isBookmarked));
-    bookmarkButton.addEventListener("click", () => {
-      bookmarkPhotoId = isBookmarked ? null : photo.id;
-      renderPhotos();
-      scheduleSessionSave();
-    });
-
-    assetSelect.addEventListener("change", () => {
-      photo.assetNumber = assetSelect.value || null;
-      photo.destination = "";
-      destinationSelect.innerHTML = destinationOptions(photo);
-      updatePhotoSummary();
-      scheduleSessionSave();
-    });
-    destinationSelect.addEventListener("change", () => {
-      photo.destination = destinationSelect.value;
-      updateAlbumReadiness();
-      scheduleSessionSave();
-    });
-    node.querySelector(".photo-exclude").addEventListener("change", (event) => {
-      photo.excluded = event.target.checked;
-      card.classList.toggle("excluded", photo.excluded);
-      updatePhotoSummary();
-      scheduleSessionSave();
-    });
-    node.querySelector(".photo-select").addEventListener("change", updateBulkControls);
-    photoList.append(node);
-  }
+  for (const photo of photos) photoList.append(createPhotoCard(photo));
   bulkTools.hidden = photos.length === 0;
   bulkAsset.innerHTML = assetOptions();
   selectAllPhotos.checked = false;
@@ -491,7 +493,14 @@ cameraShutter.addEventListener("click", async () => {
       qrReadError: false,
       source: "camera",
     });
-    renderPhotos();
+    // 撮影時は既存カードを作り直さず、新しい1枚だけを追加する。
+    // 大量の写真を扱う現場で、既存サムネイルの再読込を避けるため。
+    photoList.append(createPhotoCard(photos.at(-1)));
+    bulkTools.hidden = false;
+    bulkAsset.innerHTML = assetOptions();
+    updatePhotoSummary();
+    updateBulkControls();
+    jumpToBookmarkButton.disabled = !bookmarkPhotoId;
     scheduleSessionSave();
     updateCameraCounts();
     if (navigator.vibrate) navigator.vibrate(35);
