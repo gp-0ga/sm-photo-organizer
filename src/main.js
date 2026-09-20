@@ -35,6 +35,8 @@ const importWorkFileButton = document.querySelector("#import-work-file");
 const importWorkFileInput = document.querySelector("#import-work-file-input");
 const photoSummary = document.querySelector("#photo-summary");
 const photoList = document.querySelector("#photo-list");
+const gridDensity6Button = document.querySelector("#grid-density-6");
+const gridDensity3Button = document.querySelector("#grid-density-3");
 const photoTemplate = document.querySelector("#photo-template");
 const bulkTools = document.querySelector("#bulk-tools");
 const bulkToolsSentinel = document.querySelector("#bulk-tools-sentinel");
@@ -863,6 +865,28 @@ saveSessionSnapshotButton.addEventListener("click", async () => {
 });
 
 jumpToBookmarkButton.addEventListener("click", scrollToBookmark);
+
+const GRID_DENSITY_KEY = "photo-grid-density";
+
+function applyGridDensity(density) {
+  photoList.classList.toggle("grid-density-3", density === "3");
+  gridDensity6Button.setAttribute("aria-pressed", String(density !== "3"));
+  gridDensity3Button.setAttribute("aria-pressed", String(density === "3"));
+  try {
+    localStorage.setItem(GRID_DENSITY_KEY, density);
+  } catch {
+    // 表示設定を保存できない場合も一覧表示は継続する
+  }
+}
+
+gridDensity6Button.addEventListener("click", () => applyGridDensity("6"));
+gridDensity3Button.addEventListener("click", () => applyGridDensity("3"));
+
+try {
+  applyGridDensity(localStorage.getItem(GRID_DENSITY_KEY) === "3" ? "3" : "6");
+} catch {
+  applyGridDensity("6");
+}
 
 chooseWorkFolderButton.addEventListener("click", () => { void chooseWorkFolder(); });
 

@@ -155,6 +155,12 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .bulk-tools button { padding: .45rem .7rem; }
 .bulk-selection-status { color: #176b4d; font-size: .82rem; font-weight: 800; white-space: nowrap; }
 .photo-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .55rem; margin-top: 1rem; }
+.grid-density-toggle { display: flex; align-items: center; gap: .5rem; margin-top: .8rem; font-size: .82rem; color: #52616d; font-weight: 700; }
+.grid-density-toggle button { padding: .4rem .7rem; font-size: .8rem; }
+.grid-density-toggle button[aria-pressed="true"] { background: #163a5f; color: white; }
+@media (min-width: 701px) {
+  .photo-grid.grid-density-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 .photo-card { position: relative; overflow: hidden; border: 1px solid #d5dfe5; border-radius: 10px; background: white; }
 .photo-card.needs-review { border: 3px solid #b23838; }
 .photo-card.excluded { opacity: .55; }
