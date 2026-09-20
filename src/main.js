@@ -108,6 +108,7 @@ function renderAssets() {
   }
   assetsEmpty.hidden = true;
   renderSummary();
+  bulkTools.hidden = assets.length === 0 && photos.length === 0;
 }
 
 function renderCameraAssets() {
@@ -359,7 +360,7 @@ function renderPhotos() {
   thumbnailUrls.clear();
   photoList.replaceChildren();
   for (const photo of photos) photoList.append(createPhotoCard(photo));
-  bulkTools.hidden = photos.length === 0;
+  bulkTools.hidden = assets.length === 0 && photos.length === 0;
   bulkAsset.innerHTML = assetOptions();
   selectAllPhotos.checked = false;
   selectAllPhotos.indeterminate = false;

@@ -104,20 +104,20 @@
           </label>
           <div id="photo-status" class="status neutral" role="status">先にExcelを読み込んでください。</div>
           <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
-          <div class="session-tools">
-            <label>作業名<input id="session-name" type="text" placeholder="例：管理本館 1回目" /></label>
-            <button id="save-session-snapshot" class="secondary" type="button">この作業を保存</button>
-            <select id="saved-session-select" aria-label="保存済み作業"></select>
-            <button id="load-session-snapshot" class="secondary" type="button" disabled>保存済み作業を開く</button>
-            <button id="jump-to-bookmark" class="secondary" type="button" disabled>しおりへ移動</button>
-          </div>
           <div id="bulk-tools-sentinel"></div>
           <div id="bulk-tools" class="bulk-tools" hidden>
-            <label><input id="select-all-photos" type="checkbox" /> 表示中をすべて選択</label>
+            <div class="toolbar-session" aria-label="作業操作">
+              <label>作業名<input id="session-name" type="text" placeholder="例：管理本館 1回目" /></label>
+              <button id="save-session-snapshot" class="secondary" type="button">保存</button>
+              <select id="saved-session-select" aria-label="保存済み作業"></select>
+              <button id="load-session-snapshot" class="secondary" type="button" disabled>開く</button>
+              <button id="jump-to-bookmark" class="secondary" type="button" disabled>しおりへ移動</button>
+            </div>
+            <label><input id="select-all-photos" type="checkbox" /> 表示中を全選択</label>
             <span id="bulk-selection-status" class="bulk-selection-status">0枚選択中</span>
             <select id="bulk-asset" aria-label="選択写真に設定する資産"></select>
-            <button id="apply-bulk-asset" class="secondary" type="button" disabled>選択写真の資産を一括変更</button>
-            <button id="clear-review" class="secondary" type="button" disabled>選択写真を確認済みにする</button>
+            <button id="apply-bulk-asset" class="secondary" type="button" disabled>資産を一括変更</button>
+            <button id="clear-review" class="secondary" type="button" disabled>確認済みにする</button>
           </div>
           <div id="photo-summary" class="summary-grid" hidden></div>
           <div id="photo-list" class="photo-grid"></div>
