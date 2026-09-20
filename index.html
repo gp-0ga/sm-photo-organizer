@@ -53,12 +53,32 @@
       <section class="work-select-panel" aria-labelledby="work-select-heading">
         <h2 id="work-select-heading">作業を選択</h2>
         <p class="local-only-note">写真・Excelは外部へ送信しません</p>
-        <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
         <div class="work-select-list">
           <button class="workspace-tab" data-workspace-tab="assets" type="button">資産フォルダの作成</button>
           <button class="workspace-tab active" data-workspace-tab="photos" type="button">写真整理</button>
           <button class="workspace-tab" data-workspace-tab="output" type="button">出力・写真帳</button>
         </div>
+      </section>
+
+      <section class="work-file-panel" aria-labelledby="work-file-heading">
+        <h2 id="work-file-heading">作業の保存・再開</h2>
+        <div class="work-file-local">
+          <label>作業名<input id="session-name" type="text" placeholder="例：管理本館 1回目" /></label>
+          <button id="save-session-snapshot" class="secondary" type="button">作業を保存</button>
+          <select id="saved-session-select" aria-label="保存済み作業"></select>
+          <div class="work-file-actions">
+            <button id="load-session-snapshot" class="secondary" type="button" disabled>保存作業を開く</button>
+            <button id="delete-session-snapshot" class="secondary" type="button" disabled>削除</button>
+          </div>
+        </div>
+        <div class="work-file-transfer">
+          <span>別PCへ移す場合</span>
+          <button id="export-work-file" class="secondary" type="button">作業ファイル保存</button>
+          <button id="choose-work-folder" class="secondary" type="button">保存先変更</button>
+          <button id="import-work-file" class="secondary" type="button">作業ファイル読込</button>
+          <input id="import-work-file-input" type="file" accept="application/json,.json" hidden />
+        </div>
+        <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
       </section>
 
       <section id="camera-panel" class="panel camera-panel" aria-labelledby="camera-heading">
@@ -134,18 +154,7 @@
           <div id="bulk-tools" class="bulk-tools" hidden>
             <button id="bulk-tools-collapse" class="bulk-tools-collapse" type="button" aria-expanded="true" title="ツールバーを折りたたむ">▲</button>
             <div class="bulk-tools-content">
-            <div class="toolbar-session" aria-label="作業操作">
-              <label>作業名<input id="session-name" type="text" placeholder="例：管理本館 1回目" /></label>
-              <button id="save-session-snapshot" class="secondary" type="button">保存</button>
-              <select id="saved-session-select" aria-label="保存済み作業"></select>
-              <button id="load-session-snapshot" class="secondary" type="button" disabled>開く</button>
-              <button id="delete-session-snapshot" class="secondary" type="button" disabled>削除</button>
-              <button id="jump-to-bookmark" class="secondary" type="button" disabled>しおりへ移動</button>
-              <button id="export-work-file" class="secondary" type="button">作業ファイル保存</button>
-              <button id="choose-work-folder" class="secondary" type="button">保存先変更</button>
-              <button id="import-work-file" class="secondary" type="button">作業ファイル読込</button>
-              <input id="import-work-file-input" type="file" accept="application/json,.json" hidden />
-            </div>
+            <button id="jump-to-bookmark" class="secondary" type="button" disabled>しおりへ移動</button>
             <div class="bulk-always-visible">
               <label><input id="select-all-photos" type="checkbox" /> 表示中を全選択</label>
               <span id="bulk-selection-status" class="bulk-selection-status">0枚選択中</span>
