@@ -141,6 +141,11 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .toolbar-session input { width: min(180px, 34vw); }
 .toolbar-session select { width: min(220px, 38vw); }
 .toolbar-session button { padding: .4rem .65rem; }
+.toolbar-status { flex: 1 1 100%; min-width: 0; padding: .3rem .45rem; overflow: hidden; border-radius: 5px; font-size: .72rem; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.toolbar-status.working { color: #704d11; background: #fff8e8; }
+.toolbar-status.success { color: #176b4d; background: #e8f6ee; }
+.toolbar-status.error { color: #8b2020; background: #ffe6e6; }
+.toolbar-status.neutral { color: #52616d; background: #eef2f4; }
 .bulk-tools.is-stuck { background: #e7f0f5; box-shadow: 0 4px 10px rgb(23 33 43 / 15%); border: 1px solid #c3d5df; }
 .bulk-tools select { min-width: min(280px, 100%); padding: .45rem; }
 .bulk-tools button { padding: .45rem .7rem; }

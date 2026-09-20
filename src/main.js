@@ -39,6 +39,7 @@ const applyBulkAsset = document.querySelector("#apply-bulk-asset");
 const clearReview = document.querySelector("#clear-review");
 const exportPhotosButton = document.querySelector("#export-photos");
 const exportStatus = document.querySelector("#export-status");
+const exportToolbarStatus = document.querySelector("#export-toolbar-status");
 const photoTargetKb = document.querySelector("#photo-target-kb");
 const albumInput = document.querySelector("#album-input");
 const albumTemplateStatus = document.querySelector("#album-template-status");
@@ -76,6 +77,11 @@ function setStatus(element, message, tone = "neutral") {
   element.hidden = false;
   element.className = `status ${tone}`;
   element.textContent = message;
+}
+
+function setExportStatus(message, tone = "neutral") {
+  setStatus(exportStatus, message, tone);
+  setStatus(exportToolbarStatus, message, tone);
 }
 
 function renderSummary() {
@@ -665,18 +671,18 @@ exportPhotosButton.addEventListener("click", async () => {
   exportPhotosButton.disabled = true;
   try {
     const targetBytes = targetBytesFromKilobytes(photoTargetKb.value);
-    setStatus(exportStatus, `保存先を選択してください。1枚${photoTargetKb.value}KB以下で新しい出力フォルダを作成します。`, "working");
+    setExportStatus(`保存先を選択してください。1枚${photoTargetKb.value}KB以下で新しい出力フォルダを作成します。`, "working");
     const result = await exportOrganizedPhotos(
       assets,
       photos,
       (file) => compressToJpeg(file, targetBytes),
       jpegFileName,
-      (done, total, name) => setStatus(exportStatus, `${done}/${total} ${name} を出力中`, "working"),
+      (done, total, name) => setExportStatus(`${done}/${total} ${name} を出力中`, "working"),
     );
-    setStatus(exportStatus, `${result.outputName} に${result.photoCount}枚を${photoTargetKb.value}KB以下で出力しました。元写真は変更していません。`, "success");
+    setExportStatus(`${result.outputName} に${result.photoCount}枚を${photoTargetKb.value}KB以下で出力しました。元写真は変更していません。`, "success");
   } catch (error) {
-    if (error?.name === "AbortError") setStatus(exportStatus, "出力をキャンセルしました。", "neutral");
-    else setStatus(exportStatus, error.message ?? String(error), "error");
+    if (error?.name === "AbortError") setExportStatus("出力をキャンセルしました。", "neutral");
+    else setExportStatus(error.message ?? String(error), "error");
   } finally {
     updatePhotoSummary();
   }
