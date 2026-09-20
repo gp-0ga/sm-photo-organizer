@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { createZip } from "./zip.js";
+import { detectOpeningRectangles, intersectionOverUnion } from "./opening-detector.js";
 import {
   STANDARD_CATEGORIES,
   STANDARD_UNITS,
@@ -40,6 +41,7 @@ const state = {
   dragPreview: null,
   hoverPoint: null,
   suppressClick: false,
+  hideCandidatesInExport: false,
   ruler: {
     lengthM: 20,
     stepM: 4,
@@ -103,6 +105,9 @@ const floorInput = document.querySelector("#floor-input");
 const roomInput = document.querySelector("#room-input");
 const memoInput = document.querySelector("#memo-input");
 const quantityList = document.querySelector("#quantity-list");
+const detectOpenings = document.querySelector("#detect-openings");
+const openingCandidateNote = document.querySelector("#opening-candidate-note");
+const openingCandidateList = document.querySelector("#opening-candidate-list");
 const selectedEditor = document.querySelector("#selected-editor");
 const editBuilding = document.querySelector("#edit-building");
 const editElevation = document.querySelector("#edit-elevation");
@@ -305,22 +310,23 @@ function serializePage(page) {
     calibrationMeasured: page.calibrationMeasured,
     scaleConfirmed: page.scaleConfirmed,
     shapes: page.shapes,
+    openingCandidates: page.openingCandidates || [],
   };
 }
 
 function pageFromSaved(saved) {
   return new Promise((resolve) => {
     if (saved.unsupported) {
-      resolve({ ...saved, image: null, shapes: saved.shapes || [] });
+      resolve({ ...saved, image: null, shapes: saved.shapes || [], openingCandidates: saved.openingCandidates || [] });
       return;
     }
     if (!saved.url) {
-      resolve({ ...saved, image: null, missingImage: true, shapes: saved.shapes || [] });
+      resolve({ ...saved, image: null, missingImage: true, shapes: saved.shapes || [], openingCandidates: saved.openingCandidates || [] });
       return;
     }
     const image = new Image();
-    image.onload = () => resolve({ ...saved, image, missingImage: false, shapes: saved.shapes || [] });
-    image.onerror = () => resolve({ ...saved, missingImage: true, image: null, shapes: saved.shapes || [] });
+    image.onload = () => resolve({ ...saved, image, missingImage: false, shapes: saved.shapes || [], openingCandidates: saved.openingCandidates || [] });
+    image.onerror = () => resolve({ ...saved, missingImage: true, image: null, shapes: saved.shapes || [], openingCandidates: saved.openingCandidates || [] });
     image.src = saved.url;
   });
 }
@@ -730,6 +736,7 @@ function imagePageFromSource({ name, fileType, src, kind = "平面図" }) {
         calibrationMeasured: null,
         scaleConfirmed: false,
         shapes: [],
+        openingCandidates: [],
       });
     };
     image.src = src;
@@ -818,6 +825,7 @@ async function loadPdfFile(file) {
       calibrationMeasured: null,
       scaleConfirmed: false,
       shapes: [],
+      openingCandidates: [],
     });
   }
   if (pages.length > 0) {
@@ -849,6 +857,7 @@ function unsupportedPage(file) {
     calibrationMeasured: null,
     scaleConfirmed: false,
     shapes: [],
+    openingCandidates: [],
   };
 }
 
@@ -910,6 +919,8 @@ async function handleFiles(files) {
 function syncControls() {
   const page = activePage();
   const disabled = !page || page.unsupported || !page.image;
+  const wallCount = page?.shapes.filter((shape) => shape.kind === "外壁面積" && shape.points.length >= 3).length || 0;
+  detectOpenings.disabled = disabled || page.kind !== "立面図" || !page.scaleConfirmed || wallCount === 0;
   pageKind.disabled = !page;
   scaleDenominator.disabled = disabled;
   confirmScale.disabled = disabled;
@@ -1004,6 +1015,132 @@ function quantityLabel(page, shape) {
   return `${formatNumber(q.width)}m x ${formatNumber(q.height)}m = ${formatNumber(q.area)}m2${perimeter}`;
 }
 
+function rectangleBounds(points) {
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+}
+
+function renderOpeningCandidates() {
+  const page = activePage();
+  const pending = (page?.openingCandidates || []).filter((candidate) => candidate.status === "pending");
+  const excluded = (page?.openingCandidates || []).filter((candidate) => candidate.status === "excluded").length;
+  openingCandidateNote.textContent = !page?.image
+    ? "立面図を選び、外壁面積を囲んでください。"
+    : page.kind !== "立面図" || !page.scaleConfirmed || !page.shapes.some((shape) => shape.kind === "外壁面積" && shape.points.length >= 3)
+      ? "立面図の外壁面積を先に囲み、縮尺を確定してください。"
+      : `${pending.length}件の未採用候補。除外済み${excluded}件。候補は採用するまで数量に入りません。`;
+  openingCandidateList.replaceChildren(...pending.map((candidate, index) => {
+    const item = document.createElement("div");
+    item.className = "candidate-item";
+    const title = document.createElement("strong");
+    title.textContent = `候補 ${index + 1} / 確からしさ ${Math.round(candidate.confidence * 100)}%`;
+    const detail = document.createElement("span");
+    const width = metric(page, candidate.box.width);
+    const height = metric(page, candidate.box.height);
+    detail.textContent = `${formatNumber(width)}m x ${formatNumber(height)}m = ${formatNumber(width * height)}㎡`;
+    const actions = document.createElement("div");
+    actions.className = "candidate-actions";
+    const accept = document.createElement("button");
+    accept.type = "button";
+    accept.textContent = "採用";
+    accept.addEventListener("click", () => acceptOpeningCandidate(candidate.id));
+    const exclude = document.createElement("button");
+    exclude.type = "button";
+    exclude.textContent = "除外";
+    exclude.addEventListener("click", () => {
+      candidate.status = "excluded";
+      renderOpeningCandidates();
+      draw();
+      scheduleAutosave();
+    });
+    actions.append(accept, exclude);
+    item.append(title, detail, actions);
+    return item;
+  }));
+}
+
+function acceptOpeningCandidate(id) {
+  const page = activePage();
+  const candidate = page?.openingCandidates?.find((item) => item.id === id && item.status === "pending");
+  const wall = page?.shapes.find((shape) => shape.id === candidate?.wallId);
+  if (!candidate || !wall || !page.scaleConfirmed) {
+    setStatus("候補の元になった外壁範囲か縮尺を確認してください。");
+    return;
+  }
+  const { x, y, width, height } = candidate.box;
+  const shape = {
+    id: crypto.randomUUID(),
+    mode: "opening",
+    kind: "開口控除",
+    building: wall.building || "",
+    elevation: wall.elevation || "",
+    finish: wall.finish || "",
+    floor: wall.floor || "",
+    room: wall.room || "",
+    memo: "画像処理候補から採用。内法寸法・控除条件を要確認",
+    classification: { ...wall.classification, item: "開口控除", unit: "㎡" },
+    points: rectFromTwoPoints([{ x, y }, { x: x + width, y: y + height }]),
+    source: "画像処理候補を人確定",
+    ruleId: "E-02",
+    confidence: candidate.confidence,
+    createdAt: new Date().toLocaleString("ja-JP"),
+  };
+  page.shapes.push(shape);
+  page.openingCandidates = page.openingCandidates.filter((item) => item.id !== id);
+  state.selectedId = shape.id;
+  state.interaction = "select";
+  setDrawTypeButton(selectEdit);
+  setStatus("開口候補を採用しました。図形を選択し、内法寸法と控除条件を確認してください。", "success");
+  renderAllPanels();
+  syncControls();
+  draw();
+  scheduleAutosave();
+}
+
+async function findOpeningCandidates() {
+  const page = activePage();
+  if (!page?.image || page.kind !== "立面図" || !page.scaleConfirmed) return;
+  const walls = page.shapes.filter((shape) => shape.kind === "外壁面積" && shape.points.length >= 3);
+  if (walls.length === 0) return;
+  detectOpenings.disabled = true;
+  setStatus("ブラウザ内で外壁範囲の開口候補を調べています。");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  try {
+    const image = page.image;
+    const factor = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+    const buffer = document.createElement("canvas");
+    buffer.width = Math.max(1, Math.round(image.naturalWidth * factor));
+    buffer.height = Math.max(1, Math.round(image.naturalHeight * factor));
+    const bufferContext = buffer.getContext("2d", { willReadFrequently: true });
+    bufferContext.drawImage(image, 0, 0, buffer.width, buffer.height);
+    const scaleX = buffer.width / image.naturalWidth;
+    const scaleY = buffer.height / image.naturalHeight;
+    const found = detectOpeningRectangles(bufferContext.getImageData(0, 0, buffer.width, buffer.height), walls.map((wall) => ({
+      id: wall.id,
+      points: wall.points.map((point) => ({ x: point.x * scaleX, y: point.y * scaleY })),
+    })));
+    page.openingCandidates ||= [];
+    let added = 0;
+    for (const item of found) {
+      const box = { x: item.x / scaleX, y: item.y / scaleY, width: item.width / scaleX, height: item.height / scaleY };
+      const seen = page.openingCandidates.some((candidate) => intersectionOverUnion(candidate.box, box) > 0.55);
+      const confirmed = page.shapes.some((shape) => shape.mode === "opening" && shape.points.length >= 3 && intersectionOverUnion(rectangleBounds(shape.points), box) > 0.55);
+      if (seen || confirmed) continue;
+      page.openingCandidates.push({ id: crypto.randomUUID(), wallId: item.wallId, box, confidence: item.confidence, status: "pending", ruleId: "E-02" });
+      added += 1;
+    }
+    setStatus(`${added}件の開口候補を追加しました。採用前に位置と寸法を確認してください。`, "success");
+    renderOpeningCandidates();
+    draw();
+    scheduleAutosave();
+  } catch (error) {
+    setStatus(`候補検出に失敗しました: ${error.message || "画像を確認してください"}`);
+  } finally {
+    syncControls();
+  }
+}
+
 function renderQuantityList() {
   const entries = allShapeEntries();
   if (entries.length === 0) {
@@ -1030,6 +1167,7 @@ function renderQuantityList() {
     );
   }
   renderSelectedEditor();
+  renderOpeningCandidates();
 }
 
 function renderSelectedEditor() {
@@ -1198,6 +1336,18 @@ function draw() {
     const fill = shape.mode === "line" ? null : selected ? "rgb(212 72 47 / 18%)" : "rgb(23 107 77 / 14%)";
     drawPolyline(shape.points, shape.mode !== "line", color, fill);
   });
+  if (!state.hideCandidatesInExport) {
+    ctx.save();
+    ctx.strokeStyle = "#b87817";
+    ctx.fillStyle = "rgb(255 202 87 / 16%)";
+    ctx.lineWidth = 2 / state.zoom;
+    ctx.setLineDash([7 / state.zoom, 5 / state.zoom]);
+    (page.openingCandidates || []).filter((candidate) => candidate.status === "pending").forEach(({ box }) => {
+      ctx.fillRect(box.x, box.y, box.width, box.height);
+      ctx.strokeRect(box.x, box.y, box.width, box.height);
+    });
+    ctx.restore();
+  }
   drawPolyline(state.currentPoints, false, "#c47717");
   if (state.dragPreview) {
     drawPolyline(state.dragPreview, state.dragPreview.length > 2, "#c47717", "rgb(196 119 23 / 16%)");
@@ -1995,17 +2145,15 @@ function exportCanvasImage() {
   }
   const hadHorizontal = state.ruler.horizontal.visible;
   const hadVertical = state.ruler.vertical.visible;
-  if (hadHorizontal || hadVertical) {
-    state.ruler.horizontal.visible = false;
-    state.ruler.vertical.visible = false;
-    draw();
-  }
+  state.ruler.horizontal.visible = false;
+  state.ruler.vertical.visible = false;
+  state.hideCandidatesInExport = true;
+  draw();
   const dataUrl = canvas.toDataURL("image/png");
-  if (hadHorizontal || hadVertical) {
-    state.ruler.horizontal.visible = hadHorizontal;
-    state.ruler.vertical.visible = hadVertical;
-    draw();
-  }
+  state.ruler.horizontal.visible = hadHorizontal;
+  state.ruler.vertical.visible = hadVertical;
+  state.hideCandidatesInExport = false;
+  draw();
   const link = document.createElement("a");
   link.href = dataUrl;
   link.download = `${sanitizeFileName(page.name)}_数量拾い.png`;
@@ -2024,6 +2172,7 @@ async function exportAllImagesZip() {
   const hadVertical = state.ruler.vertical.visible;
   state.ruler.horizontal.visible = false;
   state.ruler.vertical.visible = false;
+  state.hideCandidatesInExport = true;
   const usedNames = new Set();
   const entries = [];
   for (const page of targetPages) {
@@ -2042,6 +2191,7 @@ async function exportAllImagesZip() {
   state.activePageId = originalActiveId;
   state.ruler.horizontal.visible = hadHorizontal;
   state.ruler.vertical.visible = hadVertical;
+  state.hideCandidatesInExport = false;
   draw();
   const zipBlob = await createZip(entries);
   const url = URL.createObjectURL(zipBlob);
@@ -2054,6 +2204,7 @@ async function exportAllImagesZip() {
 }
 
 fileInput.addEventListener("change", (event) => handleFiles(event.target.files));
+detectOpenings.addEventListener("click", findOpeningCandidates);
 saveWork.addEventListener("click", saveCurrentWork);
 loadWork.addEventListener("click", loadSelectedWork);
 deleteWork.addEventListener("click", deleteSelectedWork);
@@ -2095,6 +2246,7 @@ pageKind.addEventListener("change", () => {
   if (!page) return;
   page.kind = pageKind.value;
   renderAllPanels();
+  syncControls();
   scheduleAutosave();
 });
 confirmScale.addEventListener("click", () => {

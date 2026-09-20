@@ -305,6 +305,12 @@ label { display: grid; gap: .35rem; color: #34444f; font-size: .9rem; font-weigh
 .summary-table td:first-child, .summary-table th:first-child { text-align: left; }
 .summary-table tr.summary-total-row td { font-weight: 800; background: #f6f9fa; }
 .quantity-list { display: grid; gap: .35rem; max-height: 220px; overflow: auto; }
+.candidate-list { display: grid; gap: .4rem; max-height: 260px; overflow: auto; }
+.candidate-item { display: grid; gap: .4rem; padding: .5rem; border: 1px dashed #b87817; border-radius: 6px; background: #fff9ed; }
+.candidate-item strong { font-size: .82rem; color: #69460e; }
+.candidate-item span { font-size: .76rem; color: #6b6250; }
+.candidate-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+.candidate-actions button { padding: .4rem; font-size: .8rem; }
 .quantity-item {
   display: grid;
   gap: .2rem;
