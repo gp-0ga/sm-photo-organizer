@@ -23,6 +23,8 @@ button, input { font: inherit; }
 .app-header h1 { margin: .15rem 0 0; font-size: clamp(1.45rem, 3vw, 2rem); }
 .eyebrow { margin: 0; font-size: .82rem; letter-spacing: .1em; opacity: .78; }
 .local-badge { padding: .45rem .75rem; border: 1px solid #8eb1d3; border-radius: 999px; font-size: .85rem; white-space: nowrap; }
+.header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; }
+.header-privacy { padding: .3rem .55rem; border: 1px solid rgb(255 255 255 / 45%); border-radius: 999px; color: #e4f5fb; background: rgb(255 255 255 / 10%); font-size: .72rem; font-weight: 700; white-space: nowrap; }
 
 main { width: min(1120px, calc(100% - 2rem)); margin: 1.5rem auto 4rem; display: grid; gap: 1rem; }
 .panel { display: grid; grid-template-columns: 3rem 1fr; background: white; border: 1px solid #d7e0e7; border-radius: 14px; box-shadow: 0 8px 22px rgb(23 33 43 / 7%); }
