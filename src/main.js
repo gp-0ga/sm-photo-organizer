@@ -6,7 +6,7 @@ import { analyzePhotoFiles, compressToJpeg, jpegFileName, targetBytesFromKilobyt
 import { albumEntries, createPhotoAlbum, inspectPhotoAlbumTemplate } from "./album.js";
 import { cameraFileName, captureVideoFrame, openRearCamera, stopCamera } from "./camera.js";
 import { createAssetPhotoZip, zipFileName } from "./zip.js";
-import { listPhotoSnapshots, loadPhotoSession, savePhotoSession, savePhotoSnapshot } from "./photo-session-storage.js";
+import { deletePhotoSnapshot, listPhotoSnapshots, loadPhotoSession, savePhotoSession, savePhotoSnapshot } from "./photo-session-storage.js";
 import { createPhotoWorkFile, readPhotoWorkFile } from "./photo-work-file.js";
 
 const hostedOrganizer = /\/organize(?:\.html)?$/i.test(window.location.pathname);
@@ -28,6 +28,7 @@ const sessionName = document.querySelector("#session-name");
 const saveSessionSnapshotButton = document.querySelector("#save-session-snapshot");
 const savedSessionSelect = document.querySelector("#saved-session-select");
 const loadSessionSnapshotButton = document.querySelector("#load-session-snapshot");
+const deleteSessionSnapshotButton = document.querySelector("#delete-session-snapshot");
 const jumpToBookmarkButton = document.querySelector("#jump-to-bookmark");
 const exportWorkFileButton = document.querySelector("#export-work-file");
 const chooseWorkFolderButton = document.querySelector("#choose-work-folder");
@@ -355,6 +356,7 @@ async function refreshSnapshotList() {
     savedSessionSelect.add(new Option(label, snapshot.id));
   }
   loadSessionSnapshotButton.disabled = snapshots.length === 0;
+  deleteSessionSnapshotButton.disabled = snapshots.length === 0;
 }
 
 async function restoreSession() {
@@ -1003,6 +1005,22 @@ loadSessionSnapshotButton.addEventListener("click", async () => {
     scheduleSessionSave();
   } catch (error) {
     setSessionStatus(`保存済み作業を開けませんでした：${error.message ?? String(error)}`, "error");
+  } finally {
+    await refreshSnapshotList();
+  }
+});
+
+deleteSessionSnapshotButton.addEventListener("click", async () => {
+  const id = savedSessionSelect.value;
+  if (!id) return;
+  const option = [...savedSessionSelect.options].find((item) => item.value === id);
+  if (!window.confirm(`「${option?.textContent ?? "選択中の保存済み作業"}」を削除します。元に戻せません。よろしいですか？`)) return;
+  deleteSessionSnapshotButton.disabled = true;
+  try {
+    await deletePhotoSnapshot(id);
+    setSessionStatus("保存済み作業を削除しました。", "saved");
+  } catch (error) {
+    setSessionStatus(`保存済み作業を削除できませんでした：${error.message ?? String(error)}`, "error");
   } finally {
     await refreshSnapshotList();
   }

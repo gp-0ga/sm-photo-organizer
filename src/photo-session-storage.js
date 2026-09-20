@@ -96,6 +96,13 @@ export async function listPhotoSnapshots() {
   return records.filter((record) => record.kind === "snapshot").sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
 }
 
+export async function deletePhotoSnapshot(id) {
+  if (!globalThis.indexedDB || !id) return;
+  const database = await openDatabase();
+  await requestAsPromise(database.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME).delete(id));
+  database.close();
+}
+
 export async function clearPhotoSession() {
   if (!globalThis.indexedDB) return;
   const database = await openDatabase();
