@@ -162,10 +162,21 @@ function renderAssets() {
     node.querySelector(".asset-name").textContent = asset.assetName;
     node.querySelector(".item-count").textContent = `${asset.items.length + 1}フォルダ`;
     const warning = node.querySelector(".asset-warning");
-    if (asset.notInExcel) {
+    const warningLabels = [];
+    if (asset.notInExcel) warningLabels.push("Excelに計上なし");
+    if (asset.siteAbsent) warningLabels.push("現地なし／対象外");
+    if (warningLabels.length) {
       warning.hidden = false;
-      warning.textContent = "Excelに計上なし";
+      warning.textContent = warningLabels.join("・");
     }
+    const siteAbsent = node.querySelector(".asset-site-absent");
+    siteAbsent.checked = Boolean(asset.siteAbsent);
+    siteAbsent.addEventListener("change", () => {
+      asset.siteAbsent = siteAbsent.checked;
+      renderAssets();
+      updatePhotoDestinationAlert();
+      scheduleSessionSave();
+    });
     node.querySelector(".asset-edit").dataset.assetNumber = asset.assetNumber;
     node.querySelector(".asset-delete").dataset.assetNumber = asset.assetNumber;
     const items = node.querySelector(".item-list");
@@ -400,6 +411,7 @@ function destinationIssues() {
   const unresolved = active.filter((photo) => !photo.assetNumber || photo.reviewRequired || photo.qrReadError);
   if (unresolved.length) issues.push({ title: "未分類・要確認の写真", detail: `${unresolved.length}枚（例：${unresolved.slice(0, 3).map((photo) => photo.file.name).join("、")}）` });
   for (const asset of assets) {
+    if (asset.siteAbsent) continue;
     const assetPhotos = active.filter((photo) => photo.assetNumber === asset.assetNumber);
     const fullPhotos = assetPhotos.filter((photo) => photoDestinations(photo).includes("全景"));
     if (fullPhotos.length !== 1) issues.push({ title: `${asset.assetNumber} ${asset.assetName}：全景`, detail: `${fullPhotos.length}枚／必須1枚` });

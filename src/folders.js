@@ -60,6 +60,7 @@ export async function exportOrganizedPhotos(assets, photos, compress, fileNameFo
   }
   const selected = photos.filter((photo) => !photo.excluded && photo.assetNumber);
   for (const asset of assets) {
+    if (asset.siteAbsent) continue;
     const assetPhotos = selected.filter((photo) => photo.assetNumber === asset.assetNumber);
     const fullCount = assetPhotos.filter((photo) => photoDestinations(photo).includes("全景")).length;
     if (fullCount !== 1) {

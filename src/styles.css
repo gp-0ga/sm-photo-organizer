@@ -135,6 +135,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .empty-state { padding: 2rem; border: 1px dashed #bac6ce; border-radius: 10px; text-align: center; color: #67737c; }
 .asset-list { display: grid; gap: .5rem; max-height: 520px; overflow: auto; }
 .asset-card { border: 1px solid #dbe3e8; border-radius: 9px; background: #fff; }
+.asset-site-status { display: inline-flex; align-items: center; gap: .25rem; margin-right: .4rem; color: #52616d; font-size: .76rem; font-weight: 700; }
 .asset-card summary { display: grid; grid-template-columns: 7.5rem 1fr auto; align-items: center; gap: .6rem; padding: .75rem .9rem; cursor: pointer; }
 .asset-number { font-weight: 800; color: #205e87; }
 .asset-name { overflow-wrap: anywhere; }

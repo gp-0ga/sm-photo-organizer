@@ -82,6 +82,7 @@ export function albumEntries(assets, photos) {
   }
 
   for (const asset of assets) {
+    if (asset.siteAbsent) continue;
     const fullCount = counts.get(`${asset.assetNumber}/full`) ?? 0;
     if (fullCount !== 1) {
       throw new Error(`${asset.assetNumber}の「全景」は必ず1枚選択してください（現在${fullCount}枚）。`);
