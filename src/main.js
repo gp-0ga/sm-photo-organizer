@@ -313,8 +313,22 @@ function createPhotoCard(photo) {
   bookmarkButton.title = isBookmarked ? "ここまで確認済み（解除）" : "ここまで確認";
   bookmarkButton.setAttribute("aria-pressed", String(isBookmarked));
   bookmarkButton.addEventListener("click", () => {
-    bookmarkPhotoId = isBookmarked ? null : photo.id;
-    renderPhotos();
+    const previousBookmarkId = bookmarkPhotoId;
+    bookmarkPhotoId = bookmarkPhotoId === photo.id ? null : photo.id;
+    if (previousBookmarkId && previousBookmarkId !== photo.id) {
+      const previousCard = photoList.querySelector(`.photo-card[data-photo-id="${previousBookmarkId}"]`);
+      if (previousCard) {
+        previousCard.classList.remove("bookmarked");
+        const previousButton = previousCard.querySelector(".photo-bookmark");
+        previousButton.title = "ここまで確認";
+        previousButton.setAttribute("aria-pressed", "false");
+      }
+    }
+    const marked = bookmarkPhotoId === photo.id;
+    card.classList.toggle("bookmarked", marked);
+    bookmarkButton.title = marked ? "ここまで確認済み（解除）" : "ここまで確認";
+    bookmarkButton.setAttribute("aria-pressed", String(marked));
+    jumpToBookmarkButton.disabled = !bookmarkPhotoId;
     scheduleSessionSave();
   });
 
