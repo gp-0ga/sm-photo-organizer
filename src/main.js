@@ -38,6 +38,8 @@ const photoSummary = document.querySelector("#photo-summary");
 const photoList = document.querySelector("#photo-list");
 const gridDensity6Button = document.querySelector("#grid-density-6");
 const gridDensity3Button = document.querySelector("#grid-density-3");
+const photoFilterAssetSelect = document.querySelector("#photo-filter-asset");
+const photoFilterStatus = document.querySelector("#photo-filter-status");
 const photoTemplate = document.querySelector("#photo-template");
 const bulkTools = document.querySelector("#bulk-tools");
 const bulkToolsSentinel = document.querySelector("#bulk-tools-sentinel");
@@ -134,6 +136,44 @@ function renderAssets() {
   addAssetButton.disabled = false;
   renderSummary();
   bulkTools.hidden = assets.length === 0 && photos.length === 0;
+  renderPhotoFilterOptions();
+}
+
+const UNCLASSIFIED_FILTER_VALUE = "__unclassified__";
+
+function renderPhotoFilterOptions() {
+  const previousValue = photoFilterAssetSelect.value;
+  const options = [
+    { value: "", label: "すべて表示" },
+    { value: UNCLASSIFIED_FILTER_VALUE, label: "未分類" },
+    ...assets.map((asset) => ({ value: asset.assetNumber, label: `${asset.assetNumber} ${asset.assetName}` })),
+    { value: OTHER_ASSET_NUMBER, label: "その他（資産不明）" },
+  ];
+  photoFilterAssetSelect.innerHTML = options
+    .map(({ value, label }) => `<option value="${value}">${label}</option>`)
+    .join("");
+  photoFilterAssetSelect.value = options.some((option) => option.value === previousValue) ? previousValue : "";
+}
+
+function matchesPhotoFilter(photo) {
+  const filterValue = photoFilterAssetSelect.value;
+  if (!filterValue) return true;
+  if (filterValue === UNCLASSIFIED_FILTER_VALUE) return !photo.assetNumber;
+  return photo.assetNumber === filterValue;
+}
+
+function applyPhotoFilter() {
+  let visibleCount = 0;
+  for (const card of document.querySelectorAll(".photo-card")) {
+    const photo = photos.find((item) => item.id === card.dataset.photoId);
+    const matches = !photo || matchesPhotoFilter(photo);
+    card.hidden = !matches;
+    if (matches) visibleCount += 1;
+  }
+  photoFilterStatus.textContent = photoFilterAssetSelect.value ? `${visibleCount}枚を表示中（全${photos.length}枚）` : "";
+  selectAllPhotos.checked = false;
+  selectAllPhotos.indeterminate = false;
+  updateBulkControls();
 }
 
 function unclassifyPhotosForAssetNumbers(assetNumbers) {
@@ -421,6 +461,7 @@ function createPhotoCard(photo) {
     destinationSelect.innerHTML = destinationOptions(photo);
     updatePhotoSummary();
     scheduleSessionSave();
+    applyPhotoFilter();
   });
   destinationSelect.addEventListener("change", () => {
     photo.destination = destinationSelect.value;
@@ -449,7 +490,10 @@ function renderPhotos() {
   updatePhotoSummary();
   updateBulkControls();
   jumpToBookmarkButton.disabled = !bookmarkPhotoId;
+  applyPhotoFilter();
 }
+
+photoFilterAssetSelect.addEventListener("change", applyPhotoFilter);
 
 function scrollToBookmark() {
   if (!bookmarkPhotoId) return;
@@ -492,14 +536,18 @@ try {
   applyBulkToolsCollapsed(false);
 }
 
+function visiblePhotoCards() {
+  return [...document.querySelectorAll(".photo-card:not([hidden])")];
+}
+
 function selectedPhotoIds() {
-  return new Set([...document.querySelectorAll(".photo-card")]
+  return new Set(visiblePhotoCards()
     .filter((card) => card.querySelector(".photo-select").checked)
     .map((card) => card.dataset.photoId));
 }
 
 function updateBulkControls() {
-  const checkboxes = [...document.querySelectorAll(".photo-select")];
+  const checkboxes = visiblePhotoCards().map((card) => card.querySelector(".photo-select"));
   const selectedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
   const total = checkboxes.length;
   bulkSelectionStatus.textContent = `${selectedCount}枚選択中`;
@@ -800,7 +848,7 @@ photoInput.addEventListener("change", async () => {
 });
 
 selectAllPhotos.addEventListener("change", () => {
-  for (const checkbox of document.querySelectorAll(".photo-select")) checkbox.checked = selectAllPhotos.checked;
+  for (const card of visiblePhotoCards()) card.querySelector(".photo-select").checked = selectAllPhotos.checked;
   updateBulkControls();
 });
 
@@ -822,6 +870,7 @@ applyBulkAsset.addEventListener("click", () => {
   updatePhotoSummary();
   updateBulkControls();
   scheduleSessionSave();
+  applyPhotoFilter();
 });
 
 clearReview.addEventListener("click", () => {
