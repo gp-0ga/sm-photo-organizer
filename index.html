@@ -50,7 +50,7 @@
         </div>
       </section>
 
-      <section class="work-select-panel" aria-labelledby="work-select-heading">
+      <section class="work-select-panel ui-card" aria-labelledby="work-select-heading">
         <h2 id="work-select-heading">作業を選択</h2>
         <p class="local-only-note">写真・Excelは外部へ送信しません</p>
         <div class="work-select-list">
@@ -60,12 +60,12 @@
         </div>
       </section>
 
-      <section class="work-file-panel" aria-labelledby="work-file-heading">
+      <section class="work-file-panel ui-card" aria-labelledby="work-file-heading">
         <h2 id="work-file-heading">作業の保存・再開</h2>
         <div class="work-file-local">
-          <label>作業名<input id="session-name" type="text" placeholder="例：管理本館 1回目" /></label>
+          <label>作業名<input id="session-name" class="ui-control" type="text" placeholder="例：管理本館 1回目" /></label>
           <button id="save-session-snapshot" class="secondary" type="button">作業を保存</button>
-          <select id="saved-session-select" aria-label="保存済み作業"></select>
+          <select id="saved-session-select" class="ui-control" aria-label="保存済み作業"></select>
           <div class="work-file-actions">
             <button id="load-session-snapshot" class="secondary" type="button" disabled>保存作業を開く</button>
             <button id="delete-session-snapshot" class="secondary" type="button" disabled>削除</button>
@@ -93,7 +93,7 @@
           </div>
 
           <label class="camera-asset-label" for="camera-asset">撮影する資産</label>
-          <select id="camera-asset" class="camera-asset-select" disabled>
+          <select id="camera-asset" class="camera-asset-select ui-control" disabled>
             <option value="">先にExcelを読み込んでください</option>
           </select>
 
@@ -140,6 +140,12 @@
               </div>
             </div>
             <div id="summary" class="summary-grid" hidden></div>
+            <div id="asset-bulk-tools" class="asset-bulk-tools" hidden>
+              <label><input id="select-all-assets" type="checkbox" /> 全資産を選択</label>
+              <span id="asset-bulk-status" class="bulk-selection-status">0件選択中</span>
+              <button id="asset-bulk-site-absent" class="secondary" type="button" disabled>選択資産を現地なしにする</button>
+              <button id="asset-bulk-site-present" class="secondary" type="button" disabled>選択資産の現地なしを解除</button>
+            </div>
             <div id="assets-empty" class="empty-state">Excelを読み込むと資産一覧が表示されます。</div>
             <div id="asset-list" class="asset-list"></div>
             <div id="folder-status" class="status neutral" role="status" hidden></div>
@@ -264,13 +270,14 @@
     <template id="asset-template">
       <details class="asset-card">
         <summary>
+          <label class="asset-select-label"><input class="asset-select" type="checkbox" /></label>
           <span class="asset-number"></span>
           <span class="asset-name"></span>
           <span class="item-count"></span>
+          <label class="asset-site-status"><input class="asset-site-absent" type="checkbox" /> 現地なし／対象外</label>
           <span class="asset-warning" hidden></span>
         </summary>
         <div class="asset-actions">
-          <label class="asset-site-status"><input class="asset-site-absent" type="checkbox" /> 現地なし／対象外</label>
           <button class="secondary asset-edit" type="button">番号・名称を変更</button>
           <button class="secondary asset-delete" type="button">資産を削除</button>
         </div>

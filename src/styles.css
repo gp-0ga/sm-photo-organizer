@@ -2,13 +2,30 @@
   font-family: "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
   color: #17212b;
   background: #eef2f5;
+  /* 共通UIトークン（Tailwindのテーマ変数／shadcn/uiのvariantに相当） */
+  --ui-ink: #17212b;
+  --ui-muted: #52616d;
+  --ui-primary: #163a5f;
+  --ui-primary-hover: #205e87;
+  --ui-accent: #176b4d;
+  --ui-border: #d7e0e7;
+  --ui-border-strong: #aebdc7;
+  --ui-surface: #fff;
+  --ui-surface-muted: #f7fafb;
+  --ui-radius-sm: 7px;
+  --ui-radius-md: 10px;
+  --ui-radius-lg: 14px;
+  --ui-shadow-sm: 0 2px 6px rgb(23 33 43 / 8%);
+  --ui-shadow-md: 0 8px 22px rgb(23 33 43 / 7%);
   font-synthesis: none;
 }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; min-width: 320px; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
+button, select, input[type="text"], input[type="search"], input[type="number"] { transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease, transform .15s ease; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid rgb(42 101 143 / 28%); outline-offset: 2px; }
 
 .app-header {
   display: flex;
@@ -95,7 +112,7 @@ main { width: min(1440px, calc(100% - 2rem)); margin: 1.5rem auto 4rem; }
 .workspace-layout .step-label { display: none; }
 .workspace-layout .step-body { border-radius: 14px; }
 .workspace-main [data-workspace-panel="photos"] .step-body { padding-top: .65rem; }
-.panel { display: grid; grid-template-columns: 3rem 1fr; background: white; border: 1px solid #d7e0e7; border-radius: 14px; box-shadow: 0 8px 22px rgb(23 33 43 / 7%); }
+.panel { display: grid; grid-template-columns: 3rem 1fr; background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: var(--ui-radius-lg); box-shadow: var(--ui-shadow-md); }
 .step-label { display: grid; place-items: start center; padding-top: 1.4rem; color: #fff; background: #2a658f; font-weight: 700; font-size: 1.2rem; border-radius: 14px 0 0 14px; }
 .step-body { padding: 1.35rem 1.5rem 1.6rem; min-width: 0; border-radius: 0 14px 14px 0; }
 h2 { margin: 0; color: #163a5f; font-size: 1.18rem; }
@@ -120,10 +137,18 @@ p { line-height: 1.65; }
 .room-candidate span, .room-row span { overflow-wrap: anywhere; }
 .room-assets { color: #52616d; font-size: .78rem; }
 .room-row button, .room-candidate button { flex: 0 0 auto; padding: .45rem .65rem; font-size: .8rem; }
-button { border: 0; border-radius: 9px; padding: .72rem 1rem; cursor: pointer; font-weight: 700; }
+button { border: 1px solid transparent; border-radius: var(--ui-radius-sm); padding: .72rem 1rem; cursor: pointer; font-weight: 700; }
 button:disabled { cursor: not-allowed; opacity: .45; }
-.primary { color: white; background: #176b4d; }
-.secondary { color: #163a5f; background: #dfeef8; }
+.primary { color: white; background: var(--ui-accent); box-shadow: var(--ui-shadow-sm); }
+.primary:hover:not(:disabled) { background: #21815c; transform: translateY(-1px); }
+.secondary { border-color: #c3d5df; color: var(--ui-primary); background: #e7f0f5; }
+.secondary:hover:not(:disabled) { border-color: #8eb1c5; background: #d8eaf3; }
+
+/* 共通プリミティブ。既存の機能クラスからも同じ見た目を再利用する。 */
+.ui-card { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-md); background: var(--ui-surface); box-shadow: var(--ui-shadow-sm); }
+.ui-muted { color: var(--ui-muted); background: var(--ui-surface-muted); }
+.ui-control { width: 100%; min-width: 0; padding: .55rem .65rem; border: 1px solid var(--ui-border-strong); border-radius: var(--ui-radius-sm); color: var(--ui-ink); background: var(--ui-surface); }
+.ui-control:hover { border-color: #8eb1c5; }
 
 .status { margin-top: 1rem; padding: .8rem 1rem; border-radius: 9px; border-left: 5px solid; }
 .status.neutral { border-color: #82909b; background: #f2f4f6; }
@@ -145,8 +170,10 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .empty-state { padding: 2rem; border: 1px dashed #bac6ce; border-radius: 10px; text-align: center; color: #67737c; }
 .asset-list { display: grid; gap: .5rem; max-height: 520px; overflow: auto; }
 .asset-card { border: 1px solid #dbe3e8; border-radius: 9px; background: #fff; }
-.asset-site-status { display: inline-flex; align-items: center; gap: .25rem; margin-right: .4rem; color: #52616d; font-size: .76rem; font-weight: 700; }
-.asset-card summary { display: grid; grid-template-columns: 7.5rem 1fr auto; align-items: center; gap: .6rem; padding: .75rem .9rem; cursor: pointer; }
+.asset-site-status { display: inline-flex; align-items: center; gap: .25rem; margin-right: .4rem; color: #52616d; font-size: .76rem; font-weight: 700; white-space: nowrap; }
+.asset-select-label { display: inline-flex; align-items: center; }
+.asset-card summary { display: grid; grid-template-columns: auto 7.5rem 1fr auto auto; align-items: center; gap: .6rem; padding: .75rem .9rem; cursor: pointer; }
+.asset-bulk-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin: .8rem 0; padding: .6rem .8rem; border-radius: 9px; background: #f2f6f8; }
 .asset-number { font-weight: 800; color: #205e87; }
 .asset-name { overflow-wrap: anywhere; }
 .item-count { padding: .2rem .5rem; border-radius: 999px; color: #52616d; background: #eef2f4; font-size: .76rem; }
