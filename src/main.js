@@ -7,6 +7,7 @@ import { albumEntries, createPhotoAlbum, inspectPhotoAlbumTemplate } from "./alb
 import { cameraFileName, captureVideoFrame, openRearCamera, stopCamera } from "./camera.js";
 import { createAssetPhotoZip, zipFileName } from "./zip.js";
 import { listPhotoSnapshots, loadPhotoSession, savePhotoSession, savePhotoSnapshot } from "./photo-session-storage.js";
+import { createPhotoWorkFile, readPhotoWorkFile } from "./photo-work-file.js";
 
 const hostedOrganizer = /\/organize(?:\.html)?$/i.test(window.location.pathname);
 if (hostedOrganizer) document.body.classList.add("hosted-organizer");
@@ -27,6 +28,9 @@ const saveSessionSnapshotButton = document.querySelector("#save-session-snapshot
 const savedSessionSelect = document.querySelector("#saved-session-select");
 const loadSessionSnapshotButton = document.querySelector("#load-session-snapshot");
 const jumpToBookmarkButton = document.querySelector("#jump-to-bookmark");
+const exportWorkFileButton = document.querySelector("#export-work-file");
+const importWorkFileButton = document.querySelector("#import-work-file");
+const importWorkFileInput = document.querySelector("#import-work-file-input");
 const photoSummary = document.querySelector("#photo-summary");
 const photoList = document.querySelector("#photo-list");
 const photoTemplate = document.querySelector("#photo-template");
@@ -250,6 +254,15 @@ async function saveSessionNow() {
 function scheduleSessionSave() {
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => { void saveSessionNow(); }, 350);
+}
+
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 function applyLoadedSession(saved, message = "") {
@@ -745,6 +758,51 @@ saveSessionSnapshotButton.addEventListener("click", async () => {
 });
 
 jumpToBookmarkButton.addEventListener("click", scrollToBookmark);
+
+exportWorkFileButton.addEventListener("click", async () => {
+  if (!assets.length || !photos.length) {
+    setSessionStatus("先にExcelと写真を読み込んでください。", "error");
+    return;
+  }
+  exportWorkFileButton.disabled = true;
+  setSessionStatus("別PC引き継ぎ用の作業ファイルを作成中…", "working");
+  try {
+    const result = await createPhotoWorkFile({
+      name: sessionName.value.trim() || `写真整理_${new Date().toLocaleDateString("ja-JP")}`,
+      assets,
+      photos,
+      healthWorkbookFile,
+      albumTemplateFile,
+      photoTargetKb: photoTargetKb.value,
+      bookmarkPhotoId,
+    });
+    downloadBlob(result.blob, result.fileName);
+    setSessionStatus(`${result.fileName}を保存しました。別PCで「作業ファイル読込」から開けます。`, "saved");
+  } catch (error) {
+    setSessionStatus(`作業ファイルを作成できませんでした：${error.message ?? String(error)}`, "error");
+  } finally {
+    exportWorkFileButton.disabled = false;
+  }
+});
+
+importWorkFileButton.addEventListener("click", () => importWorkFileInput.click());
+importWorkFileInput.addEventListener("change", async () => {
+  const file = importWorkFileInput.files?.[0];
+  importWorkFileInput.value = "";
+  if (!file) return;
+  importWorkFileButton.disabled = true;
+  setSessionStatus(`${file.name}を読み込んでいます…`, "working");
+  try {
+    const saved = await readPhotoWorkFile(file);
+    applyLoadedSession(saved, `「${saved.name || file.name}」を読み込みました。修正後は再出力できます。`);
+    sessionName.value = saved.name || "";
+    await refreshSnapshotList();
+  } catch (error) {
+    setSessionStatus(`作業ファイルを読み込めませんでした：${error.message ?? String(error)}`, "error");
+  } finally {
+    importWorkFileButton.disabled = false;
+  }
+});
 
 loadSessionSnapshotButton.addEventListener("click", async () => {
   const id = savedSessionSelect.value;
