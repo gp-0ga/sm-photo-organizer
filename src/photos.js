@@ -32,20 +32,29 @@ export async function analyzePhotoFiles(fileList, assets, onProgress = () => {})
   const files = [...fileList]
     .filter((file) => file.type.startsWith("image/") || /\.(jpe?g|png|heic|heif)$/i.test(file.name))
     .sort((left, right) => naturalCompare(left.name, right.name));
-  const decoded = [];
-  for (let index = 0; index < files.length; index += 1) {
-    const file = files[index];
-    let decodedValue = null;
-    let qrReadError = false;
-    try {
-      decodedValue = await decodeQrFromPhoto(file);
-    } catch {
-      qrReadError = true;
+  const decoded = new Array(files.length);
+  let nextIndex = 0;
+  let completed = 0;
+  const worker = async () => {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= files.length) return;
+      const file = files[index];
+      let decodedValue = null;
+      let qrReadError = false;
+      try {
+        decodedValue = await decodeQrFromPhoto(file);
+      } catch {
+        qrReadError = true;
+      }
+      // 並列処理の完了順ではなく、元のファイル順で必ず保持する。
+      decoded[index] = { id: `${index}-${file.name}`, file, decodedValue, qrReadError };
+      completed += 1;
+      onProgress(completed, files.length, file.name);
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
-    decoded.push({ id: `${index}-${file.name}`, file, decodedValue, qrReadError });
-    onProgress(index + 1, files.length, file.name);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(2, files.length) }, () => worker()));
   return classifyDecodedEntries(decoded, assets.map((asset) => asset.assetNumber));
 }
 
