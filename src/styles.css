@@ -212,6 +212,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   transition: box-shadow .15s ease, background .15s ease;
 }
 .bulk-tools-content { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.bulk-always-visible { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .bulk-tools-collapse {
   position: absolute; top: .5rem; right: .5rem; z-index: 1;
   width: 1.9rem; height: 1.9rem; display: grid; place-items: center;
@@ -219,7 +220,8 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   background: #dfeef8; color: #163a5f; font-size: .85rem; line-height: 1; cursor: pointer;
 }
 .bulk-tools.collapsed { padding-block: .35rem; }
-.bulk-tools.collapsed .bulk-tools-content { display: none; }
+.bulk-tools.collapsed .bulk-tools-content { display: flex; }
+.bulk-tools.collapsed .bulk-tools-content > :not(.bulk-always-visible) { display: none; }
 .toolbar-session {
   display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: .4rem;
   padding-bottom: .45rem; border-bottom: 1px solid #cbd9e1;

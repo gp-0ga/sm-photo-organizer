@@ -143,11 +143,13 @@
               <button id="import-work-file" class="secondary" type="button">作業ファイル読込</button>
               <input id="import-work-file-input" type="file" accept="application/json,.json" hidden />
             </div>
-            <label><input id="select-all-photos" type="checkbox" /> 表示中を全選択</label>
-            <span id="bulk-selection-status" class="bulk-selection-status">0枚選択中</span>
-            <select id="bulk-asset" aria-label="選択写真に設定する資産"></select>
-            <button id="apply-bulk-asset" class="secondary" type="button" disabled>資産を一括変更</button>
-            <button id="clear-review" class="secondary" type="button" disabled>確認済みにする</button>
+            <div class="bulk-always-visible">
+              <label><input id="select-all-photos" type="checkbox" /> 表示中を全選択</label>
+              <span id="bulk-selection-status" class="bulk-selection-status">0枚選択中</span>
+              <select id="bulk-asset" aria-label="選択写真に設定する資産"></select>
+              <button id="apply-bulk-asset" class="secondary" type="button" disabled>資産を一括変更</button>
+              <button id="clear-review" class="secondary" type="button" disabled>確認済みにする</button>
+            </div>
             <button id="edit-destination-order" class="secondary" type="button">分類順を編集</button>
             <span id="export-toolbar-status" class="toolbar-status" role="status" hidden></span>
             <div class="photo-toolbar-row bulk-photo-controls">
