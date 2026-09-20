@@ -29,6 +29,7 @@ const savedSessionSelect = document.querySelector("#saved-session-select");
 const loadSessionSnapshotButton = document.querySelector("#load-session-snapshot");
 const jumpToBookmarkButton = document.querySelector("#jump-to-bookmark");
 const exportWorkFileButton = document.querySelector("#export-work-file");
+const chooseWorkFolderButton = document.querySelector("#choose-work-folder");
 const importWorkFileButton = document.querySelector("#import-work-file");
 const importWorkFileInput = document.querySelector("#import-work-file-input");
 const photoSummary = document.querySelector("#photo-summary");
@@ -263,6 +264,33 @@ function downloadBlob(blob, fileName) {
   anchor.download = fileName;
   anchor.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
+let workFolderHandle = null;
+
+async function chooseWorkFolder() {
+  if (typeof window.showDirectoryPicker !== "function") {
+    setSessionStatus("このブラウザでは保存先フォルダを直接指定できません。ダウンロード後に移動してください。", "error");
+    return null;
+  }
+  try {
+    workFolderHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+    setSessionStatus(`保存先を「${workFolderHandle.name}」に変更しました。`, "saved");
+    return workFolderHandle;
+  } catch (error) {
+    if (error?.name !== "AbortError") setSessionStatus(`保存先を変更できませんでした：${error.message ?? String(error)}`, "error");
+    return null;
+  }
+}
+
+async function saveWorkFileToFolder(folderHandle, blob, fileName) {
+  const fileHandle = await folderHandle.getFileHandle(fileName, { create: true });
+  const writable = await fileHandle.createWritable();
+  try {
+    await writable.write(blob);
+  } finally {
+    await writable.close();
+  }
 }
 
 function applyLoadedSession(saved, message = "") {
@@ -759,6 +787,8 @@ saveSessionSnapshotButton.addEventListener("click", async () => {
 
 jumpToBookmarkButton.addEventListener("click", scrollToBookmark);
 
+chooseWorkFolderButton.addEventListener("click", () => { void chooseWorkFolder(); });
+
 exportWorkFileButton.addEventListener("click", async () => {
   if (!assets.length || !photos.length) {
     setSessionStatus("先にExcelと写真を読み込んでください。", "error");
@@ -776,8 +806,13 @@ exportWorkFileButton.addEventListener("click", async () => {
       photoTargetKb: photoTargetKb.value,
       bookmarkPhotoId,
     });
-    downloadBlob(result.blob, result.fileName);
-    setSessionStatus(`${result.fileName}を保存しました。別PCで「作業ファイル読込」から開けます。`, "saved");
+    if (workFolderHandle && typeof workFolderHandle.getFileHandle === "function") {
+      await saveWorkFileToFolder(workFolderHandle, result.blob, result.fileName);
+      setSessionStatus(`${result.fileName}を「${workFolderHandle.name}」に保存しました。別PCで「作業ファイル読込」から開けます。`, "saved");
+    } else {
+      downloadBlob(result.blob, result.fileName);
+      setSessionStatus(`${result.fileName}をダウンロードしました。保存先を指定する場合は「保存先変更」を押してください。`, "saved");
+    }
   } catch (error) {
     setSessionStatus(`作業ファイルを作成できませんでした：${error.message ?? String(error)}`, "error");
   } finally {
