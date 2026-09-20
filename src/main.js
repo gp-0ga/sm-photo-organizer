@@ -63,6 +63,9 @@ const albumStatus = document.querySelector("#album-status");
 const createAlbumButton = document.querySelector("#create-album");
 const preflightDialog = document.querySelector("#preflight-dialog");
 const preflightList = document.querySelector("#preflight-list");
+const showAssetsTabButton = document.querySelector("#show-assets-tab");
+const workspaceTabs = [...document.querySelectorAll("[data-workspace-tab]")];
+const workspacePanels = [...document.querySelectorAll("[data-workspace-panel]")];
 const editDestinationOrderButton = document.querySelector("#edit-destination-order");
 const orderDialog = document.querySelector("#order-dialog");
 const orderDestinationSelect = document.querySelector("#order-destination-select");
@@ -699,6 +702,18 @@ function renderPhotos() {
 
 photoFilterAssetSelect.addEventListener("change", applyPhotoFilter);
 photoViewMode.addEventListener("change", renderPhotos);
+
+function selectWorkspaceTab(name) {
+  for (const tab of workspaceTabs) {
+    const active = tab.dataset.workspaceTab === name;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", String(active));
+  }
+  for (const panel of workspacePanels) panel.hidden = panel.dataset.workspacePanel !== name;
+}
+
+for (const tab of workspaceTabs) tab.addEventListener("click", () => selectWorkspaceTab(tab.dataset.workspaceTab));
+showAssetsTabButton.addEventListener("click", () => selectWorkspaceTab("assets"));
 editDestinationOrderButton.addEventListener("click", openDestinationOrderEditor);
 orderDestinationSelect.addEventListener("change", renderDestinationOrder);
 orderList.addEventListener("click", (event) => {

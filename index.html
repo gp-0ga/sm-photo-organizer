@@ -37,25 +37,23 @@
         </div>
       </section>
 
-      <section id="assets-panel" class="panel" aria-labelledby="assets-heading">
-        <div class="step-label">2</div>
+      <section id="photo-import-panel" class="panel" aria-labelledby="photo-import-heading">
+        <div class="step-label">3</div>
         <div class="step-body">
-          <div class="section-heading-row">
-            <div>
-              <h2 id="assets-heading">資産とフォルダ構成を確認する</h2>
-              <p>「経過年数」はサブフォルダから除外します。</p>
-            </div>
-            <button id="toggle-assets-panel" class="secondary panel-toggle" type="button">折りたたむ</button>
-            <div class="section-heading-actions">
-              <button id="add-asset" class="secondary" type="button" disabled>資産を追加</button>
-              <button id="create-folders" class="primary" disabled>フォルダを作成</button>
-            </div>
-          </div>
-          <div id="summary" class="summary-grid" hidden></div>
-          <div id="assets-empty" class="empty-state">Excelを読み込むと資産一覧が表示されます。</div>
-          <div id="asset-list" class="asset-list"></div>
-          <div id="folder-status" class="status neutral" role="status" hidden></div>
+          <h2 id="photo-import-heading">撮影写真を読み込む</h2>
+          <p>写真をまとめて選択します。読み込み後は右側の写真整理画面で確認します。</p>
+          <label class="file-picker">
+            <span>写真をまとめて選択</span>
+            <input id="photo-input" type="file" accept="image/*,.heic,.heif" multiple disabled />
+          </label>
+          <div id="photo-status" class="status neutral" role="status">先にExcelを読み込んでください。</div>
         </div>
+      </section>
+
+      <section class="prep-summary-panel" aria-label="作業概要">
+        <strong>作業概要</strong>
+        <span>資産・写真を読み込むと、右側の作業画面で整理できます。</span>
+        <button id="show-assets-tab" class="secondary" type="button">資産・フォルダ構成を確認</button>
       </section>
 
       <section id="camera-panel" class="panel camera-panel" aria-labelledby="camera-heading">
@@ -102,16 +100,38 @@
 
         <div class="workspace-main">
 
-      <section class="panel" aria-labelledby="photos-heading">
+        <nav class="workspace-tabs" aria-label="作業画面の切り替え">
+          <button class="workspace-tab active" data-workspace-tab="photos" type="button">写真整理</button>
+          <button class="workspace-tab" data-workspace-tab="assets" type="button">資産・フォルダ構成</button>
+          <button class="workspace-tab" data-workspace-tab="output" type="button">出力・写真帳</button>
+        </nav>
+
+        <section id="assets-panel" class="panel workspace-tab-panel" data-workspace-panel="assets" aria-labelledby="assets-heading" hidden>
+          <div class="step-label">2</div>
+          <div class="step-body">
+            <div class="section-heading-row">
+              <div>
+                <h2 id="assets-heading">資産とフォルダ構成を確認する</h2>
+                <p>「経過年数」はサブフォルダから除外します。</p>
+              </div>
+              <button id="toggle-assets-panel" class="secondary panel-toggle" type="button">折りたたむ</button>
+              <div class="section-heading-actions">
+                <button id="add-asset" class="secondary" type="button" disabled>資産を追加</button>
+                <button id="create-folders" class="primary" disabled>フォルダを作成</button>
+              </div>
+            </div>
+            <div id="summary" class="summary-grid" hidden></div>
+            <div id="assets-empty" class="empty-state">Excelを読み込むと資産一覧が表示されます。</div>
+            <div id="asset-list" class="asset-list"></div>
+            <div id="folder-status" class="status neutral" role="status" hidden></div>
+          </div>
+        </section>
+
+      <section class="panel workspace-tab-panel" data-workspace-panel="photos" aria-labelledby="photos-heading">
         <div class="step-label">3</div>
         <div class="step-body">
           <h2 id="photos-heading">撮影写真を読み込んで確認する</h2>
           <p>端末1台分ずつ選択してください。資産マーカーの作成・表示は専用ページで行います。写真整理の途中経過はこのPCのブラウザ内へ自動保存されます。</p>
-          <label class="file-picker">
-            <span>写真をまとめて選択</span>
-            <input id="photo-input" type="file" accept="image/*,.heic,.heif" multiple disabled />
-          </label>
-          <div id="photo-status" class="status neutral" role="status">先にExcelを読み込んでください。</div>
           <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
           <div id="bulk-tools-sentinel"></div>
           <div id="bulk-tools" class="bulk-tools" hidden>
@@ -157,7 +177,7 @@
         </div>
       </section>
 
-      <section class="panel" aria-labelledby="export-heading">
+      <section class="panel workspace-tab-panel" data-workspace-panel="output" aria-labelledby="export-heading" hidden>
         <div class="step-label">4</div>
         <div class="step-body">
           <div class="section-heading-row">
@@ -176,7 +196,7 @@
         </div>
       </section>
 
-      <section id="album-panel" class="panel" aria-labelledby="album-heading">
+      <section id="album-panel" class="panel workspace-tab-panel" data-workspace-panel="output" aria-labelledby="album-heading" hidden>
         <div class="step-label">5</div>
         <div class="step-body">
           <div class="section-heading-row">
