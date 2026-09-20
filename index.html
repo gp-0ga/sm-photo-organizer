@@ -163,6 +163,7 @@
               <button id="clear-review" class="secondary" type="button" disabled>確認済みにする</button>
             </div>
             <button id="edit-destination-order" class="secondary" type="button">分類順を編集</button>
+            <button id="view-selection-summary" class="secondary" type="button">選択状況一覧</button>
             <span id="export-toolbar-status" class="toolbar-status" role="status" hidden></span>
             <div class="photo-toolbar-row bulk-photo-controls">
               <label class="photo-filter">表示順<select id="photo-view-mode" aria-label="写真の表示順">
@@ -239,12 +240,12 @@
     </dialog>
     <dialog id="output-preview-dialog" class="output-preview-dialog">
       <form method="dialog">
-        <h2>出力内容の確認</h2>
-        <p>資産ごとに、全景・サブフォルダーへ入る写真を確認してください。</p>
+        <h2 id="output-preview-title">出力内容の確認</h2>
+        <p id="output-preview-description">資産ごとに、全景・サブフォルダーへ入る写真を確認してください。</p>
         <div id="output-preview-list" class="output-preview-list"></div>
         <div class="output-preview-actions">
           <button class="secondary" value="cancel">戻る</button>
-          <button class="primary" value="confirm">この内容で出力</button>
+          <button id="output-preview-confirm" class="primary" value="confirm">この内容で出力</button>
         </div>
       </form>
     </dialog>

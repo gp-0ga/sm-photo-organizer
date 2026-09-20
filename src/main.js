@@ -69,6 +69,10 @@ const preflightDialog = document.querySelector("#preflight-dialog");
 const preflightList = document.querySelector("#preflight-list");
 const outputPreviewDialog = document.querySelector("#output-preview-dialog");
 const outputPreviewList = document.querySelector("#output-preview-list");
+const outputPreviewTitle = document.querySelector("#output-preview-title");
+const outputPreviewDescription = document.querySelector("#output-preview-description");
+const outputPreviewConfirm = document.querySelector("#output-preview-confirm");
+const viewSelectionSummaryButton = document.querySelector("#view-selection-summary");
 const showAssetsTabButton = document.querySelector("#show-assets-tab");
 const workspaceTabs = [...document.querySelectorAll("[data-workspace-tab]")];
 const workspacePanels = [...document.querySelectorAll("[data-workspace-panel]")];
@@ -445,8 +449,13 @@ function clearOutputPreviewUrls() {
   outputPreviewUrls.clear();
 }
 
-function openOutputPreview() {
+function openOutputPreview({ forExport = true } = {}) {
   if (!outputPreviewDialog || !outputPreviewList || typeof outputPreviewDialog.showModal !== "function") return Promise.resolve(true);
+  if (outputPreviewTitle) outputPreviewTitle.textContent = forExport ? "出力内容の確認" : "選択状況一覧";
+  if (outputPreviewDescription) outputPreviewDescription.textContent = forExport
+    ? "資産ごとに、全景・サブフォルダーへ入る写真を確認してください。"
+    : "健全度判定表の点検結果1・2を入力するときも、この一覧を確認できます。";
+  if (outputPreviewConfirm) outputPreviewConfirm.hidden = !forExport;
   clearOutputPreviewUrls();
   outputPreviewList.replaceChildren();
   const groups = [];
@@ -497,6 +506,10 @@ function openOutputPreview() {
     outputPreviewDialog.addEventListener("close", finish);
   });
 }
+
+viewSelectionSummaryButton?.addEventListener("click", () => {
+  void openOutputPreview({ forExport: false });
+});
 
 function destinationGroups() {
   const groups = [];
