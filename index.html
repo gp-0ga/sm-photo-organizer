@@ -40,7 +40,10 @@
               <h2 id="assets-heading">資産とフォルダ構成を確認する</h2>
               <p>「経過年数」はサブフォルダから除外します。</p>
             </div>
-            <button id="create-folders" class="primary" disabled>フォルダを作成</button>
+            <div class="section-heading-actions">
+              <button id="add-asset" class="secondary" type="button" disabled>資産を追加</button>
+              <button id="create-folders" class="primary" disabled>フォルダを作成</button>
+            </div>
           </div>
           <div id="summary" class="summary-grid" hidden></div>
           <div id="assets-empty" class="empty-state">Excelを読み込むと資産一覧が表示されます。</div>
@@ -172,7 +175,12 @@
           <span class="asset-number"></span>
           <span class="asset-name"></span>
           <span class="item-count"></span>
+          <span class="asset-warning" hidden></span>
         </summary>
+        <div class="asset-actions">
+          <button class="secondary asset-edit" type="button">番号・名称を変更</button>
+          <button class="secondary asset-delete" type="button">資産を削除</button>
+        </div>
         <ul class="item-list"></ul>
       </details>
     </template>

@@ -16,6 +16,7 @@ const excelInput = document.querySelector("#excel-input");
 const excelStatus = document.querySelector("#excel-status");
 const folderStatus = document.querySelector("#folder-status");
 const createFoldersButton = document.querySelector("#create-folders");
+const addAssetButton = document.querySelector("#add-asset");
 const assetList = document.querySelector("#asset-list");
 const assetTemplate = document.querySelector("#asset-template");
 const assetsEmpty = document.querySelector("#assets-empty");
@@ -106,6 +107,13 @@ function renderAssets() {
     node.querySelector(".asset-number").textContent = asset.assetNumber;
     node.querySelector(".asset-name").textContent = asset.assetName;
     node.querySelector(".item-count").textContent = `${asset.items.length + 1}フォルダ`;
+    const warning = node.querySelector(".asset-warning");
+    if (asset.notInExcel) {
+      warning.hidden = false;
+      warning.textContent = "Excelに計上なし";
+    }
+    node.querySelector(".asset-edit").dataset.assetNumber = asset.assetNumber;
+    node.querySelector(".asset-delete").dataset.assetNumber = asset.assetNumber;
     const items = node.querySelector(".item-list");
     const fullView = document.createElement("li");
     fullView.textContent = "全景";
@@ -118,8 +126,28 @@ function renderAssets() {
     assetList.append(node);
   }
   assetsEmpty.hidden = true;
+  addAssetButton.disabled = false;
   renderSummary();
   bulkTools.hidden = assets.length === 0 && photos.length === 0;
+}
+
+function unclassifyPhotosForAssetNumbers(assetNumbers) {
+  const removed = new Set(assetNumbers);
+  for (const photo of photos) {
+    if (!removed.has(photo.assetNumber)) continue;
+    photo.assetNumber = null;
+    photo.destination = "";
+    photo.reviewRequired = true;
+  }
+}
+
+function mergeWorkbookAssets(nextAssets) {
+  const nextNumbers = new Set(nextAssets.map((asset) => asset.assetNumber));
+  const missingOldAssets = assets
+    .filter((asset) => !nextNumbers.has(asset.assetNumber))
+    .map((asset) => ({ ...asset, notInExcel: true }));
+  unclassifyPhotosForAssetNumbers(missingOldAssets.map((asset) => asset.assetNumber));
+  return [...nextAssets.map((asset) => ({ ...asset, notInExcel: false })), ...missingOldAssets];
 }
 
 function renderCameraAssets() {
@@ -456,7 +484,8 @@ excelInput.addEventListener("change", async () => {
   createFoldersButton.disabled = true;
   setStatus(excelStatus, `${file.name} を読み込んでいます…`, "working");
   try {
-    assets = await readAssetsFromWorkbook(file);
+    const workbookAssets = await readAssetsFromWorkbook(file);
+    assets = assets.length ? mergeWorkbookAssets(workbookAssets) : workbookAssets;
     healthWorkbookFile = file;
     albumTemplateFile = null;
     albumInput.value = "";
@@ -472,6 +501,7 @@ excelInput.addEventListener("change", async () => {
     scheduleSessionSave();
   } catch (error) {
     assets = [];
+    addAssetButton.disabled = true;
     healthWorkbookFile = null;
     albumTemplateFile = null;
     albumInput.disabled = true;
@@ -482,6 +512,53 @@ excelInput.addEventListener("change", async () => {
     cameraWorkspace.hidden = true;
     setStatus(excelStatus, error.message ?? String(error), "error");
   }
+});
+
+addAssetButton.addEventListener("click", () => {
+  const assetNumber = window.prompt("追加する資産番号を入力してください。")?.trim();
+  if (!assetNumber) return;
+  if (assets.some((asset) => asset.assetNumber === assetNumber)) {
+    setStatus(folderStatus, "同じ資産番号がすでにあります。", "error");
+    return;
+  }
+  const assetName = window.prompt("資産名を入力してください。")?.trim();
+  if (!assetName) return;
+  assets.push({
+    assetNumber,
+    assetName,
+    folderName: `${assetNumber}_${assetName}`,
+    items: [],
+    notInExcel: true,
+  });
+  assets.sort((a, b) => String(a.assetNumber).localeCompare(String(b.assetNumber), "ja", { numeric: true }));
+  renderAssets();
+  renderCameraAssets();
+  scheduleSessionSave();
+});
+
+assetList.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-asset-number]");
+  if (!button) return;
+  const assetNumber = button.dataset.assetNumber;
+  const index = assets.findIndex((asset) => asset.assetNumber === assetNumber);
+  if (index < 0) return;
+  if (button.classList.contains("asset-delete")) {
+    if (!window.confirm(`「${assets[index].assetName}」を削除しますか？分類済み写真は未分類に戻ります。`)) return;
+    unclassifyPhotosForAssetNumbers([assetNumber]);
+    assets.splice(index, 1);
+  } else {
+    const asset = assets[index];
+    const nextNumber = window.prompt("資産番号を入力してください。", asset.assetNumber)?.trim();
+    if (!nextNumber || (nextNumber !== asset.assetNumber && assets.some((item) => item.assetNumber === nextNumber))) return;
+    const nextName = window.prompt("資産名を入力してください。", asset.assetName)?.trim();
+    if (!nextName) return;
+    if (nextNumber !== asset.assetNumber) unclassifyPhotosForAssetNumbers([asset.assetNumber]);
+    assets[index] = { ...asset, assetNumber: nextNumber, assetName: nextName, folderName: `${nextNumber}_${nextName}`, notInExcel: true };
+  }
+  renderAssets();
+  renderCameraAssets();
+  renderPhotos();
+  scheduleSessionSave();
 });
 
 cameraAsset.addEventListener("change", () => {
