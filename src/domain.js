@@ -89,6 +89,11 @@ export const OTHER_ASSET = {
   items: [],
 };
 
+export function photoDestinations(photo) {
+  if (Array.isArray(photo?.destinations)) return photo.destinations.filter(Boolean);
+  return photo?.destination ? [photo.destination] : [];
+}
+
 export const SPECIAL_MARKERS = [
   { type: "review", label: "要確認", payload: "SM-REVIEW|1" },
   { type: "other", label: "その他", payload: "SM-OTHER|1" },
@@ -150,6 +155,8 @@ export function classifyDecodedEntries(entries, validAssetNumbers) {
       assetNumber: currentAssetNumber,
       unknownId: currentUnknownId,
       destination: "",
+      destinations: [],
+      destinationOrder: {},
       excluded: false,
       reviewRequired: false,
       qrReadError: entry.qrReadError ?? false,

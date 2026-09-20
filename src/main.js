@@ -1,7 +1,7 @@
 import "./styles.css";
 import { readAssetsFromWorkbook } from "./excel.js";
 import { createAssetFolders, exportOrganizedPhotos } from "./folders.js";
-import { OTHER_ASSET, OTHER_ASSET_NUMBER } from "./domain.js";
+import { OTHER_ASSET, OTHER_ASSET_NUMBER, photoDestinations } from "./domain.js";
 import { analyzePhotoFiles, compressToJpeg, jpegFileName, targetBytesFromKilobytes } from "./photos.js";
 import { albumEntries, createPhotoAlbum, inspectPhotoAlbumTemplate } from "./album.js";
 import { cameraFileName, captureVideoFrame, openRearCamera, stopCamera } from "./camera.js";
@@ -61,6 +61,12 @@ const albumInput = document.querySelector("#album-input");
 const albumTemplateStatus = document.querySelector("#album-template-status");
 const albumStatus = document.querySelector("#album-status");
 const createAlbumButton = document.querySelector("#create-album");
+const preflightDialog = document.querySelector("#preflight-dialog");
+const preflightList = document.querySelector("#preflight-list");
+const editDestinationOrderButton = document.querySelector("#edit-destination-order");
+const orderDialog = document.querySelector("#order-dialog");
+const orderDestinationSelect = document.querySelector("#order-destination-select");
+const orderList = document.querySelector("#order-list");
 const cameraAsset = document.querySelector("#camera-asset");
 const cameraWorkspace = document.querySelector("#camera-workspace");
 const cameraPreview = document.querySelector("#camera-preview");
@@ -210,7 +216,7 @@ function unclassifyPhotosForAssetNumbers(assetNumbers) {
   for (const photo of photos) {
     if (!removed.has(photo.assetNumber)) continue;
     photo.assetNumber = null;
-    photo.destination = "";
+    setPhotoDestinations(photo, []);
     photo.reviewRequired = true;
   }
 }
@@ -273,12 +279,22 @@ function assetOptions(selectedValue = "") {
 function destinationOptions(photo) {
   if (photo.assetNumber === OTHER_ASSET_NUMBER) return `<option value="">写真帳には使わない</option>`;
   const asset = assets.find((item) => item.assetNumber === photo.assetNumber);
+  const selected = new Set(photoDestinations(photo));
   const options = [{ value: "", label: "写真帳には使わない" }];
   if (asset) {
     options.push({ value: "全景", label: "全景" });
     for (const item of asset.items) options.push({ value: item.folderName, label: item.folderName });
   }
-  return options.map(({ value, label }) => `<option value="${value}"${value === photo.destination ? " selected" : ""}>${label}</option>`).join("");
+  return options.filter(({ value }) => value === "" || selected.has(value)).map(({ value, label }) => `<span class="photo-destination-chip">${label}</span>`).join("");
+}
+
+function destinationChoices(photo) {
+  if (photo.assetNumber === OTHER_ASSET_NUMBER) return "";
+  const asset = assets.find((item) => item.assetNumber === photo.assetNumber);
+  if (!asset) return "";
+  const selected = new Set(photoDestinations(photo));
+  const options = [{ value: "全景", label: "全景" }, ...asset.items.map((item) => ({ value: item.folderName, label: item.folderName }))];
+  return options.map(({ value, label }) => `<label><input type="checkbox" class="photo-destination-check" value="${value}"${selected.has(value) ? " checked" : ""} /> ${label}</label>`).join("");
 }
 
 function destinationLimit(destination) {
@@ -290,8 +306,17 @@ function destinationCount(photo, destination) {
     candidate.id !== photo.id &&
     !candidate.excluded &&
     candidate.assetNumber === photo.assetNumber &&
-    candidate.destination === destination,
+    photoDestinations(candidate).includes(destination),
   ).length;
+}
+
+function setPhotoDestinations(photo, destinations) {
+  photo.destinations = [...new Set(destinations.filter(Boolean))];
+  photo.destination = photo.destinations[0] ?? "";
+  photo.destinationOrder ??= {};
+  photo.destinations.forEach((destination) => {
+    if (!Number.isFinite(photo.destinationOrder[destination])) photo.destinationOrder[destination] = photos.indexOf(photo);
+  });
 }
 
 function updatePhotoSummary() {
@@ -306,6 +331,87 @@ function updatePhotoSummary() {
   `;
   exportPhotosButton.disabled = photos.length === 0 || unclassified > 0 || review > 0;
   updateAlbumReadiness();
+}
+
+function destinationIssues() {
+  const issues = [];
+  const active = photos.filter((photo) => !photo.excluded);
+  const unresolved = active.filter((photo) => !photo.assetNumber || photo.reviewRequired || photo.qrReadError);
+  if (unresolved.length) issues.push({ title: "未分類・要確認の写真", detail: `${unresolved.length}枚（例：${unresolved.slice(0, 3).map((photo) => photo.file.name).join("、")}）` });
+  for (const asset of assets) {
+    const assetPhotos = active.filter((photo) => photo.assetNumber === asset.assetNumber);
+    const fullPhotos = assetPhotos.filter((photo) => photoDestinations(photo).includes("全景"));
+    if (fullPhotos.length !== 1) issues.push({ title: `${asset.assetNumber} ${asset.assetName}：全景`, detail: `${fullPhotos.length}枚／必須1枚` });
+    for (const item of asset.items) {
+      const itemPhotos = assetPhotos.filter((photo) => photoDestinations(photo).includes(item.folderName));
+      if (itemPhotos.length > 4) issues.push({ title: `${asset.assetNumber}：${item.folderName}`, detail: `${itemPhotos.length}枚／最大4枚` });
+    }
+  }
+  return issues;
+}
+
+function showDestinationIssues() {
+  const issues = destinationIssues();
+  if (!issues.length) return false;
+  preflightList.replaceChildren(...issues.map((issue) => {
+    const item = document.createElement("div");
+    item.className = "preflight-item";
+    item.innerHTML = `<strong>${issue.title}</strong><span>${issue.detail}</span>`;
+    return item;
+  }));
+  if (typeof preflightDialog.showModal === "function") preflightDialog.showModal();
+  else setStatus(exportStatus, issues.map((issue) => `${issue.title}：${issue.detail}`).join(" / "), "error");
+  return true;
+}
+
+function destinationGroups() {
+  const groups = [];
+  for (const asset of assets) {
+    groups.push({ key: `${asset.assetNumber}|全景`, label: `${asset.assetNumber} ${asset.assetName} / 全景`, assetNumber: asset.assetNumber, destination: "全景" });
+    for (const item of asset.items) groups.push({ key: `${asset.assetNumber}|${item.folderName}`, label: `${asset.assetNumber} ${asset.assetName} / ${item.folderName}`, assetNumber: asset.assetNumber, destination: item.folderName });
+  }
+  return groups.filter((group) => photos.some((photo) => !photo.excluded && photo.assetNumber === group.assetNumber && photoDestinations(photo).includes(group.destination)));
+}
+
+function renderDestinationOrder() {
+  const group = destinationGroups().find((item) => item.key === orderDestinationSelect.value);
+  orderList.replaceChildren();
+  if (!group) return;
+  const selected = photos
+    .filter((photo) => !photo.excluded && photo.assetNumber === group.assetNumber && photoDestinations(photo).includes(group.destination))
+    .sort((left, right) => (left.destinationOrder?.[group.destination] ?? photos.indexOf(left)) - (right.destinationOrder?.[group.destination] ?? photos.indexOf(right)));
+  selected.forEach((photo, index) => {
+    const row = document.createElement("div");
+    row.className = "order-row";
+    row.dataset.photoId = photo.id;
+    row.innerHTML = `<span class="order-row-number">${index + 1}</span><span class="order-row-name">${photo.file.name}</span><button type="button" class="secondary order-up" ${index === 0 ? "disabled" : ""}>上へ</button><button type="button" class="secondary order-down" ${index === selected.length - 1 ? "disabled" : ""}>下へ</button>`;
+    orderList.append(row);
+  });
+}
+
+function openDestinationOrderEditor() {
+  const groups = destinationGroups();
+  orderDestinationSelect.replaceChildren(...groups.map((group) => new Option(group.label, group.key)));
+  renderDestinationOrder();
+  if (typeof orderDialog.showModal === "function") orderDialog.showModal();
+}
+
+function moveDestinationOrder(direction, photoId) {
+  const group = destinationGroups().find((item) => item.key === orderDestinationSelect.value);
+  if (!group) return;
+  const selected = photos
+    .filter((photo) => !photo.excluded && photo.assetNumber === group.assetNumber && photoDestinations(photo).includes(group.destination))
+    .sort((left, right) => (left.destinationOrder?.[group.destination] ?? photos.indexOf(left)) - (right.destinationOrder?.[group.destination] ?? photos.indexOf(right)));
+  const index = selected.findIndex((photo) => photo.id === photoId);
+  const next = index + direction;
+  if (index < 0 || next < 0 || next >= selected.length) return;
+  [selected[index], selected[next]] = [selected[next], selected[index]];
+  selected.forEach((photo, position) => {
+    photo.destinationOrder ??= {};
+    photo.destinationOrder[group.destination] = position;
+  });
+  scheduleSessionSave();
+  renderDestinationOrder();
 }
 
 function updateAlbumReadiness() {
@@ -470,8 +576,14 @@ function createPhotoCard(photo) {
   node.querySelector(".photo-date").textContent = photoDate ? `撮影日時：${new Intl.DateTimeFormat("ja-JP", { dateStyle: "short", timeStyle: "short" }).format(new Date(photoDate))}` : "撮影日時：不明";
   const assetSelect = node.querySelector(".photo-asset");
   assetSelect.innerHTML = assetOptions(photo.assetNumber ?? "");
-  const destinationSelect = node.querySelector(".photo-destination");
-  destinationSelect.innerHTML = destinationOptions(photo);
+  const destinationButton = node.querySelector(".photo-destination");
+  const destinationOptionsPanel = node.querySelector(".photo-destination-options");
+  const renderDestinationChooser = () => {
+    destinationButton.textContent = photoDestinations(photo).length ? `分類 ${photoDestinations(photo).length}件` : "分類なし";
+    destinationOptionsPanel.innerHTML = destinationChoices(photo);
+    destinationOptionsPanel.hidden = destinationOptionsPanel.dataset.open !== "true";
+  };
+  renderDestinationChooser();
   node.querySelector(".photo-exclude").checked = photo.excluded;
   node.querySelector(".review-badge").hidden = !(photo.reviewRequired || photo.qrReadError);
   const bookmarkButton = node.querySelector(".photo-bookmark");
@@ -501,21 +613,29 @@ function createPhotoCard(photo) {
 
   assetSelect.addEventListener("change", () => {
     photo.assetNumber = assetSelect.value || null;
-    photo.destination = "";
-    destinationSelect.innerHTML = destinationOptions(photo);
+    setPhotoDestinations(photo, []);
+    renderDestinationChooser();
     updatePhotoSummary();
     scheduleSessionSave();
     applyPhotoFilter();
   });
-  destinationSelect.addEventListener("change", () => {
-    const nextDestination = destinationSelect.value;
-    if (nextDestination && destinationCount(photo, nextDestination) >= destinationLimit(nextDestination) && !photo.excluded) {
-      destinationSelect.value = photo.destination;
+  destinationButton.addEventListener("click", () => {
+    destinationOptionsPanel.dataset.open = destinationOptionsPanel.hidden ? "true" : "false";
+    destinationOptionsPanel.hidden = destinationOptionsPanel.dataset.open !== "true";
+  });
+  destinationOptionsPanel.addEventListener("change", (event) => {
+    const checkbox = event.target.closest(".photo-destination-check");
+    if (!checkbox) return;
+    const nextDestination = checkbox.value;
+    if (checkbox.checked && destinationCount(photo, nextDestination) >= destinationLimit(nextDestination) && !photo.excluded) {
+      checkbox.checked = false;
       const label = nextDestination === "全景" ? "全景" : nextDestination;
       setStatus(albumStatus, `${label}は最大${destinationLimit(nextDestination)}枚です。`, "error");
       return;
     }
-    photo.destination = nextDestination;
+    const selected = [...destinationOptionsPanel.querySelectorAll(".photo-destination-check:checked")].map((input) => input.value);
+    setPhotoDestinations(photo, selected);
+    renderDestinationChooser();
     updateAlbumReadiness();
     scheduleSessionSave();
   });
@@ -579,6 +699,14 @@ function renderPhotos() {
 
 photoFilterAssetSelect.addEventListener("change", applyPhotoFilter);
 photoViewMode.addEventListener("change", renderPhotos);
+editDestinationOrderButton.addEventListener("click", openDestinationOrderEditor);
+orderDestinationSelect.addEventListener("change", renderDestinationOrder);
+orderList.addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  const row = event.target.closest(".order-row");
+  if (!button || !row) return;
+  moveDestinationOrder(button.classList.contains("order-up") ? -1 : 1, row.dataset.photoId);
+});
 
 function scrollToBookmark() {
   if (!bookmarkPhotoId) return;
@@ -800,6 +928,8 @@ cameraShutter.addEventListener("click", async () => {
       assetNumber: asset.assetNumber,
       unknownId: null,
       destination: "",
+      destinations: [],
+      destinationOrder: {},
       excluded: false,
       reviewRequired: false,
       qrReadError: false,
@@ -915,7 +1045,7 @@ photoInput.addEventListener("change", async () => {
       const importedBookmark = pendingWorkPhotoMetadata.find((photo) => photo.id === pendingWorkBookmarkId)?.fileName;
       photos = photos.map((photo) => {
         const saved = byName.get(photo.file.name);
-        return saved ? { ...photo, assetNumber: saved.assetNumber ?? null, destination: saved.destination || "", excluded: Boolean(saved.excluded), reviewRequired: Boolean(saved.reviewRequired), qrReadError: Boolean(saved.qrReadError) } : photo;
+        return saved ? { ...photo, assetNumber: saved.assetNumber ?? null, destination: saved.destination || saved.destinations?.[0] || "", destinations: Array.isArray(saved.destinations) ? saved.destinations : (saved.destination ? [saved.destination] : []), destinationOrder: saved.destinationOrder || {}, excluded: Boolean(saved.excluded), reviewRequired: Boolean(saved.reviewRequired), qrReadError: Boolean(saved.qrReadError) } : photo;
       });
       bookmarkPhotoId = importedBookmark ? photos.find((photo) => photo.file.name === importedBookmark)?.id ?? null : null;
       pendingWorkPhotoMetadata = null;
@@ -946,11 +1076,14 @@ applyBulkAsset.addEventListener("click", () => {
   for (const photo of photos) {
     if (ids.has(photo.id)) {
       photo.assetNumber = bulkAsset.value;
-      photo.destination = "";
+      setPhotoDestinations(photo, []);
       const card = photoList.querySelector(`.photo-card[data-photo-id="${photo.id}"]`);
       if (!card) continue;
       card.querySelector(".photo-asset").value = photo.assetNumber;
-      card.querySelector(".photo-destination").innerHTML = destinationOptions(photo);
+      card.querySelector(".photo-destination").textContent = "分類なし";
+      const destinationPanel = card.querySelector(".photo-destination-options");
+      destinationPanel.innerHTML = destinationChoices(photo);
+      destinationPanel.hidden = true;
     }
   }
   updatePhotoSummary();
@@ -974,6 +1107,7 @@ clearReview.addEventListener("click", () => {
 exportPhotosButton.addEventListener("click", async () => {
   exportPhotosButton.disabled = true;
   try {
+    if (showDestinationIssues()) return;
     const targetBytes = targetBytesFromKilobytes(photoTargetKb.value);
     setExportStatus(`保存先を選択してください。1枚${photoTargetKb.value}KB以下で新しい出力フォルダを作成します。`, "working");
     const result = await exportOrganizedPhotos(
@@ -996,6 +1130,7 @@ createAlbumButton.addEventListener("click", async () => {
   createAlbumButton.disabled = true;
   setStatus(albumStatus, "写真帳を準備しています…", "working");
   try {
+    if (showDestinationIssues()) return;
     const result = await createPhotoAlbum({
       healthWorkbook: healthWorkbookFile,
       albumTemplate: albumTemplateFile,

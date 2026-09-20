@@ -96,6 +96,24 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .item-list { margin: 0; padding: .25rem 1rem .8rem 3rem; columns: 2; color: #4b5964; }
 .item-list li { margin: .35rem 0; break-inside: avoid; }
 .photo-date { color: #65727d; font-size: .76rem; }
+.photo-destination-field { display: grid; gap: .3rem; color: #42515c; font-size: .8rem; font-weight: 700; }
+.photo-destination { justify-self: start; padding: .4rem .55rem; font-size: .78rem; }
+.photo-destination-options { display: grid; gap: .28rem; max-height: 8rem; overflow: auto; padding: .45rem .55rem; border: 1px solid #c9d6de; border-radius: 7px; background: #f7fafb; font-size: .76rem; font-weight: 400; }
+.photo-destination-options label { display: flex; align-items: flex-start; gap: .35rem; }
+.photo-destination-chip { display: inline-block; margin: .1rem .2rem .1rem 0; padding: .12rem .35rem; border-radius: 999px; color: #23485d; background: #e5f1f7; font-size: .7rem; }
+.preflight-dialog { width: min(680px, calc(100% - 2rem)); border: 0; border-radius: 14px; padding: 1.25rem; box-shadow: 0 20px 60px rgb(23 33 43 / 28%); }
+.preflight-dialog::backdrop { background: rgb(23 33 43 / 48%); }
+.preflight-dialog h2 { margin: 0; }
+.preflight-list { display: grid; gap: .5rem; max-height: 55vh; overflow: auto; margin: 1rem 0; }
+.preflight-item { display: grid; gap: .15rem; padding: .65rem .75rem; border-left: 4px solid #b23838; border-radius: 7px; background: #fff0f0; }
+.preflight-item strong { color: #8b2020; }
+.order-picker { display: grid; gap: .35rem; color: #42515c; font-size: .82rem; font-weight: 700; }
+.order-picker select { padding: .5rem; border: 1px solid #b9c9d4; border-radius: 7px; background: white; font: inherit; }
+.order-list { display: grid; gap: .4rem; max-height: 55vh; overflow: auto; margin: 1rem 0; }
+.order-row { display: grid; grid-template-columns: 2.4rem 1fr auto auto; align-items: center; gap: .45rem; padding: .45rem .55rem; border: 1px solid #d5dfe5; border-radius: 7px; background: #f7fafb; }
+.order-row-number { color: #52616d; font-weight: 800; }
+.order-row-name { overflow-wrap: anywhere; font-size: .82rem; }
+.order-row button { padding: .35rem .5rem; font-size: .78rem; }
 .asset-actions { display: flex; gap: .45rem; padding: 0 .9rem .5rem; }
 .asset-actions button { padding: .42rem .65rem; font-size: .78rem; }
 .asset-warning { padding: .2rem .45rem; border-radius: 999px; color: #8a4e00; background: #fff1cf; font-size: .72rem; font-weight: 700; }

@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { photoDestinations } from "./domain.js";
 
 export async function inspectPhotoAlbumTemplate(file, assets) {
   const data = await file.arrayBuffer();
@@ -51,35 +52,33 @@ export function albumEntries(assets, photos) {
   const counts = new Map();
 
   for (const photo of photos) {
-    if (photo.excluded || !photo.destination) continue;
+    const destinations = photoDestinations(photo);
+    if (photo.excluded || !destinations.length) continue;
     if (photo.reviewRequired || photo.qrReadError) throw new Error(`${photo.file.name}は要確認です。確認済みにしてから写真帳を作成してください。`);
     const asset = assetMap.get(photo.assetNumber);
     if (!asset) throw new Error(`${photo.file.name}の資産分類が不正です。`);
-
-    let destinationType;
-    let itemNumber = null;
-    let limit;
-    let countKey;
-    if (photo.destination === "全景") {
-      destinationType = "full";
-      limit = 1;
-      countKey = `${asset.assetNumber}/full`;
-    } else {
-      const item = asset.items.find((candidate) => candidate.folderName === photo.destination);
-      if (!item) throw new Error(`${photo.file.name}の写真帳分類先が不正です。`);
-      destinationType = "item";
-      itemNumber = item.itemNumber;
-      limit = 4;
-      countKey = `${asset.assetNumber}/${itemNumber}`;
+    for (const destination of destinations) {
+      let destinationType;
+      let itemNumber = null;
+      let limit;
+      let countKey;
+      if (destination === "全景") {
+        destinationType = "full";
+        limit = 1;
+        countKey = `${asset.assetNumber}/full`;
+      } else {
+        const item = asset.items.find((candidate) => candidate.folderName === destination);
+        if (!item) throw new Error(`${photo.file.name}の写真帳分類先が不正です。`);
+        destinationType = "item";
+        itemNumber = item.itemNumber;
+        limit = 4;
+        countKey = `${asset.assetNumber}/${itemNumber}`;
+      }
+      const count = (counts.get(countKey) ?? 0) + 1;
+      counts.set(countKey, count);
+      if (count > limit) throw new Error(`${asset.assetNumber}の「${destination}」は最大${limit}枚です。`);
+      entries.push({ photo, assetNumber: asset.assetNumber, destinationType, itemNumber, destination, slotIndex: count - 1 });
     }
-
-    const count = (counts.get(countKey) ?? 0) + 1;
-    counts.set(countKey, count);
-    if (count > limit) {
-      const label = destinationType === "full" ? "全景" : photo.destination;
-      throw new Error(`${asset.assetNumber}の「${label}」は最大${limit}枚です。`);
-    }
-    entries.push({ photo, assetNumber: asset.assetNumber, destinationType, itemNumber, slotIndex: count - 1 });
   }
 
   for (const asset of assets) {
@@ -87,6 +86,21 @@ export function albumEntries(assets, photos) {
     if (fullCount !== 1) {
       throw new Error(`${asset.assetNumber}の「全景」は必ず1枚選択してください（現在${fullCount}枚）。`);
     }
+  }
+
+  entries.sort((left, right) => {
+    const leftKey = `${left.assetNumber}/${left.destination}`;
+    const rightKey = `${right.assetNumber}/${right.destination}`;
+    if (leftKey !== rightKey) return leftKey.localeCompare(rightKey, "ja", { numeric: true });
+    const leftOrder = left.photo.destinationOrder?.[left.destination] ?? photos.indexOf(left.photo);
+    const rightOrder = right.photo.destinationOrder?.[right.destination] ?? photos.indexOf(right.photo);
+    return leftOrder - rightOrder;
+  });
+  const slotCounts = new Map();
+  for (const entry of entries) {
+    const key = `${entry.assetNumber}/${entry.destination}`;
+    entry.slotIndex = slotCounts.get(key) ?? 0;
+    slotCounts.set(key, entry.slotIndex + 1);
   }
 
   if (!entries.length) throw new Error("写真帳に貼る写真が選ばれていません。");

@@ -134,6 +134,7 @@
             <select id="bulk-asset" aria-label="選択写真に設定する資産"></select>
             <button id="apply-bulk-asset" class="secondary" type="button" disabled>資産を一括変更</button>
             <button id="clear-review" class="secondary" type="button" disabled>確認済みにする</button>
+            <button id="edit-destination-order" class="secondary" type="button">分類順を編集</button>
             <span id="export-toolbar-status" class="toolbar-status" role="status" hidden></span>
             </div>
           </div>
@@ -198,6 +199,24 @@
       </div>
     </main>
 
+    <dialog id="preflight-dialog" class="preflight-dialog">
+      <form method="dialog">
+        <h2>出力前の確認</h2>
+        <p>次の項目を修正してから出力してください。まだファイル保存は開始していません。</p>
+        <div id="preflight-list" class="preflight-list"></div>
+        <button class="secondary" value="cancel">一覧へ戻る</button>
+      </form>
+    </dialog>
+    <dialog id="order-dialog" class="preflight-dialog">
+      <form method="dialog">
+        <h2>分類ごとの写真順</h2>
+        <p>写真帳への貼り付け順を変更できます。上下ボタンで並べ替えてください。</p>
+        <label class="order-picker">分類<select id="order-destination-select"></select></label>
+        <div id="order-list" class="order-list"></div>
+        <button class="secondary" value="cancel">閉じる</button>
+      </form>
+    </dialog>
+
     <template id="asset-template">
       <details class="asset-card">
         <summary>
@@ -226,7 +245,11 @@
           <strong class="photo-name"></strong>
           <span class="photo-date"></span>
           <label>資産<select class="photo-asset"></select></label>
-          <label>写真帳分類<select class="photo-destination"></select></label>
+          <div class="photo-destination-field">
+            <span>写真帳分類</span>
+            <button class="photo-destination secondary" type="button">分類なし</button>
+            <div class="photo-destination-options" hidden></div>
+          </div>
           <span class="review-badge" hidden>要確認</span>
         </div>
       </article>

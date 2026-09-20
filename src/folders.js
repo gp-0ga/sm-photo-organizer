@@ -61,12 +61,12 @@ export async function exportOrganizedPhotos(assets, photos, compress, fileNameFo
   const selected = photos.filter((photo) => !photo.excluded && photo.assetNumber);
   for (const asset of assets) {
     const assetPhotos = selected.filter((photo) => photo.assetNumber === asset.assetNumber);
-    const fullCount = assetPhotos.filter((photo) => photo.destination === "全景").length;
+    const fullCount = assetPhotos.filter((photo) => photoDestinations(photo).includes("全景")).length;
     if (fullCount !== 1) {
       throw new Error(`${asset.assetNumber}の「全景」は必ず1枚選択してください（現在${fullCount}枚）。`);
     }
     for (const item of asset.items) {
-      const count = assetPhotos.filter((photo) => photo.destination === item.folderName).length;
+      const count = assetPhotos.filter((photo) => photoDestinations(photo).includes(item.folderName)).length;
       if (count > 4) throw new Error(`${asset.assetNumber}の「${item.folderName}」は最大4枚です。`);
     }
   }
@@ -103,8 +103,8 @@ export async function exportOrganizedPhotos(assets, photos, compress, fileNameFo
       const { photo, dirs, fileName } = jobs[index];
       const blob = await compress(photo.file);
       await writeBlob(dirs.assetDir, fileName, blob);
-      if (photo.destination) {
-        const destination = dirs.children.get(photo.destination);
+      for (const destinationName of photoDestinations(photo)) {
+        const destination = dirs.children.get(destinationName);
         if (!destination) throw new Error(`${fileName} の写真帳分類先が不正です。`);
         await writeBlob(destination, fileName, blob);
       }
@@ -115,4 +115,4 @@ export async function exportOrganizedPhotos(assets, photos, compress, fileNameFo
   await Promise.all(Array.from({ length: Math.min(2, jobs.length) }, () => worker()));
   return { outputName: output.name, photoCount: active.length };
 }
-import { OTHER_ASSET } from "./domain.js";
+import { OTHER_ASSET, photoDestinations } from "./domain.js";
