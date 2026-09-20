@@ -18,6 +18,11 @@ const excelStatus = document.querySelector("#excel-status");
 const folderStatus = document.querySelector("#folder-status");
 const createFoldersButton = document.querySelector("#create-folders");
 const addAssetButton = document.querySelector("#add-asset");
+const assetBulkTools = document.querySelector("#asset-bulk-tools");
+const selectAllAssets = document.querySelector("#select-all-assets");
+const assetBulkStatus = document.querySelector("#asset-bulk-status");
+const assetBulkSiteAbsent = document.querySelector("#asset-bulk-site-absent");
+const assetBulkSitePresent = document.querySelector("#asset-bulk-site-present");
 const assetList = document.querySelector("#asset-list");
 const assetTemplate = document.querySelector("#asset-template");
 const assetsEmpty = document.querySelector("#assets-empty");
@@ -117,6 +122,7 @@ let saveTimer = null;
 let saveInProgress = false;
 let saveQueued = false;
 const selectedPhotoIdsState = new Set();
+const selectedAssetNumbers = new Set();
 const PHOTO_RENDER_CHUNK_SIZE = 80;
 let photoRenderQueue = [];
 let photoRenderCursor = 0;
@@ -178,11 +184,21 @@ function renderAssets() {
       warning.hidden = false;
       warning.textContent = warningLabels.join("・");
     }
+    node.querySelector(".asset-select-label").addEventListener("click", (event) => event.stopPropagation());
+    node.querySelector(".asset-site-status").addEventListener("click", (event) => event.stopPropagation());
+    const assetSelect = node.querySelector(".asset-select");
+    assetSelect.checked = selectedAssetNumbers.has(asset.assetNumber);
+    assetSelect.addEventListener("change", () => {
+      if (assetSelect.checked) selectedAssetNumbers.add(asset.assetNumber);
+      else selectedAssetNumbers.delete(asset.assetNumber);
+      updateAssetBulkControls();
+    });
     const siteAbsent = node.querySelector(".asset-site-absent");
     siteAbsent.checked = Boolean(asset.siteAbsent);
     siteAbsent.addEventListener("change", () => {
       asset.siteAbsent = siteAbsent.checked;
-      renderAssets();
+      warning.hidden = !(asset.notInExcel || asset.siteAbsent);
+      warning.textContent = [asset.notInExcel && "Excelに計上なし", asset.siteAbsent && "現地なし／対象外"].filter(Boolean).join("・");
       updatePhotoDestinationAlert();
       scheduleSessionSave();
     });
@@ -204,7 +220,48 @@ function renderAssets() {
   renderSummary();
   bulkTools.hidden = assets.length === 0 && photos.length === 0;
   renderPhotoFilterOptions();
+  const currentAssetNumbers = new Set(assets.map((asset) => asset.assetNumber));
+  for (const assetNumber of [...selectedAssetNumbers]) {
+    if (!currentAssetNumbers.has(assetNumber)) selectedAssetNumbers.delete(assetNumber);
+  }
+  assetBulkTools.hidden = assets.length === 0;
+  updateAssetBulkControls();
 }
+
+function updateAssetBulkControls() {
+  const total = assets.length;
+  const selectedCount = selectedAssetNumbers.size;
+  assetBulkStatus.textContent = `${selectedCount}件選択中`;
+  selectAllAssets.indeterminate = selectedCount > 0 && selectedCount < total;
+  selectAllAssets.checked = total > 0 && selectedCount === total;
+  assetBulkSiteAbsent.disabled = selectedCount === 0;
+  assetBulkSitePresent.disabled = selectedCount === 0;
+}
+
+function setSiteAbsentForSelection(siteAbsent) {
+  if (!selectedAssetNumbers.size) return;
+  for (const asset of assets) {
+    if (!selectedAssetNumbers.has(asset.assetNumber)) continue;
+    asset.siteAbsent = siteAbsent;
+  }
+  renderAssets();
+  updatePhotoDestinationAlert();
+  scheduleSessionSave();
+}
+
+selectAllAssets.addEventListener("change", () => {
+  selectedAssetNumbers.clear();
+  if (selectAllAssets.checked) {
+    for (const asset of assets) selectedAssetNumbers.add(asset.assetNumber);
+  }
+  for (const card of assetList.querySelectorAll(".asset-card")) {
+    card.querySelector(".asset-select").checked = selectedAssetNumbers.has(card.querySelector(".asset-number").textContent);
+  }
+  updateAssetBulkControls();
+});
+
+assetBulkSiteAbsent.addEventListener("click", () => setSiteAbsentForSelection(true));
+assetBulkSitePresent.addEventListener("click", () => setSiteAbsentForSelection(false));
 
 const UNCLASSIFIED_FILTER_VALUE = "__unclassified__";
 
