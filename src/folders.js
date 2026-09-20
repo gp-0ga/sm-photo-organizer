@@ -72,23 +72,35 @@ export async function exportOrganizedPhotos(assets, photos, compress, fileNameFo
 
   const usedNames = new Map();
   const active = photos.filter((photo) => !photo.excluded);
-  for (let index = 0; index < active.length; index += 1) {
-    const photo = active[index];
+  const jobs = active.map((photo) => {
     const dirs = directories.get(photo.assetNumber);
     const baseName = fileNameFor(photo.file.name);
     const key = `${photo.assetNumber}/${baseName.toLowerCase()}`;
     const occurrence = (usedNames.get(key) ?? 0) + 1;
     usedNames.set(key, occurrence);
     const fileName = occurrence === 1 ? baseName : baseName.replace(/\.jpg$/i, `_${occurrence}.jpg`);
-    const blob = await compress(photo.file);
-    await writeBlob(dirs.assetDir, fileName, blob);
-    if (photo.destination) {
-      const destination = dirs.children.get(photo.destination);
-      if (!destination) throw new Error(`${fileName} の写真帳分類先が不正です。`);
-      await writeBlob(destination, fileName, blob);
+    return { photo, dirs, fileName };
+  });
+  let nextIndex = 0;
+  let completed = 0;
+  const worker = async () => {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= jobs.length) return;
+      const { photo, dirs, fileName } = jobs[index];
+      const blob = await compress(photo.file);
+      await writeBlob(dirs.assetDir, fileName, blob);
+      if (photo.destination) {
+        const destination = dirs.children.get(photo.destination);
+        if (!destination) throw new Error(`${fileName} の写真帳分類先が不正です。`);
+        await writeBlob(destination, fileName, blob);
+      }
+      completed += 1;
+      onProgress(completed, active.length, fileName);
     }
-    onProgress(index + 1, active.length, fileName);
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(2, jobs.length) }, () => worker()));
   return { outputName: output.name, photoCount: active.length };
 }
 import { OTHER_ASSET } from "./domain.js";
