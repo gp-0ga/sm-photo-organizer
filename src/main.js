@@ -101,6 +101,7 @@ let saveInProgress = false;
 let saveQueued = false;
 
 function setupPanelToggle(panel, button, storageKey) {
+  if (!panel || !button) return;
   const update = (collapsed) => {
     panel.classList.toggle("panel-collapsed", collapsed);
     button.textContent = collapsed ? "展開" : "折りたたむ";
@@ -541,8 +542,8 @@ function applyLoadedSession(saved, message = "") {
     createFoldersButton.disabled = assets.length === 0;
     photoInput.disabled = assets.length === 0;
     albumInput.disabled = assets.length === 0;
-    setStatus(excelStatus, `${assets.length}資産を前回の作業から復元しました。`, "success");
-    setStatus(photoStatus, `${photos.length}枚の写真を前回の作業から復元しました。`, "success");
+    setStatus(excelStatus, `${assets.length}資産を復元しました。`, "success");
+    setStatus(photoStatus, `${photos.length}枚を復元しました。`, "success");
     setStatus(albumTemplateStatus, albumTemplateFile ? "写真帳様式も復元しました。" : "写真帳様式を選択してください。", "neutral");
     setSessionStatus(message || `作業を復元しました（${formatSavedAt(saved.savedAt)}）。`, "saved");
     updateAlbumReadiness();
@@ -728,7 +729,7 @@ function selectWorkspaceTab(name) {
 }
 
 for (const tab of workspaceTabs) tab.addEventListener("click", () => selectWorkspaceTab(tab.dataset.workspaceTab));
-showAssetsTabButton.addEventListener("click", () => selectWorkspaceTab("assets"));
+if (showAssetsTabButton) showAssetsTabButton.addEventListener("click", () => selectWorkspaceTab("assets"));
 editDestinationOrderButton.addEventListener("click", openDestinationOrderEditor);
 orderDestinationSelect.addEventListener("change", renderDestinationOrder);
 orderList.addEventListener("click", (event) => {

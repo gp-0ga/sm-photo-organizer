@@ -27,33 +27,25 @@
       <section id="excel-panel" class="panel" aria-labelledby="excel-heading">
         <div class="step-label">1</div>
         <div class="step-body">
-          <div class="panel-title-row"><h2 id="excel-heading">健全度判定表を読み込む</h2><button id="toggle-excel-panel" class="secondary panel-toggle" type="button">折りたたむ</button></div>
-          <p>「No11」シートから資産番号・資産名称・点検項目を読み取ります。元のExcelは変更しません。</p>
+          <div class="panel-title-row"><h2 id="excel-heading">健全度判定表</h2></div>
           <label class="file-picker">
-            <span>Excelファイルを選択</span>
+            <span>ファイルを選択</span>
             <input id="excel-input" type="file" accept=".xlsx" />
           </label>
-          <div id="excel-status" class="status neutral" role="status">Excelを選択してください。</div>
+          <div id="excel-status" class="status neutral" role="status">未読込</div>
         </div>
       </section>
 
       <section id="photo-import-panel" class="panel" aria-labelledby="photo-import-heading">
         <div class="step-label">3</div>
         <div class="step-body">
-          <h2 id="photo-import-heading">撮影写真を読み込む</h2>
-          <p>写真をまとめて選択します。読み込み後は右側の写真整理画面で確認します。</p>
+          <h2 id="photo-import-heading">撮影写真</h2>
           <label class="file-picker">
-            <span>写真をまとめて選択</span>
+            <span>ファイルを選択</span>
             <input id="photo-input" type="file" accept="image/*,.heic,.heif" multiple disabled />
           </label>
-          <div id="photo-status" class="status neutral" role="status">先にExcelを読み込んでください。</div>
+          <div id="photo-status" class="status neutral" role="status">Excel未読込</div>
         </div>
-      </section>
-
-      <section class="prep-summary-panel" aria-label="作業概要">
-        <strong>作業概要</strong>
-        <span>資産・写真を読み込むと、右側の作業画面で整理できます。</span>
-        <button id="show-assets-tab" class="secondary" type="button">資産・フォルダ構成を確認</button>
       </section>
 
       <section id="camera-panel" class="panel camera-panel" aria-labelledby="camera-heading">
@@ -63,7 +55,7 @@
             <div>
               <p class="stage-badge">段階1・実機テスト</p>
               <h2 id="camera-heading">iPhoneで資産を選んで撮影する</h2>
-              <p>撮影前に資産を手動で選びます。別の資産へ切り替えた後、元の資産へ戻って追加撮影できます。</p>
+              <p>撮影する資産を選択します。</p>
             </div>
           </div>
 
@@ -87,8 +79,7 @@
               <span>ズーム <strong id="camera-zoom-value">1.0×</strong></span>
               <input id="camera-zoom" type="range" min="1" max="5" value="1" step="0.1" />
             </label>
-            <div id="camera-status" class="status neutral" role="status">撮影した写真は、下の写真一覧で選択資産に振り分けられます。
-            </div>
+            <div id="camera-status" class="status neutral" role="status">撮影後、写真一覧で確認できます。</div>
             <p class="camera-test-warning">※この段階は操作テスト用です。画面を再読み込み・終了すると撮影写真は消えるため、本番調査には使用しないでください。</p>
             <div id="camera-counts" class="camera-counts"></div>
             <button id="camera-save-zip" class="primary camera-save" type="button" disabled>資産別ZIPを保存</button>
@@ -114,7 +105,6 @@
                 <h2 id="assets-heading">資産とフォルダ構成を確認する</h2>
                 <p>「経過年数」はサブフォルダから除外します。</p>
               </div>
-              <button id="toggle-assets-panel" class="secondary panel-toggle" type="button">折りたたむ</button>
               <div class="section-heading-actions">
                 <button id="add-asset" class="secondary" type="button" disabled>資産を追加</button>
                 <button id="create-folders" class="primary" disabled>フォルダを作成</button>
