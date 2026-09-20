@@ -32,13 +32,71 @@ try {
     $targetNo11 = $albumBook.Worksheets.Item('No11')
     if ($targetNo11.ProtectContents) { throw 'The No11 sheet in the photo album is protected.' }
 
-    $targetNo11.Cells.UnMerge()
-    $targetNo11.Cells.Clear()
-    $sourceNo11.UsedRange.Copy($targetNo11.Range('A1'))
-    $sourceNo11.UsedRange.Copy()
-    $targetNo11.Range('A1').PasteSpecial(8)
-    for ($row = 1; $row -le $sourceNo11.UsedRange.Rows.Count; $row++) {
-        $targetNo11.Rows.Item($row).RowHeight = $sourceNo11.Rows.Item($row).RowHeight
+    # No11全体は置き換えず、点検結果1・2の値と入力規則だけを対応セルへ反映する。
+    # 写真帳側の書式、数式、行構成、既存のセレクトボックスは維持する。
+    $sourceUsed = $sourceNo11.UsedRange
+    $targetUsed = $targetNo11.UsedRange
+    $sourceValues = $sourceUsed.Value2
+    $targetValues = $targetUsed.Value2
+    $normalizeHeader = {
+        param($value)
+        ([string]$value).Trim().Replace(' ', '').Replace('　', '').Replace('１', '1').Replace('２', '2')
+    }
+    $sourceHeaders = @{}
+    $targetHeaders = @{}
+    $sourceHeaderRow = 0
+    $targetHeaderRow = 0
+    foreach ($row in 1..([Math]::Min(30, $sourceUsed.Rows.Count))) {
+        $candidate = @{}
+        for ($column = 1; $column -le $sourceUsed.Columns.Count; $column++) {
+            $sourceHeader = & $normalizeHeader $sourceValues[$row, $column]
+            if ($sourceHeader -in @('資産番号', '項目番号', '点検結果1', '点検結果2')) { $candidate[$sourceHeader] = $sourceUsed.Column + $column - 1 }
+        }
+        if (@('資産番号', '項目番号', '点検結果1', '点検結果2') | Where-Object { -not $candidate.ContainsKey($_) }) { continue }
+        $sourceHeaders = $candidate
+        $sourceHeaderRow = $row
+        break
+    }
+    foreach ($row in 1..([Math]::Min(30, $targetUsed.Rows.Count))) {
+        $candidate = @{}
+        for ($column = 1; $column -le $targetUsed.Columns.Count; $column++) {
+            $targetHeader = & $normalizeHeader $targetValues[$row, $column]
+            if ($targetHeader -in @('資産番号', '項目番号', '点検結果1', '点検結果2')) { $candidate[$targetHeader] = $targetUsed.Column + $column - 1 }
+        }
+        if (@('資産番号', '項目番号', '点検結果1', '点検結果2') | Where-Object { -not $candidate.ContainsKey($_) }) { continue }
+        $targetHeaders = $candidate
+        $targetHeaderRow = $row
+        break
+    }
+    foreach ($requiredHeader in @('資産番号', '項目番号', '点検結果1', '点検結果2')) {
+        if (-not $sourceHeaders.ContainsKey($requiredHeader) -or -not $targetHeaders.ContainsKey($requiredHeader)) {
+            throw "No11シートに「$requiredHeader」の列が見つかりません。"
+        }
+    }
+
+    $targetRows = @{}
+    for ($row = $targetHeaderRow + 1; $row -le $targetUsed.Rows.Count; $row++) {
+        $assetNumber = ([string]$targetValues[$row, $targetHeaders['資産番号'] - $targetUsed.Column + 1]).Trim()
+        $itemNumber = ([string]$targetValues[$row, $targetHeaders['項目番号'] - $targetUsed.Column + 1]).Trim()
+        if ($assetNumber -and $itemNumber) { $targetRows["$assetNumber|$itemNumber"] = $targetUsed.Row + $row - 1 }
+    }
+    $sourceAssetIndex = $sourceHeaders['資産番号'] - $sourceUsed.Column + 1
+    $sourceItemIndex = $sourceHeaders['項目番号'] - $sourceUsed.Column + 1
+    for ($row = $sourceHeaderRow + 1; $row -le $sourceUsed.Rows.Count; $row++) {
+        $assetNumber = ([string]$sourceValues[$row, $sourceAssetIndex]).Trim()
+        $itemNumber = ([string]$sourceValues[$row, $sourceItemIndex]).Trim()
+        $targetRow = $targetRows["$assetNumber|$itemNumber"]
+        if (-not $targetRow) { continue }
+        foreach ($resultHeader in @('点検結果1', '点検結果2')) {
+            $sourceColumn = $sourceHeaders[$resultHeader]
+            $targetColumn = $targetHeaders[$resultHeader]
+            $sourceCell = $sourceNo11.Cells.Item($sourceUsed.Row + $row - 1, $sourceColumn)
+            $targetCell = $targetNo11.Cells.Item($targetRow, $targetColumn)
+            # xlPasteValidation=6。入力規則だけをコピーし、書式・数式は触らない。
+            $sourceCell.Copy()
+            $targetCell.PasteSpecial(6)
+            $targetCell.Value2 = $sourceCell.Value2
+        }
     }
     $excel.CutCopyMode = 0
     $healthBook.Close($false)
