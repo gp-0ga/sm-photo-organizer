@@ -254,6 +254,7 @@ function setSessionStatus(message, tone = "") {
   sessionStatus.textContent = message;
 }
 
+
 async function saveSessionNow() {
   if (!assets.length && !photos.length && !healthWorkbookFile && !albumTemplateFile) return;
   if (saveInProgress) {
@@ -460,6 +461,31 @@ if (bulkToolsSentinel && "IntersectionObserver" in window) {
     ([entry]) => bulkTools.classList.toggle("is-stuck", !entry.isIntersecting),
     { threshold: 1 },
   ).observe(bulkToolsSentinel);
+}
+
+const BULK_TOOLS_COLLAPSE_KEY = "bulk-tools-collapsed";
+const bulkToolsCollapseButton = document.querySelector("#bulk-tools-collapse");
+
+function applyBulkToolsCollapsed(collapsed) {
+  bulkTools.classList.toggle("collapsed", collapsed);
+  bulkToolsCollapseButton.setAttribute("aria-expanded", String(!collapsed));
+  bulkToolsCollapseButton.textContent = collapsed ? "▼" : "▲";
+  bulkToolsCollapseButton.title = collapsed ? "ツールバーを開く" : "ツールバーを折りたたむ";
+  try {
+    localStorage.setItem(BULK_TOOLS_COLLAPSE_KEY, collapsed ? "1" : "0");
+  } catch {
+    // 折りたたみ設定を保存できない場合も表示は継続する
+  }
+}
+
+bulkToolsCollapseButton.addEventListener("click", () => {
+  applyBulkToolsCollapsed(!bulkTools.classList.contains("collapsed"));
+});
+
+try {
+  applyBulkToolsCollapsed(localStorage.getItem(BULK_TOOLS_COLLAPSE_KEY) === "1");
+} catch {
+  applyBulkToolsCollapsed(false);
 }
 
 function selectedPhotoIds() {

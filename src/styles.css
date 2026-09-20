@@ -130,12 +130,20 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .setting-note { margin: .45rem 0 0; color: #5d6973; font-size: .88rem; }
 
 .bulk-tools {
-  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
-  margin: 1rem 0; padding: .55rem .7rem; border-radius: 10px;
-  background: #f2f6f8;
   position: sticky; top: 0; z-index: 5;
+  margin: 1rem 0; padding: .55rem 2.6rem .55rem .7rem; border-radius: 10px;
+  background: #f2f6f8;
   transition: box-shadow .15s ease, background .15s ease;
 }
+.bulk-tools-content { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.bulk-tools-collapse {
+  position: absolute; top: .5rem; right: .5rem; z-index: 1;
+  width: 1.9rem; height: 1.9rem; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: 50%;
+  background: #dfeef8; color: #163a5f; font-size: .85rem; line-height: 1; cursor: pointer;
+}
+.bulk-tools.collapsed { padding-block: .35rem; }
+.bulk-tools.collapsed .bulk-tools-content { display: none; }
 .toolbar-session {
   display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: .4rem;
   padding-bottom: .45rem; border-bottom: 1px solid #cbd9e1;
