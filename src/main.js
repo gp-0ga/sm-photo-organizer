@@ -275,6 +275,19 @@ function destinationOptions(photo) {
   return options.map(({ value, label }) => `<option value="${value}"${value === photo.destination ? " selected" : ""}>${label}</option>`).join("");
 }
 
+function destinationLimit(destination) {
+  return destination === "全景" ? 1 : 4;
+}
+
+function destinationCount(photo, destination) {
+  return photos.filter((candidate) =>
+    candidate.id !== photo.id &&
+    !candidate.excluded &&
+    candidate.assetNumber === photo.assetNumber &&
+    candidate.destination === destination,
+  ).length;
+}
+
 function updatePhotoSummary() {
   const active = photos.filter((photo) => !photo.excluded);
   const unclassified = active.filter((photo) => !photo.assetNumber).length;
@@ -489,7 +502,14 @@ function createPhotoCard(photo) {
     applyPhotoFilter();
   });
   destinationSelect.addEventListener("change", () => {
-    photo.destination = destinationSelect.value;
+    const nextDestination = destinationSelect.value;
+    if (nextDestination && destinationCount(photo, nextDestination) >= destinationLimit(nextDestination) && !photo.excluded) {
+      destinationSelect.value = photo.destination;
+      const label = nextDestination === "全景" ? "全景" : nextDestination;
+      setStatus(albumStatus, `${label}は最大${destinationLimit(nextDestination)}枚です。`, "error");
+      return;
+    }
+    photo.destination = nextDestination;
     updateAlbumReadiness();
     scheduleSessionSave();
   });

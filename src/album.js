@@ -82,6 +82,13 @@ export function albumEntries(assets, photos) {
     entries.push({ photo, assetNumber: asset.assetNumber, destinationType, itemNumber, slotIndex: count - 1 });
   }
 
+  for (const asset of assets) {
+    const fullCount = counts.get(`${asset.assetNumber}/full`) ?? 0;
+    if (fullCount !== 1) {
+      throw new Error(`${asset.assetNumber}の「全景」は必ず1枚選択してください（現在${fullCount}枚）。`);
+    }
+  }
+
   if (!entries.length) throw new Error("写真帳に貼る写真が選ばれていません。");
   return entries;
 }

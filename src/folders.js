@@ -58,6 +58,18 @@ export async function exportOrganizedPhotos(assets, photos, compress, fileNameFo
   if (unresolved.length) {
     throw new Error(`未分類・要確認・読込失敗の写真が${unresolved.length}枚あります。すべて確認してから出力してください。`);
   }
+  const selected = photos.filter((photo) => !photo.excluded && photo.assetNumber);
+  for (const asset of assets) {
+    const assetPhotos = selected.filter((photo) => photo.assetNumber === asset.assetNumber);
+    const fullCount = assetPhotos.filter((photo) => photo.destination === "全景").length;
+    if (fullCount !== 1) {
+      throw new Error(`${asset.assetNumber}の「全景」は必ず1枚選択してください（現在${fullCount}枚）。`);
+    }
+    for (const item of asset.items) {
+      const count = assetPhotos.filter((photo) => photo.destination === item.folderName).length;
+      if (count > 4) throw new Error(`${asset.assetNumber}の「${item.folderName}」は最大4枚です。`);
+    }
+  }
 
   const selectedRoot = await window.showDirectoryPicker({ mode: "readwrite", id: "sm-photo-export" });
   const output = await ensureDirectory(selectedRoot, `写真整理出力_${timestamp()}`);
