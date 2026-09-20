@@ -38,24 +38,32 @@ export async function createPhotoWorkFile({ name, assets, photos, healthWorkbook
     fileToDataUrl(healthWorkbookFile),
     fileToDataUrl(albumTemplateFile),
   ]);
-  const workPhotos = [];
-  for (const photo of photos) {
-    workPhotos.push({ ...photo, file: await fileToDataUrl(photo.file) });
-  }
   const payload = {
     kind: WORK_FILE_KIND,
     version: WORK_FILE_VERSION,
     exportedAt: new Date().toISOString(),
     name: name || "",
     assets,
-    photos: workPhotos,
     healthWorkbookFile: healthWorkbook,
     albumTemplateFile: albumTemplate,
     photoTargetKb: String(photoTargetKb ?? "200"),
     bookmarkPhotoId: bookmarkPhotoId ?? null,
+    photos: [],
   };
+  // 写真を配列へ一括保持してJSON.stringifyすると、元データ・Base64・文字列化結果が
+  // 同時にメモリへ載り、Edgeで大容量写真を扱う際にOut of Memoryになりやすい。
+  // 写真1枚ずつをJSONの断片へ変換してからBlob化し、不要な配列を保持しない。
+  const serialized = JSON.stringify(payload);
+  const photosMarker = serialized.lastIndexOf("[]");
+  const parts = [serialized.slice(0, photosMarker) + "["];
+  for (let index = 0; index < photos.length; index += 1) {
+    const photo = photos[index];
+    const serializedPhoto = JSON.stringify({ ...photo, file: await fileToDataUrl(photo.file) });
+    parts.push(`${index ? "," : ""}${serializedPhoto}`);
+  }
+  parts.push("]}");
   return {
-    blob: new Blob([JSON.stringify(payload)], { type: "application/json" }),
+    blob: new Blob(parts, { type: "application/json" }),
     fileName: `${safeFileName(name || "写真整理")}_作業ファイル.json`,
   };
 }
