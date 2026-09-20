@@ -517,18 +517,26 @@ excelInput.addEventListener("change", async () => {
   setStatus(excelStatus, `${file.name} を読み込んでいます…`, "working");
   try {
     const workbookAssets = await readAssetsFromWorkbook(file);
-    assets = assets.length ? mergeWorkbookAssets(workbookAssets) : workbookAssets;
+    const merged = assets.length > 0;
+    assets = merged ? mergeWorkbookAssets(workbookAssets) : workbookAssets;
     healthWorkbookFile = file;
     albumTemplateFile = null;
     albumInput.value = "";
     renderAssets();
     renderCameraAssets();
+    if (merged && photos.length) renderPhotos();
     createFoldersButton.disabled = false;
     photoInput.disabled = false;
     albumInput.disabled = false;
     setStatus(photoStatus, "写真を端末1台分ずつ選択してください。", "neutral");
     setStatus(albumTemplateStatus, "この健全度判定表と対になる写真帳様式を選択してください。", "neutral");
-    setStatus(excelStatus, `${assets.length}資産を読み込みました。元のExcelは変更していません。`, "success");
+    setStatus(
+      excelStatus,
+      merged
+        ? `${assets.length}資産に更新しました。既存の写真の振り分けは維持されます。元のExcelは変更していません。`
+        : `${assets.length}資産を読み込みました。元のExcelは変更していません。`,
+      "success",
+    );
     updateAlbumReadiness();
     scheduleSessionSave();
   } catch (error) {
