@@ -32,7 +32,12 @@ button, input { font: inherit; }
 .local-only-note { margin: 0; padding: .35rem .5rem; border-left: 3px solid #4b8aa8; color: #52616d; background: #edf5f8; font-size: .72rem; line-height: 1.35; }
 
 main { width: min(1440px, calc(100% - 2rem)); margin: 1.5rem auto 4rem; }
-.workspace-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); align-items: start; gap: 1rem; }
+.workspace-layout { position: relative; display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); align-items: start; gap: 1rem; }
+.workspace-layout.side-panel-collapsed { grid-template-columns: minmax(0, 1fr); }
+.workspace-layout.side-panel-collapsed .workspace-side { display: none; }
+.side-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: .4rem; min-width: 0; padding: .1rem .1rem .15rem; color: #52616d; font-size: .75rem; font-weight: 800; }
+.side-panel-heading button { padding: .28rem .45rem; font-size: .7rem; white-space: nowrap; }
+.side-panel-reopen { position: absolute; top: .45rem; left: .45rem; z-index: 25; padding: .35rem .55rem; font-size: .72rem; box-shadow: 0 3px 8px rgb(23 33 43 / 18%); }
 .workspace-side { position: sticky; top: .75rem; display: grid; gap: .55rem; min-width: 0; max-height: calc(100vh - 1.5rem); overflow-x: hidden; overflow-y: auto; padding-right: .15rem; }
 .workspace-main { display: grid; gap: 1rem; min-width: 0; overflow: visible; }
 .workspace-tabs { position: sticky; top: .75rem; z-index: 6; display: flex; flex-wrap: wrap; gap: .35rem; padding: .35rem; border: 1px solid #c3d5df; border-radius: 10px; background: #e7f0f5; box-shadow: 0 4px 10px rgb(23 33 43 / 10%); }

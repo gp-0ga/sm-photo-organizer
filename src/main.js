@@ -68,6 +68,10 @@ const preflightList = document.querySelector("#preflight-list");
 const showAssetsTabButton = document.querySelector("#show-assets-tab");
 const workspaceTabs = [...document.querySelectorAll("[data-workspace-tab]")];
 const workspacePanels = [...document.querySelectorAll("[data-workspace-panel]")];
+const workspaceLayout = document.querySelector(".workspace-layout");
+const workspaceSide = document.querySelector(".workspace-side");
+const hideSidePanelButton = document.querySelector("#hide-side-panel");
+const showSidePanelButton = document.querySelector("#show-side-panel");
 const editDestinationOrderButton = document.querySelector("#edit-destination-order");
 const orderDialog = document.querySelector("#order-dialog");
 const orderDestinationSelect = document.querySelector("#order-destination-select");
@@ -734,6 +738,16 @@ function selectWorkspaceTab(name) {
 
 for (const tab of workspaceTabs) tab.addEventListener("click", () => selectWorkspaceTab(tab.dataset.workspaceTab));
 if (showAssetsTabButton) showAssetsTabButton.addEventListener("click", () => selectWorkspaceTab("assets"));
+
+function setSidePanelCollapsed(collapsed) {
+  workspaceLayout?.classList.toggle("side-panel-collapsed", collapsed);
+  if (workspaceSide) workspaceSide.setAttribute("aria-hidden", String(collapsed));
+  if (hideSidePanelButton) hideSidePanelButton.hidden = collapsed;
+  if (showSidePanelButton) showSidePanelButton.hidden = !collapsed;
+}
+
+hideSidePanelButton?.addEventListener("click", () => setSidePanelCollapsed(true));
+showSidePanelButton?.addEventListener("click", () => setSidePanelCollapsed(false));
 editDestinationOrderButton.addEventListener("click", openDestinationOrderEditor);
 orderDestinationSelect.addEventListener("change", renderDestinationOrder);
 orderList.addEventListener("click", (event) => {
