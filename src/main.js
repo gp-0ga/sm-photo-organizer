@@ -67,6 +67,8 @@ const albumStatus = document.querySelector("#album-status");
 const createAlbumButton = document.querySelector("#create-album");
 const preflightDialog = document.querySelector("#preflight-dialog");
 const preflightList = document.querySelector("#preflight-list");
+const outputPreviewDialog = document.querySelector("#output-preview-dialog");
+const outputPreviewList = document.querySelector("#output-preview-list");
 const showAssetsTabButton = document.querySelector("#show-assets-tab");
 const workspaceTabs = [...document.querySelectorAll("[data-workspace-tab]")];
 const workspacePanels = [...document.querySelectorAll("[data-workspace-panel]")];
@@ -102,6 +104,7 @@ let albumTemplateFile = null;
 let pendingWorkPhotoMetadata = null;
 let pendingWorkBookmarkId = null;
 const thumbnailUrls = new Set();
+const outputPreviewUrls = new Set();
 let cameraStream = null;
 let captureInProgress = false;
 let saveTimer = null;
@@ -435,6 +438,64 @@ function showDestinationIssues() {
   if (typeof preflightDialog.showModal === "function") preflightDialog.showModal();
   else setStatus(exportStatus, issues.map((issue) => `${issue.title}：${issue.detail}`).join(" / "), "error");
   return true;
+}
+
+function clearOutputPreviewUrls() {
+  for (const url of outputPreviewUrls) URL.revokeObjectURL(url);
+  outputPreviewUrls.clear();
+}
+
+function openOutputPreview() {
+  if (!outputPreviewDialog || !outputPreviewList || typeof outputPreviewDialog.showModal !== "function") return Promise.resolve(true);
+  clearOutputPreviewUrls();
+  outputPreviewList.replaceChildren();
+  const groups = [];
+  for (const asset of assets) {
+    if (asset.siteAbsent) continue;
+    const destinations = ["全景", ...asset.items.map((item) => item.folderName)];
+    for (const destination of destinations) {
+      const selected = photos.filter((photo) => {
+        if (photo.excluded || photo.assetNumber !== asset.assetNumber) return false;
+        return photoDestinations(photo).includes(destination);
+      });
+      if (selected.length) groups.push({ asset, destination, photos: selected });
+    }
+  }
+  for (const group of groups) {
+    const section = document.createElement("section");
+    section.className = "output-preview-group";
+    const heading = document.createElement("h3");
+    heading.innerHTML = `${group.asset.assetNumber} ${group.asset.assetName} / ${group.destination}<span>${group.photos.length}枚</span>`;
+    section.append(heading);
+    const grid = document.createElement("div");
+    grid.className = "output-preview-grid";
+    for (const photo of group.photos) {
+      const figure = document.createElement("figure");
+      figure.className = "output-preview-item";
+      const image = document.createElement("img");
+      const url = URL.createObjectURL(photo.file);
+      outputPreviewUrls.add(url);
+      image.src = url;
+      image.alt = photo.file.name;
+      image.loading = "lazy";
+      const caption = document.createElement("figcaption");
+      caption.textContent = photo.file.name;
+      figure.append(image, caption);
+      grid.append(figure);
+    }
+    section.append(grid);
+    outputPreviewList.append(section);
+  }
+  outputPreviewDialog.showModal();
+  return new Promise((resolve) => {
+    const finish = () => {
+      outputPreviewDialog.removeEventListener("close", finish);
+      const confirmed = outputPreviewDialog.returnValue === "confirm";
+      clearOutputPreviewUrls();
+      resolve(confirmed);
+    };
+    outputPreviewDialog.addEventListener("close", finish);
+  });
 }
 
 function destinationGroups() {
@@ -1260,6 +1321,8 @@ exportPhotosButton.addEventListener("click", async () => {
   exportPhotosButton.disabled = true;
   try {
     if (showDestinationIssues()) return;
+    const confirmed = await openOutputPreview();
+    if (!confirmed) return;
     const targetBytes = targetBytesFromKilobytes(photoTargetKb.value);
     setExportStatus(`保存先を選択してください。1枚${photoTargetKb.value}KB以下で新しい出力フォルダを作成します。`, "working");
     const result = await exportOrganizedPhotos(
