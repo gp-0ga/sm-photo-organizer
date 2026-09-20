@@ -52,6 +52,7 @@
       <section class="work-select-panel" aria-labelledby="work-select-heading">
         <h2 id="work-select-heading">作業を選択</h2>
         <p class="local-only-note">写真・Excelは外部へ送信しません</p>
+        <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
         <div class="work-select-list">
           <button class="workspace-tab" data-workspace-tab="assets" type="button">資産フォルダの作成</button>
           <button class="workspace-tab active" data-workspace-tab="photos" type="button">写真整理</button>
@@ -125,8 +126,7 @@
       <section class="panel workspace-tab-panel" data-workspace-panel="photos" aria-labelledby="photos-heading">
         <div class="step-label">3</div>
         <div class="step-body">
-          <h2 id="photos-heading">写真整理</h2>
-          <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
+          <h2 id="photos-heading" class="sr-only">写真整理</h2>
           <div id="bulk-tools-sentinel"></div>
           <div id="bulk-tools" class="bulk-tools" hidden>
             <button id="bulk-tools-collapse" class="bulk-tools-collapse" type="button" aria-expanded="true" title="ツールバーを折りたたむ">▲</button>
