@@ -41,6 +41,7 @@ const chooseWorkFolderButton = document.querySelector("#choose-work-folder");
 const importWorkFileButton = document.querySelector("#import-work-file");
 const importWorkFileInput = document.querySelector("#import-work-file-input");
 const photoSummary = document.querySelector("#photo-summary");
+const photoDestinationAlert = document.querySelector("#photo-destination-alert");
 const photoList = document.querySelector("#photo-list");
 const gridDensity6Button = document.querySelector("#grid-density-6");
 const gridDensity3Button = document.querySelector("#grid-density-3");
@@ -352,8 +353,28 @@ function updatePhotoSummary() {
     <div><strong>${unclassified}</strong><span>未分類</span></div>
     <div><strong>${review}</strong><span>要確認・読込失敗</span></div>
   `;
+  updatePhotoDestinationAlert();
   exportPhotosButton.disabled = photos.length === 0 || unclassified > 0 || review > 0;
   updateAlbumReadiness();
+}
+
+function updatePhotoDestinationAlert() {
+  if (!photoDestinationAlert) return;
+  const issues = destinationIssues();
+  if (!issues.length) {
+    photoDestinationAlert.hidden = true;
+    photoDestinationAlert.textContent = "";
+    return;
+  }
+  const fullIssues = issues.filter((issue) => issue.title.includes("全景"));
+  const otherIssues = issues.filter((issue) => !issue.title.includes("全景"));
+  const labels = [
+    ...fullIssues.slice(0, 4).map((issue) => `${issue.title}（${issue.detail}）`),
+    ...otherIssues.slice(0, 2).map((issue) => `${issue.title}（${issue.detail}）`),
+  ];
+  const remaining = issues.length - labels.length;
+  photoDestinationAlert.hidden = false;
+  photoDestinationAlert.textContent = `出力前に確認：${labels.join("、")}${remaining > 0 ? `、ほか${remaining}件` : ""}`;
 }
 
 function destinationIssues() {
@@ -668,6 +689,7 @@ function createPhotoCard(photo) {
     }
     setPhotoDestinations(photo, [full ? "全景" : "", item]);
     renderDestinationChooser();
+    updatePhotoDestinationAlert();
     updateAlbumReadiness();
     scheduleSessionSave();
   });
