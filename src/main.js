@@ -74,6 +74,8 @@ let markerCount = 0;
 let bookmarkPhotoId = null;
 let healthWorkbookFile = null;
 let albumTemplateFile = null;
+let pendingWorkPhotoMetadata = null;
+let pendingWorkBookmarkId = null;
 const thumbnailUrls = new Set();
 let cameraStream = null;
 let captureInProgress = false;
@@ -764,6 +766,17 @@ photoInput.addEventListener("change", async () => {
       setStatus(photoStatus, `${done}/${total} ${name} を確認中`, "working");
     });
     photos = result.photos;
+    if (pendingWorkPhotoMetadata?.length) {
+      const byName = new Map(pendingWorkPhotoMetadata.map((photo) => [photo.fileName, photo]));
+      const importedBookmark = pendingWorkPhotoMetadata.find((photo) => photo.id === pendingWorkBookmarkId)?.fileName;
+      photos = photos.map((photo) => {
+        const saved = byName.get(photo.file.name);
+        return saved ? { ...photo, assetNumber: saved.assetNumber ?? null, destination: saved.destination || "", excluded: Boolean(saved.excluded), reviewRequired: Boolean(saved.reviewRequired), qrReadError: Boolean(saved.qrReadError) } : photo;
+      });
+      bookmarkPhotoId = importedBookmark ? photos.find((photo) => photo.file.name === importedBookmark)?.id ?? null : null;
+      pendingWorkPhotoMetadata = null;
+      pendingWorkBookmarkId = null;
+    }
     markerCount = result.markers.length;
     bookmarkPhotoId = null;
     renderPhotos();
@@ -956,7 +969,19 @@ importWorkFileInput.addEventListener("change", async () => {
   setSessionStatus(`${file.name}を読み込んでいます…`, "working");
   try {
     const saved = await readPhotoWorkFile(file);
-    applyLoadedSession(saved, `「${saved.name || file.name}」を読み込みました。修正後は再出力できます。`);
+    assets = saved.assets ?? [];
+    photos = [];
+    healthWorkbookFile = null;
+    albumTemplateFile = null;
+    pendingWorkPhotoMetadata = saved.photos ?? [];
+    pendingWorkBookmarkId = saved.bookmarkPhotoId ?? null;
+    renderAssets();
+    renderCameraAssets();
+    renderPhotos();
+    photoInput.disabled = false;
+    albumInput.disabled = false;
+    setStatus(photoStatus, `作業ファイルを読み込みました。同じ写真を選択すると分類を復元します。`, "success");
+    setSessionStatus(`「${saved.name || file.name}」を読み込みました。写真を再選択してください。`, "saved");
     sessionName.value = saved.name || "";
     await refreshSnapshotList();
   } catch (error) {

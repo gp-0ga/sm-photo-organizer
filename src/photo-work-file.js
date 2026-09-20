@@ -34,36 +34,21 @@ function safeFileName(value) {
 }
 
 export async function createPhotoWorkFile({ name, assets, photos, healthWorkbookFile, albumTemplateFile, photoTargetKb, bookmarkPhotoId }) {
-  const [healthWorkbook, albumTemplate] = await Promise.all([
-    fileToDataUrl(healthWorkbookFile),
-    fileToDataUrl(albumTemplateFile),
-  ]);
+  const photoMetadata = photos.map(({ file, ...photo }) => ({ ...photo, fileName: file?.name || "" }));
   const payload = {
     kind: WORK_FILE_KIND,
     version: WORK_FILE_VERSION,
     exportedAt: new Date().toISOString(),
     name: name || "",
     assets,
-    healthWorkbookFile: healthWorkbook,
-    albumTemplateFile: albumTemplate,
+    healthWorkbookFile: null,
+    albumTemplateFile: null,
     photoTargetKb: String(photoTargetKb ?? "200"),
     bookmarkPhotoId: bookmarkPhotoId ?? null,
-    photos: [],
+    photos: photoMetadata,
   };
-  // 写真を配列へ一括保持してJSON.stringifyすると、元データ・Base64・文字列化結果が
-  // 同時にメモリへ載り、Edgeで大容量写真を扱う際にOut of Memoryになりやすい。
-  // 写真1枚ずつをJSONの断片へ変換してからBlob化し、不要な配列を保持しない。
-  const serialized = JSON.stringify(payload);
-  const photosMarker = serialized.lastIndexOf("[]");
-  const parts = [serialized.slice(0, photosMarker) + "["];
-  for (let index = 0; index < photos.length; index += 1) {
-    const photo = photos[index];
-    const serializedPhoto = JSON.stringify({ ...photo, file: await fileToDataUrl(photo.file) });
-    parts.push(`${index ? "," : ""}${serializedPhoto}`);
-  }
-  parts.push("]}");
   return {
-    blob: new Blob(parts, { type: "application/json" }),
+    blob: new Blob([JSON.stringify(payload)], { type: "application/json" }),
     fileName: `${safeFileName(name || "写真整理")}_作業ファイル.json`,
   };
 }
@@ -78,17 +63,14 @@ export async function readPhotoWorkFile(file) {
   if (payload?.kind !== WORK_FILE_KIND || payload.version !== WORK_FILE_VERSION) {
     throw new Error("この写真整理MVPで作成した作業ファイルではありません。");
   }
-  const photos = (payload.photos ?? []).map((photo) => ({
-    ...photo,
-    file: dataUrlToFile(photo.file),
-  })).filter((photo) => photo.file);
+  const photos = (payload.photos ?? []).filter((photo) => photo?.fileName).map((photo) => ({ ...photo, file: null }));
   if (!Array.isArray(payload.assets) || !payload.assets.length || !photos.length) {
     throw new Error("作業ファイルに資産または写真がありません。");
   }
   return {
     ...payload,
     photos,
-    healthWorkbookFile: dataUrlToFile(payload.healthWorkbookFile),
-    albumTemplateFile: dataUrlToFile(payload.albumTemplateFile),
+    healthWorkbookFile: null,
+    albumTemplateFile: null,
   };
 }
