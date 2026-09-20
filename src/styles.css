@@ -21,6 +21,8 @@ button, input { font: inherit; }
 }
 
 .app-header h1 { margin: .15rem 0 0; font-size: clamp(1.45rem, 3vw, 2rem); }
+.app-title-block { display: flex; align-items: center; gap: .7rem; }
+.app-icon { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border: 1px solid rgb(255 255 255 / 55%); border-radius: .55rem; color: #fff; background: rgb(255 255 255 / 12%); font-size: 1.65rem; line-height: 1; }
 .eyebrow { margin: 0; font-size: .82rem; letter-spacing: .1em; opacity: .78; }
 .local-badge { padding: .45rem .75rem; border: 1px solid #8eb1d3; border-radius: 999px; font-size: .85rem; white-space: nowrap; }
 .header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; }
