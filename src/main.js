@@ -638,9 +638,14 @@ applyBulkAsset.addEventListener("click", () => {
     if (ids.has(photo.id)) {
       photo.assetNumber = bulkAsset.value;
       photo.destination = "";
+      const card = photoList.querySelector(`.photo-card[data-photo-id="${photo.id}"]`);
+      if (!card) continue;
+      card.querySelector(".photo-asset").value = photo.assetNumber;
+      card.querySelector(".photo-destination").innerHTML = destinationOptions(photo);
     }
   }
-  renderPhotos();
+  updatePhotoSummary();
+  updateBulkControls();
   scheduleSessionSave();
 });
 
