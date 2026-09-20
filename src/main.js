@@ -447,6 +447,8 @@ function createPhotoCard(photo) {
   thumbnail.src = url;
   thumbnail.alt = photo.file.name;
   node.querySelector(".photo-name").textContent = photo.file.name;
+  const photoDate = photo.capturedAt || photo.file.lastModified;
+  node.querySelector(".photo-date").textContent = photoDate ? `撮影日時：${new Intl.DateTimeFormat("ja-JP", { dateStyle: "short", timeStyle: "short" }).format(new Date(photoDate))}` : "撮影日時：不明";
   const assetSelect = node.querySelector(".photo-asset");
   assetSelect.innerHTML = assetOptions(photo.assetNumber ?? "");
   const destinationSelect = node.querySelector(".photo-destination");
@@ -742,6 +744,7 @@ cameraShutter.addEventListener("click", async () => {
       reviewRequired: false,
       qrReadError: false,
       source: "camera",
+      capturedAt: capturedAt.toISOString(),
     });
     // 撮影時は既存カードを作り直さず、新しい1枚だけを追加する。
     // 大量の写真を扱う現場で、既存サムネイルの再読込を避けるため。
