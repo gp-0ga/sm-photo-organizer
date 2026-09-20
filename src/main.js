@@ -296,8 +296,9 @@ function destinationChoices(photo) {
   const asset = assets.find((item) => item.assetNumber === photo.assetNumber);
   if (!asset) return "";
   const selected = new Set(photoDestinations(photo));
-  const options = [{ value: "全景", label: "全景" }, ...asset.items.map((item) => ({ value: item.folderName, label: item.folderName }))];
-  return options.map(({ value, label }) => `<label><input type="checkbox" class="photo-destination-check" value="${value}"${selected.has(value) ? " checked" : ""} /> ${label}</label>`).join("");
+  const options = [{ value: "", label: "写真帳には使わない" }, ...asset.items.map((item) => ({ value: item.folderName, label: item.folderName }))];
+  return `<label class="photo-full-choice"><input type="checkbox" class="photo-full-check"${selected.has("全景") ? " checked" : ""} /> 全景</label>
+    <label class="photo-item-choice">サブフォルダー<select class="photo-item-select">${options.map(({ value, label }) => `<option value="${value}"${selected.has(value) ? " selected" : ""}>${label}</option>`).join("")}</select></label>`;
 }
 
 function destinationLimit(destination) {
@@ -320,6 +321,14 @@ function setPhotoDestinations(photo, destinations) {
   photo.destinations.forEach((destination) => {
     if (!Number.isFinite(photo.destinationOrder[destination])) photo.destinationOrder[destination] = photos.indexOf(photo);
   });
+}
+
+function normalizePhotoDestinations(photo) {
+  const current = photoDestinations(photo);
+  const full = current.includes("全景") ? ["全景"] : [];
+  const item = current.find((destination) => destination !== "全景");
+  setPhotoDestinations(photo, [...full, item || ""]);
+  return photo;
 }
 
 function updatePhotoSummary() {
@@ -520,7 +529,7 @@ async function saveWorkFileToFolder(folderHandle, blob, fileName) {
 
 function applyLoadedSession(saved, message = "") {
     assets = saved.assets ?? [];
-    photos = saved.photos ?? [];
+    photos = (saved.photos ?? []).map((photo) => normalizePhotoDestinations(photo));
     healthWorkbookFile = saved.healthWorkbookFile;
     albumTemplateFile = saved.albumTemplateFile;
     bookmarkPhotoId = photos.some((photo) => photo.id === saved.bookmarkPhotoId) ? saved.bookmarkPhotoId : null;
@@ -582,7 +591,8 @@ function createPhotoCard(photo) {
   const destinationButton = node.querySelector(".photo-destination");
   const destinationOptionsPanel = node.querySelector(".photo-destination-options");
   const renderDestinationChooser = () => {
-    destinationButton.textContent = photoDestinations(photo).length ? `分類 ${photoDestinations(photo).length}件` : "分類なし";
+    const destinations = photoDestinations(photo);
+    destinationButton.textContent = destinations.length ? destinations.join("・") : "分類なし";
     destinationOptionsPanel.innerHTML = destinationChoices(photo);
     destinationOptionsPanel.hidden = destinationOptionsPanel.dataset.open !== "true";
   };
@@ -627,17 +637,20 @@ function createPhotoCard(photo) {
     destinationOptionsPanel.hidden = destinationOptionsPanel.dataset.open !== "true";
   });
   destinationOptionsPanel.addEventListener("change", (event) => {
-    const checkbox = event.target.closest(".photo-destination-check");
-    if (!checkbox) return;
-    const nextDestination = checkbox.value;
-    if (checkbox.checked && destinationCount(photo, nextDestination) >= destinationLimit(nextDestination) && !photo.excluded) {
-      checkbox.checked = false;
-      const label = nextDestination === "全景" ? "全景" : nextDestination;
-      setStatus(albumStatus, `${label}は最大${destinationLimit(nextDestination)}枚です。`, "error");
+    if (!event.target.matches(".photo-full-check, .photo-item-select")) return;
+    const full = destinationOptionsPanel.querySelector(".photo-full-check")?.checked;
+    const item = destinationOptionsPanel.querySelector(".photo-item-select")?.value || "";
+    if (full && destinationCount(photo, "全景") >= destinationLimit("全景") && !photoDestinations(photo).includes("全景") && !photo.excluded) {
+      event.target.checked = false;
+      setStatus(albumStatus, "全景は最大1枚です。", "error");
       return;
     }
-    const selected = [...destinationOptionsPanel.querySelectorAll(".photo-destination-check:checked")].map((input) => input.value);
-    setPhotoDestinations(photo, selected);
+    if (item && destinationCount(photo, item) >= destinationLimit(item) && !photoDestinations(photo).includes(item) && !photo.excluded) {
+      event.target.value = "";
+      setStatus(albumStatus, `${item}は最大4枚です。`, "error");
+      return;
+    }
+    setPhotoDestinations(photo, [full ? "全景" : "", item]);
     renderDestinationChooser();
     updateAlbumReadiness();
     scheduleSessionSave();
@@ -1060,7 +1073,7 @@ photoInput.addEventListener("change", async () => {
       const importedBookmark = pendingWorkPhotoMetadata.find((photo) => photo.id === pendingWorkBookmarkId)?.fileName;
       photos = photos.map((photo) => {
         const saved = byName.get(photo.file.name);
-        return saved ? { ...photo, assetNumber: saved.assetNumber ?? null, destination: saved.destination || saved.destinations?.[0] || "", destinations: Array.isArray(saved.destinations) ? saved.destinations : (saved.destination ? [saved.destination] : []), destinationOrder: saved.destinationOrder || {}, excluded: Boolean(saved.excluded), reviewRequired: Boolean(saved.reviewRequired), qrReadError: Boolean(saved.qrReadError) } : photo;
+        return saved ? normalizePhotoDestinations({ ...photo, assetNumber: saved.assetNumber ?? null, destination: saved.destination || saved.destinations?.[0] || "", destinations: Array.isArray(saved.destinations) ? saved.destinations : (saved.destination ? [saved.destination] : []), destinationOrder: saved.destinationOrder || {}, excluded: Boolean(saved.excluded), reviewRequired: Boolean(saved.reviewRequired), qrReadError: Boolean(saved.qrReadError) }) : photo;
       });
       bookmarkPhotoId = importedBookmark ? photos.find((photo) => photo.file.name === importedBookmark)?.id ?? null : null;
       pendingWorkPhotoMetadata = null;
