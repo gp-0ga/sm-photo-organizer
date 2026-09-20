@@ -13,6 +13,7 @@ const hostedOrganizer = /\/organize(?:\.html)?$/i.test(window.location.pathname)
 if (hostedOrganizer) document.body.classList.add("hosted-organizer");
 
 const excelInput = document.querySelector("#excel-input");
+const excelFileName = document.querySelector("#excel-file-name");
 const excelStatus = document.querySelector("#excel-status");
 const folderStatus = document.querySelector("#folder-status");
 const createFoldersButton = document.querySelector("#create-folders");
@@ -26,6 +27,7 @@ const toggleExcelPanel = document.querySelector("#toggle-excel-panel");
 const toggleAssetsPanel = document.querySelector("#toggle-assets-panel");
 const summary = document.querySelector("#summary");
 const photoInput = document.querySelector("#photo-input");
+const photoFileName = document.querySelector("#photo-file-name");
 const photoStatus = document.querySelector("#photo-status");
 const sessionStatus = document.querySelector("#session-status");
 const sessionName = document.querySelector("#session-name");
@@ -534,6 +536,8 @@ function applyLoadedSession(saved, message = "") {
     healthWorkbookFile = saved.healthWorkbookFile;
     albumTemplateFile = saved.albumTemplateFile;
     bookmarkPhotoId = photos.some((photo) => photo.id === saved.bookmarkPhotoId) ? saved.bookmarkPhotoId : null;
+    excelFileName.textContent = healthWorkbookFile?.name || "未選択";
+    photoFileName.textContent = photos.length ? `${photos.length}枚` : "未選択";
     if (saved.photoTargetKb) photoTargetKb.value = saved.photoTargetKb;
     renderAssets();
     renderCameraAssets();
@@ -805,6 +809,7 @@ function updateBulkControls() {
 excelInput.addEventListener("change", async () => {
   const file = excelInput.files?.[0];
   if (!file) return;
+  excelFileName.textContent = file.name;
   createFoldersButton.disabled = true;
   setStatus(excelStatus, `${file.name} を読み込んでいます…`, "working");
   try {
@@ -820,7 +825,7 @@ excelInput.addEventListener("change", async () => {
     createFoldersButton.disabled = false;
     photoInput.disabled = false;
     albumInput.disabled = false;
-    setStatus(photoStatus, "写真を端末1台分ずつ選択してください。", "neutral");
+    setStatus(photoStatus, "写真を選択してください。", "neutral");
     setStatus(albumTemplateStatus, "この健全度判定表と対になる写真帳様式を選択してください。", "neutral");
     setStatus(
       excelStatus,
@@ -1064,6 +1069,7 @@ createFoldersButton.addEventListener("click", async () => {
 photoInput.addEventListener("change", async () => {
   const files = photoInput.files;
   if (!files?.length) return;
+  photoFileName.textContent = `${files.length}枚を選択中`;
   photoInput.disabled = true;
   setStatus(photoStatus, `${files.length}ファイルのQRを確認しています…`, "working");
   try {
@@ -1085,6 +1091,7 @@ photoInput.addEventListener("change", async () => {
     markerCount = result.markers.length;
     bookmarkPhotoId = null;
     renderPhotos();
+    photoFileName.textContent = `${photos.length}枚`;
     setStatus(photoStatus, `${photos.length}枚の写真と${markerCount}枚のマーカーを読み取りました。`, "success");
   } catch (error) {
     setStatus(photoStatus, error.message ?? String(error), "error");

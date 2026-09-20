@@ -27,11 +27,12 @@
       <section id="excel-panel" class="panel" aria-labelledby="excel-heading">
         <div class="step-label">1</div>
         <div class="step-body">
-          <div class="panel-title-row"><h2 id="excel-heading">健全度判定表</h2></div>
+          <div class="panel-title-row"><h2 id="excel-heading">健全度判定表の読み込み</h2></div>
           <label class="file-picker">
             <span>ファイルを選択</span>
             <input id="excel-input" type="file" accept=".xlsx" />
           </label>
+          <div id="excel-file-name" class="selected-file-name">未選択</div>
           <div id="excel-status" class="status neutral" role="status">未読込</div>
         </div>
       </section>
@@ -44,7 +45,17 @@
             <span>ファイルを選択</span>
             <input id="photo-input" type="file" accept="image/*,.heic,.heif" multiple disabled />
           </label>
+          <div id="photo-file-name" class="selected-file-name">未選択</div>
           <div id="photo-status" class="status neutral" role="status">Excel未読込</div>
+        </div>
+      </section>
+
+      <section class="work-select-panel" aria-labelledby="work-select-heading">
+        <h2 id="work-select-heading">作業を選択</h2>
+        <div class="work-select-list">
+          <button class="workspace-tab active" data-workspace-tab="photos" type="button">写真整理</button>
+          <button class="workspace-tab" data-workspace-tab="assets" type="button">資産フォルダの作成</button>
+          <button class="workspace-tab" data-workspace-tab="output" type="button">出力・写真帳</button>
         </div>
       </section>
 
@@ -91,12 +102,6 @@
 
         <div class="workspace-main">
 
-        <nav class="workspace-tabs" aria-label="作業画面の切り替え">
-          <button class="workspace-tab active" data-workspace-tab="photos" type="button">写真整理</button>
-          <button class="workspace-tab" data-workspace-tab="assets" type="button">資産・フォルダ構成</button>
-          <button class="workspace-tab" data-workspace-tab="output" type="button">出力・写真帳</button>
-        </nav>
-
         <section id="assets-panel" class="panel workspace-tab-panel" data-workspace-panel="assets" aria-labelledby="assets-heading" hidden>
           <div class="step-label">2</div>
           <div class="step-body">
@@ -120,8 +125,7 @@
       <section class="panel workspace-tab-panel" data-workspace-panel="photos" aria-labelledby="photos-heading">
         <div class="step-label">3</div>
         <div class="step-body">
-          <h2 id="photos-heading">撮影写真を読み込んで確認する</h2>
-          <p>端末1台分ずつ選択してください。資産マーカーの作成・表示は専用ページで行います。写真整理の途中経過はこのPCのブラウザ内へ自動保存されます。</p>
+          <h2 id="photos-heading">写真整理</h2>
           <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
           <div id="bulk-tools-sentinel"></div>
           <div id="bulk-tools" class="bulk-tools" hidden>

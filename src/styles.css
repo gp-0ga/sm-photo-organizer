@@ -38,6 +38,11 @@ main { width: min(1440px, calc(100% - 2rem)); margin: 1.5rem auto 4rem; }
 .prep-summary-panel { display: grid; gap: .4rem; padding: .85rem; border: 1px solid #d7e0e7; border-radius: 10px; background: #f7fafb; color: #52616d; font-size: .8rem; }
 .prep-summary-panel strong { color: #163a5f; font-size: .9rem; }
 .prep-summary-panel button { justify-self: start; padding: .45rem .6rem; font-size: .78rem; }
+.selected-file-name { margin-top: .35rem; padding: .35rem .5rem; overflow-wrap: anywhere; color: #52616d; background: #f2f6f8; border-radius: 6px; font-size: .76rem; line-height: 1.35; }
+.work-select-panel { display: grid; gap: .55rem; padding: .75rem; border: 1px solid #d7e0e7; border-radius: 10px; background: linear-gradient(180deg, #f7fafb, #eef5f8); }
+.work-select-panel h2 { color: #163a5f; font-size: 1rem; }
+.work-select-list { display: grid; gap: .35rem; }
+.work-select-list .workspace-tab { width: 100%; padding: .55rem .65rem; text-align: left; }
 .workspace-side .panel { grid-template-columns: 2rem minmax(0, 1fr); min-width: 0; border-radius: 11px; box-shadow: 0 5px 14px rgb(23 33 43 / 6%); }
 .workspace-side .step-label { border-radius: 11px 0 0 11px; font-size: 1rem; }
 .workspace-side .step-body { min-width: 0; overflow: hidden; padding: .7rem; }
@@ -47,6 +52,7 @@ main { width: min(1440px, calc(100% - 2rem)); margin: 1.5rem auto 4rem; }
 .workspace-side .section-heading-row { display: block; }
 .workspace-side .section-heading-actions { justify-content: flex-start; margin-top: .7rem; }
 .workspace-side .file-picker { display: grid; align-items: stretch; width: 100%; gap: .4rem; padding: .65rem; overflow: hidden; }
+.workspace-side .file-picker > span { display: none; }
 .workspace-side .file-picker input { display: block; width: 100%; max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-side .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
 .workspace-side .summary-grid div { min-width: 0; padding: .45rem .25rem; }
