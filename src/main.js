@@ -20,6 +20,10 @@ const addAssetButton = document.querySelector("#add-asset");
 const assetList = document.querySelector("#asset-list");
 const assetTemplate = document.querySelector("#asset-template");
 const assetsEmpty = document.querySelector("#assets-empty");
+const excelPanel = document.querySelector("#excel-panel");
+const assetsPanel = document.querySelector("#assets-panel");
+const toggleExcelPanel = document.querySelector("#toggle-excel-panel");
+const toggleAssetsPanel = document.querySelector("#toggle-assets-panel");
 const summary = document.querySelector("#summary");
 const photoInput = document.querySelector("#photo-input");
 const photoStatus = document.querySelector("#photo-status");
@@ -85,6 +89,25 @@ let captureInProgress = false;
 let saveTimer = null;
 let saveInProgress = false;
 let saveQueued = false;
+
+function setupPanelToggle(panel, button, storageKey) {
+  const update = (collapsed) => {
+    panel.classList.toggle("panel-collapsed", collapsed);
+    button.textContent = collapsed ? "展開" : "折りたたむ";
+    button.setAttribute("aria-expanded", String(!collapsed));
+  };
+  let collapsed = false;
+  try { collapsed = localStorage.getItem(storageKey) === "1"; } catch { /* ignore */ }
+  update(collapsed);
+  button.addEventListener("click", () => {
+    collapsed = !collapsed;
+    update(collapsed);
+    try { localStorage.setItem(storageKey, collapsed ? "1" : "0"); } catch { /* ignore */ }
+  });
+}
+
+setupPanelToggle(excelPanel, toggleExcelPanel, "asset-photo-excel-panel-collapsed");
+setupPanelToggle(assetsPanel, toggleAssetsPanel, "asset-photo-assets-panel-collapsed");
 
 function setStatus(element, message, tone = "neutral") {
   element.hidden = false;

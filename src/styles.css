@@ -33,6 +33,9 @@ main { width: min(1120px, calc(100% - 2rem)); margin: 1.5rem auto 4rem; display:
 h2 { margin: 0; color: #163a5f; font-size: 1.18rem; }
 p { line-height: 1.65; }
 .section-heading-row { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+.panel-title-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.panel-toggle { padding: .45rem .65rem; font-size: .78rem; white-space: nowrap; }
+.panel-collapsed .step-body > *:not(.panel-title-row):not(.section-heading-row) { display: none; }
 .section-heading-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem; }
 
 .file-picker { display: inline-flex; align-items: center; gap: .75rem; padding: .7rem 1rem; border: 1px dashed #2a658f; border-radius: 10px; color: #163a5f; background: #f4f9fd; cursor: pointer; font-weight: 700; }

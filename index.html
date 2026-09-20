@@ -19,10 +19,10 @@
     </header>
 
     <main>
-      <section class="panel" aria-labelledby="excel-heading">
+      <section id="excel-panel" class="panel" aria-labelledby="excel-heading">
         <div class="step-label">1</div>
         <div class="step-body">
-          <h2 id="excel-heading">健全度判定表を読み込む</h2>
+          <div class="panel-title-row"><h2 id="excel-heading">健全度判定表を読み込む</h2><button id="toggle-excel-panel" class="secondary panel-toggle" type="button">折りたたむ</button></div>
           <p>「No11」シートから資産番号・資産名称・点検項目を読み取ります。元のExcelは変更しません。</p>
           <label class="file-picker">
             <span>Excelファイルを選択</span>
@@ -32,7 +32,7 @@
         </div>
       </section>
 
-      <section class="panel" aria-labelledby="assets-heading">
+      <section id="assets-panel" class="panel" aria-labelledby="assets-heading">
         <div class="step-label">2</div>
         <div class="step-body">
           <div class="section-heading-row">
@@ -40,6 +40,7 @@
               <h2 id="assets-heading">資産とフォルダ構成を確認する</h2>
               <p>「経過年数」はサブフォルダから除外します。</p>
             </div>
+            <button id="toggle-assets-panel" class="secondary panel-toggle" type="button">折りたたむ</button>
             <div class="section-heading-actions">
               <button id="add-asset" class="secondary" type="button" disabled>資産を追加</button>
               <button id="create-folders" class="primary" disabled>フォルダを作成</button>
