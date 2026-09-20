@@ -90,9 +90,13 @@ export function albumEntries(assets, photos) {
   }
 
   entries.sort((left, right) => {
-    const leftKey = `${left.assetNumber}/${left.destination}`;
-    const rightKey = `${right.assetNumber}/${right.destination}`;
-    if (leftKey !== rightKey) return leftKey.localeCompare(rightKey, "ja", { numeric: true });
+    if (left.assetNumber !== right.assetNumber) {
+      return left.assetNumber.localeCompare(right.assetNumber, "ja", { numeric: true });
+    }
+    if (left.destinationType !== right.destinationType) return left.destinationType === "full" ? -1 : 1;
+    if (left.destinationType === "item" && left.itemNumber !== right.itemNumber) {
+      return String(left.itemNumber).localeCompare(String(right.itemNumber), "ja", { numeric: true });
+    }
     const leftOrder = left.photo.destinationOrder?.[left.destination] ?? photos.indexOf(left.photo);
     const rightOrder = right.photo.destinationOrder?.[right.destination] ?? photos.indexOf(right.photo);
     return leftOrder - rightOrder;
