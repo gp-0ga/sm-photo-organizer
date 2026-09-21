@@ -18,6 +18,27 @@ $albumBook = $null
 $sourceNo11 = $null
 $targetNo11 = $null
 $stage = 'Excelを起動しています'
+$rowTopCache = @{}
+
+function Get-ExactRowTop {
+    param(
+        $Sheet,
+        [int]$Row
+    )
+
+    $key = "$($Sheet.Name)|$Row"
+    if ($script:rowTopCache.ContainsKey($key)) { return [single]$script:rowTopCache[$key] }
+
+    # Range.Topは行が下がるほど丸め誤差が累積する様式があるため、
+    # 実際の各行高を合計して結合セル上端を求める。
+    $top = 0.0
+    for ($rowIndex = 1; $rowIndex -lt $Row; $rowIndex++) {
+        $height = @($Sheet.Rows.Item($rowIndex).RowHeight)[0]
+        $top += [double]$height
+    }
+    $script:rowTopCache[$key] = [single]$top
+    return [single]$top
+}
 
 function Add-EmbeddedPicture {
     param(
@@ -25,78 +46,31 @@ function Add-EmbeddedPicture {
         [string]$PhotoPath,
         $TargetRange
     )
+    $anchorCell = $TargetRange.Cells.Item(1, 1)
+    $left = [single](@($anchorCell.Left)[0])
+    $top = Get-ExactRowTop -Sheet $Sheet -Row ([int]$anchorCell.Row)
     # ExcelのAddPictureはファイル名をString、座標とサイズをSingleで受け取る。
-    # PowerShellからDoubleのまま渡すと、Excelの環境によって型変換に失敗するため明示する。
     return $Sheet.Shapes.AddPicture(
         [string]$PhotoPath,
         [int]0,
         [int]-1,
-        [single]$TargetRange.Left,
-        [single]$TargetRange.Top,
+        $left,
+        $top,
         [single]-1,
         [single]-1
     )
 }
 
-function Find-PhotoFrame {
+function Get-MergedFrame {
     param(
         $Sheet,
-        [string]$LeftColumn,
-        [int]$HeaderRow,
-        [int]$NextHeaderRow,
+        [string]$AnchorAddress,
         $FallbackRange
     )
 
-    # 写真帳の様式で実際に結合されている写真枠を使う。
-    # 行数の決め打ちではなく、枠そのものの上端・幅を取得するため、
-    # 項目ごとの高さが異なっても写真が枠からずれない。
-    for ($row = $HeaderRow + 1; $row -lt $NextHeaderRow; $row++) {
-        $cell = $Sheet.Range("$LeftColumn$row")
-        if (-not [bool]$cell.MergeCells) { continue }
-        $frame = $cell.MergeArea
-        if (
-            ([int]$frame.Row -ne $row) -or
-            ([int]$frame.Column -ne [int]$cell.Column) -or
-            ([int]$frame.Rows.Count -lt 4)
-        ) { continue }
-        # ExcelのRangeはPowerShellでは列挙可能に扱われることがある。
-        # そのままreturnすると複数セルのObject[]になり、Left/TopをSingleへ
-        # 変換できなくなるため、結合セル範囲を1つのCOMオブジェクトとして返す。
-        Write-Output -NoEnumerate $frame
-        return
-    }
-    Write-Output -NoEnumerate $FallbackRange
-}
-
-function Find-OverviewFrame {
-    param(
-        $Sheet,
-        $FallbackRange
-    )
-
-    # 物件によって資産数・項目数が変わっても対応できるよう、
-    # 各資産シート上部から、全景用の大きな結合セルを実際に探す。
-    # 行・列の固定位置や写真欄の個数には依存しない。
-    $bestFrame = $null
-    $bestArea = 0
-    for ($row = 1; $row -le 24; $row++) {
-        for ($column = 1; $column -le 40; $column++) {
-            $cell = $Sheet.Cells.Item($row, $column)
-            if (-not [bool]$cell.MergeCells) { continue }
-            $frame = $cell.MergeArea
-            if (([int]$frame.Row -ne $row) -or ([int]$frame.Column -ne $column)) { continue }
-            $rowCount = [int]$frame.Rows.Count
-            $columnCount = [int]$frame.Columns.Count
-            if ($rowCount -lt 6 -or $columnCount -lt 10) { continue }
-            $area = $rowCount * $columnCount
-            if ($area -gt $bestArea) {
-                $bestFrame = $frame
-                $bestArea = $area
-            }
-        }
-    }
-    if ($bestFrame -ne $null) {
-        Write-Output -NoEnumerate $bestFrame
+    $anchorCell = $Sheet.Range($AnchorAddress)
+    if ([bool]$anchorCell.MergeCells) {
+        Write-Output -NoEnumerate $anchorCell.MergeArea
         return
     }
     Write-Output -NoEnumerate $FallbackRange
@@ -115,8 +89,8 @@ try {
     $stage = '写真帳コピーを開いています'
     $albumBook = $excel.Workbooks.Open($outputPath, 0, $false)
 
-    # 健全度判定表のコピーがある場合だけ、点検結果1・2の転記を行う。
-    # 写真貼付のみのセットではhealth.xlsxを作らないため、この処理は完全に省略される。
+    # No11の構成を先に全件検査し、点検結果1・2の値だけを同じセル位置へ転記する。
+    # 書式・入力規則・数式・ほかのセルには触れない。
     if (Test-Path -LiteralPath $healthPath -PathType Leaf) {
     $stage = '健全度判定表を開いています'
     $healthBook = $excel.Workbooks.Open($healthPath, 0, $true)
@@ -174,34 +148,56 @@ try {
         }
     }
 
-    $targetRows = @{}
-    $targetAssetIndex = [int]$targetHeaders['資産番号'] - $targetFirstColumn + 1
-    $targetItemIndex = [int]$targetHeaders['項目番号'] - $targetFirstColumn + 1
-    for ($row = $targetHeaderRow + 1; $row -le $targetRowCount; $row++) {
-        $assetNumber = ([string]$targetValues[$row, $targetAssetIndex]).Trim()
-        $itemNumber = ([string]$targetValues[$row, $targetItemIndex]).Trim()
-        if ($assetNumber -and $itemNumber) { $targetRows["$assetNumber|$itemNumber"] = [int]($targetFirstRow + $row - 1) }
+    $sourceHeaderAbsoluteRow = [int]($sourceFirstRow + $sourceHeaderRow - 1)
+    $targetHeaderAbsoluteRow = [int]($targetFirstRow + $targetHeaderRow - 1)
+    if ($sourceHeaderAbsoluteRow -ne $targetHeaderAbsoluteRow) {
+        throw '健全度判定表と写真帳で、No11の見出し行が一致しません。写真帳は変更していません。'
     }
+    foreach ($requiredHeader in @('資産番号', '項目番号', '点検結果1', '点検結果2')) {
+        if ([int]$sourceHeaders[$requiredHeader] -ne [int]$targetHeaders[$requiredHeader]) {
+            throw "健全度判定表と写真帳で、No11の「$requiredHeader」の列位置が一致しません。写真帳は変更していません。"
+        }
+    }
+
     $sourceAssetIndex = [int]$sourceHeaders['資産番号'] - $sourceFirstColumn + 1
     $sourceItemIndex = [int]$sourceHeaders['項目番号'] - $sourceFirstColumn + 1
+    $targetAssetIndex = [int]$targetHeaders['資産番号'] - $targetFirstColumn + 1
+    $targetItemIndex = [int]$targetHeaders['項目番号'] - $targetFirstColumn + 1
+    $sourceLastRow = [int]($sourceFirstRow + $sourceRowCount - 1)
+    $targetLastRow = [int]($targetFirstRow + $targetRowCount - 1)
+    if ($sourceLastRow -ne $targetLastRow) {
+        throw '健全度判定表と写真帳で、No11の最終行が一致しません。写真帳は変更していません。'
+    }
+
+    $stage = 'No11の構成と転記先を確認しています'
+    for ($row = $sourceHeaderRow + 1; $row -le $sourceRowCount; $row++) {
+        $absoluteRow = [int]($sourceFirstRow + $row - 1)
+        $sourceAssetNumber = ([string]$sourceValues[$row, $sourceAssetIndex]).Trim()
+        $sourceItemNumber = ([string]$sourceValues[$row, $sourceItemIndex]).Trim()
+        $targetRowIndex = [int]($absoluteRow - $targetFirstRow + 1)
+        $targetAssetNumber = ([string]$targetValues[$targetRowIndex, $targetAssetIndex]).Trim()
+        $targetItemNumber = ([string]$targetValues[$targetRowIndex, $targetItemIndex]).Trim()
+        if ($sourceAssetNumber -ne $targetAssetNumber -or $sourceItemNumber -ne $targetItemNumber) {
+            throw "健全度判定表と写真帳で、No11の$($absoluteRow)行目の資産番号または項目番号が一致しません。写真帳は変更していません。"
+        }
+        foreach ($resultHeader in @('点検結果1', '点検結果2')) {
+            $targetCell = $targetNo11.Cells.Item($absoluteRow, [int]$targetHeaders[$resultHeader])
+            if ([bool]$targetCell.HasFormula) {
+                throw "写真帳No11の$($targetCell.Address($false, $false))に数式があります。写真帳は変更していません。"
+            }
+        }
+    }
+
     $stage = 'No11の点検結果1・2を転記しています'
     for ($row = $sourceHeaderRow + 1; $row -le $sourceRowCount; $row++) {
-        $assetNumber = ([string]$sourceValues[$row, $sourceAssetIndex]).Trim()
-        $itemNumber = ([string]$sourceValues[$row, $sourceItemIndex]).Trim()
-        $targetRow = $targetRows["$assetNumber|$itemNumber"]
-        if (-not $targetRow) { continue }
+        $absoluteRow = [int]($sourceFirstRow + $row - 1)
         foreach ($resultHeader in @('点検結果1', '点検結果2')) {
-            $sourceColumn = $sourceHeaders[$resultHeader]
-            $targetColumn = $targetHeaders[$resultHeader]
-            $sourceCell = $sourceNo11.Cells.Item([int]($sourceFirstRow + $row - 1), $sourceColumn)
-            $targetCell = $targetNo11.Cells.Item($targetRow, $targetColumn)
-            # xlPasteValidation=6。入力規則だけをコピーし、書式・数式は触らない。
-            [void]$sourceCell.Copy()
-            [void]$targetCell.PasteSpecial(6)
+            $column = [int]$sourceHeaders[$resultHeader]
+            $sourceCell = $sourceNo11.Cells.Item($absoluteRow, $column)
+            $targetCell = $targetNo11.Cells.Item($absoluteRow, $column)
             $targetCell.Value2 = $sourceCell.Value2
         }
     }
-    $excel.CutCopyMode = 0
     $healthBook.Close($false)
     $healthBook = $null
     }
@@ -236,13 +232,15 @@ try {
             $stage = "資産 $($asset.assetNumber) の全景写真「$($photo.sourceName)」を貼り付けています"
             $photoPath = Join-Path (Join-Path $SessionRoot 'photos') ($photo.fileKey + '.jpg')
             $fallback = $sheet.Range('E5:S18')
-            $target = Find-OverviewFrame -Sheet $sheet -FallbackRange $fallback
+            $target = Get-MergedFrame -Sheet $sheet -AnchorAddress 'E5' -FallbackRange $fallback
             $shape = Add-EmbeddedPicture -Sheet $sheet -PhotoPath $photoPath -TargetRange $target
             $shape.LockAspectRatio = -1
-            $shape.Width = [single][Math]::Min([double]$target.Width, 260.7874)
-            if ($shape.Height -gt $target.Height) { $shape.Height = [single]$target.Height }
-            $shape.Left = [single]$target.Left
-            $shape.Top = [single]$target.Top
+            $shape.Width = [single](@($target.Width)[0])
+            $targetHeight = [single](@($target.Height)[0])
+            if ($shape.Height -gt $targetHeight) { $shape.Height = $targetHeight }
+            $anchorCell = $target.Cells.Item(1, 1)
+            $shape.Left = [single](@($anchorCell.Left)[0])
+            $shape.Top = Get-ExactRowTop -Sheet $sheet -Row ([int]$anchorCell.Row)
             $shape.Placement = 1
             $shape.Name = "SM_$($asset.assetNumber)_full"
         }
@@ -266,7 +264,7 @@ try {
             foreach ($photo in $photosByItem[$key]) {
                 $stage = "資産 $($asset.assetNumber)・項目 $($item.ItemNumber) の写真「$($photo.sourceName)」を貼り付けています"
                 $slot = [int]$photo.slotIndex
-                $topRow = $item.Row + 5
+                $topRow = $item.Row + 4
                 $nextHeaderRow = if ($itemIndex -lt $itemRows.Count - 1) { $itemRows[$itemIndex + 1].Row } else { $item.Row + 14 }
                 $bottomRow = [Math]::Max($topRow, $nextHeaderRow - 2)
                 $frame = switch ($slot) {
@@ -278,13 +276,15 @@ try {
                 }
                 $photoPath = Join-Path (Join-Path $SessionRoot 'photos') ($photo.fileKey + '.jpg')
                 $fallback = $sheet.Range($frame.Address)
-                $target = Find-PhotoFrame -Sheet $sheet -LeftColumn $frame.Column -HeaderRow $item.Row -NextHeaderRow $nextHeaderRow -FallbackRange $fallback
+                $target = Get-MergedFrame -Sheet $sheet -AnchorAddress "$($frame.Column)$topRow" -FallbackRange $fallback
                 $shape = Add-EmbeddedPicture -Sheet $sheet -PhotoPath $photoPath -TargetRange $target
                 $shape.LockAspectRatio = -1
-                $shape.Width = [single][Math]::Min([double]$target.Width, 170.0787)
-                if ($shape.Height -gt $target.Height) { $shape.Height = [single]$target.Height }
-                $shape.Left = [single]$target.Left
-                $shape.Top = [single]$target.Top
+                $shape.Width = [single](@($target.Width)[0])
+                $targetHeight = [single](@($target.Height)[0])
+                if ($shape.Height -gt $targetHeight) { $shape.Height = $targetHeight }
+                $anchorCell = $target.Cells.Item(1, 1)
+                $shape.Left = [single](@($anchorCell.Left)[0])
+                $shape.Top = Get-ExactRowTop -Sheet $sheet -Row ([int]$anchorCell.Row)
                 $shape.Placement = 1
                 $shape.Name = "SM_$($asset.assetNumber)_$($item.ItemNumber)_$slot"
             }
