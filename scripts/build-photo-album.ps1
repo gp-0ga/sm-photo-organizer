@@ -201,7 +201,9 @@ try {
             foreach ($photo in $photosByItem[$key]) {
                 $stage = "資産 $($asset.assetNumber)・項目 $($item.ItemNumber) の写真「$($photo.sourceName)」を貼り付けています"
                 $slot = [int]$photo.slotIndex
-                $topRow = $item.Row + 4
+                # 写真欄は項目見出しの直下ではなく、その次の赤枠セルから始まります。
+                # 幅は既存の列範囲のまま、上端だけを写真欄の上端に合わせます。
+                $topRow = $item.Row + 5
                 $nextHeaderRow = if ($itemIndex -lt $itemRows.Count - 1) { $itemRows[$itemIndex + 1].Row } else { $item.Row + 14 }
                 $bottomRow = [Math]::Max($topRow, $nextHeaderRow - 2)
                 $address = switch ($slot) {
