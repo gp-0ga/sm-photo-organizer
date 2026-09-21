@@ -39,6 +39,8 @@ function Convert-ToJpeg {
 
 try {
     if (-not (Test-Path -LiteralPath $InstructionPath -PathType Leaf)) { throw '写真帳作成指示.json が見つかりません。展開したフォルダ内で実行してください。' }
+    $healthSourcePath = Join-Path $PSScriptRoot 'health.xlsx'
+    if (-not (Test-Path -LiteralPath $healthSourcePath -PathType Leaf)) { throw '健全度判定表が見つかりません。写真帳作成セットを保存し直してください。' }
     $instruction = Get-Content -LiteralPath $InstructionPath -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($instruction.kind -ne 'asset-photo-album-instruction' -or $instruction.version -ne 1) { throw 'この写真整理MVPで作成した写真帳作成セットではありません。' }
     if (-not @($instruction.photos).Count) { throw '写真帳へ貼り付ける写真がありません。' }
@@ -58,6 +60,7 @@ try {
     $photoRoot = Join-Path $sessionRoot 'photos'
     New-Item -ItemType Directory -Path $photoRoot -Force | Out-Null
     Copy-Item -LiteralPath $templatePath -Destination (Join-Path $sessionRoot 'album.xlsx') -Force
+    Copy-Item -LiteralPath $healthSourcePath -Destination (Join-Path $sessionRoot 'health.xlsx') -Force
 
     $manifestPhotos = @()
     $index = 0

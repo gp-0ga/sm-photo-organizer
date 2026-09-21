@@ -4,6 +4,7 @@ import { createAssetFolders, exportOrganizedPhotos } from "./folders.js";
 import { OTHER_ASSET, OTHER_ASSET_NUMBER, photoDestinations } from "./domain.js";
 import { analyzePhotoFiles, compressToJpeg, jpegFileName, targetBytesFromKilobytes } from "./photos.js";
 import { albumEntries, createPhotoAlbum, inspectPhotoAlbumTemplate } from "./album.js";
+import { photoBookKitArchiveEntries } from "./photo-book-kit.js";
 import { cameraFileName, captureVideoFrame, openRearCamera, stopCamera } from "./camera.js";
 import { createAssetPhotoZip, createZip, zipFileName } from "./zip.js";
 import { deletePhotoSnapshot, listPhotoSnapshots, loadPhotoSession, savePhotoSession, savePhotoSnapshot } from "./photo-session-storage.js";
@@ -766,19 +767,19 @@ function updateAlbumReadiness() {
   let entries;
   try {
     entries = albumEntries(assets, photos);
-    exportAlbumKitButton.disabled = false;
   } catch (error) {
     const message = error.message ?? String(error);
     const tone = message.includes("選ばれていません") ? "neutral" : "error";
     setStatus(albumStatus, message, tone);
     return;
   }
-  if (!isLocalPhotoBookApp) {
-    setStatus(albumStatus, `${entries.length}枚を写真帳へ貼り付ける指示を保存できます。`, "success");
-    return;
-  }
   if (!healthWorkbookFile) {
     setStatus(albumStatus, "先に健全度判定表を読み込んでください。", "neutral");
+    return;
+  }
+  exportAlbumKitButton.disabled = false;
+  if (!isLocalPhotoBookApp) {
+    setStatus(albumStatus, `${entries.length}枚の写真貼り付けと、No11の点検結果1・2の転記セットを保存できます。`, "success");
     return;
   }
   if (!albumTemplateFile) {
@@ -801,6 +802,7 @@ function photoBookKitFileName() {
 }
 
 async function createPhotoBookKit() {
+  if (!healthWorkbookFile) throw new Error("先に健全度判定表を読み込んでください。");
   const entries = albumEntries(assets, photos);
   const instruction = {
     kind: "asset-photo-album-instruction",
@@ -824,19 +826,20 @@ async function createPhotoBookKit() {
     "1. ZIPを展開します。",
     "2. 「START-PHOTO-BOOK.bat」をダブルクリックします。",
     "3. 写真帳Excel、元写真フォルダ、出力先フォルダを順に選びます。",
-    "4. 元の写真帳Excelは変更せず、出力先に写真だけを貼り付けたコピーを作成します。",
+    "4. 元の写真帳Excelは変更せず、出力先に写真を貼り付け、No11の点検結果1・2を転記したコピーを作成します。",
     "",
-    "注意：このセットでは点検結果1・2を転記しません。Microsoft ExcelがインストールされたWindows PCで実行してください。",
+    "注意：点検結果1・2は、健全度判定表と写真帳のNo11が同じ構成であることを確認してから、同じセルへ値だけを転記します。ほかのセル・書式・数式は変更しません。",
+    "No11の構成が異なる場合や転記先に数式がある場合は、写真帳を変更せずエラーで中止します。Microsoft ExcelがインストールされたWindows PCで実行してください。",
     "元写真はJPG、JPEG、PNGに対応します。同名写真が複数ある場合は整理してから実行してください。",
   ].join("\r\n");
-  const blob = await createZip([
-    { path: "START-PHOTO-BOOK.bat", blob: new Blob([photoBookBat], { type: "text/plain;charset=us-ascii" }) },
-    { path: "photo-book-runner.ps1", blob: new Blob([photoBookRunner], { type: "text/plain;charset=utf-8" }) },
-    { path: "build-photo-album.ps1", blob: new Blob([photoBookBuilder], { type: "text/plain;charset=utf-8" }) },
-    { path: "photo-book-instruction.json", blob: new Blob([JSON.stringify(instruction, null, 2)], { type: "application/json" }) },
-    // UTF-8 BOMを付け、Windowsのメモ帳でも日本語の案内文を正しく開けるようにする。
-    { path: "README.txt", blob: new Blob(["\uFEFF", guide], { type: "text/plain;charset=utf-8" }) },
-  ]);
+  const blob = await createZip(photoBookKitArchiveEntries({
+    healthWorkbook: healthWorkbookFile,
+    instruction,
+    guide,
+    photoBookBat,
+    photoBookRunner,
+    photoBookBuilder,
+  }));
   return { blob, entryCount: entries.length };
 }
 

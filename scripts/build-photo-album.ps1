@@ -89,8 +89,8 @@ try {
     $stage = '写真帳コピーを開いています'
     $albumBook = $excel.Workbooks.Open($outputPath, 0, $false)
 
-    # 健全度判定表のコピーがある場合だけ、点検結果1・2の転記を行う。
-    # 写真貼付のみのセットではhealth.xlsxを作らないため、この処理は完全に省略される。
+    # No11の構成を先に全件検査し、点検結果1・2の値だけを同じセル位置へ転記する。
+    # 書式・入力規則・数式・ほかのセルには触れない。
     if (Test-Path -LiteralPath $healthPath -PathType Leaf) {
     $stage = '健全度判定表を開いています'
     $healthBook = $excel.Workbooks.Open($healthPath, 0, $true)
@@ -148,34 +148,56 @@ try {
         }
     }
 
-    $targetRows = @{}
-    $targetAssetIndex = [int]$targetHeaders['資産番号'] - $targetFirstColumn + 1
-    $targetItemIndex = [int]$targetHeaders['項目番号'] - $targetFirstColumn + 1
-    for ($row = $targetHeaderRow + 1; $row -le $targetRowCount; $row++) {
-        $assetNumber = ([string]$targetValues[$row, $targetAssetIndex]).Trim()
-        $itemNumber = ([string]$targetValues[$row, $targetItemIndex]).Trim()
-        if ($assetNumber -and $itemNumber) { $targetRows["$assetNumber|$itemNumber"] = [int]($targetFirstRow + $row - 1) }
+    $sourceHeaderAbsoluteRow = [int]($sourceFirstRow + $sourceHeaderRow - 1)
+    $targetHeaderAbsoluteRow = [int]($targetFirstRow + $targetHeaderRow - 1)
+    if ($sourceHeaderAbsoluteRow -ne $targetHeaderAbsoluteRow) {
+        throw '健全度判定表と写真帳で、No11の見出し行が一致しません。写真帳は変更していません。'
     }
+    foreach ($requiredHeader in @('資産番号', '項目番号', '点検結果1', '点検結果2')) {
+        if ([int]$sourceHeaders[$requiredHeader] -ne [int]$targetHeaders[$requiredHeader]) {
+            throw "健全度判定表と写真帳で、No11の「$requiredHeader」の列位置が一致しません。写真帳は変更していません。"
+        }
+    }
+
     $sourceAssetIndex = [int]$sourceHeaders['資産番号'] - $sourceFirstColumn + 1
     $sourceItemIndex = [int]$sourceHeaders['項目番号'] - $sourceFirstColumn + 1
+    $targetAssetIndex = [int]$targetHeaders['資産番号'] - $targetFirstColumn + 1
+    $targetItemIndex = [int]$targetHeaders['項目番号'] - $targetFirstColumn + 1
+    $sourceLastRow = [int]($sourceFirstRow + $sourceRowCount - 1)
+    $targetLastRow = [int]($targetFirstRow + $targetRowCount - 1)
+    if ($sourceLastRow -ne $targetLastRow) {
+        throw '健全度判定表と写真帳で、No11の最終行が一致しません。写真帳は変更していません。'
+    }
+
+    $stage = 'No11の構成と転記先を確認しています'
+    for ($row = $sourceHeaderRow + 1; $row -le $sourceRowCount; $row++) {
+        $absoluteRow = [int]($sourceFirstRow + $row - 1)
+        $sourceAssetNumber = ([string]$sourceValues[$row, $sourceAssetIndex]).Trim()
+        $sourceItemNumber = ([string]$sourceValues[$row, $sourceItemIndex]).Trim()
+        $targetRowIndex = [int]($absoluteRow - $targetFirstRow + 1)
+        $targetAssetNumber = ([string]$targetValues[$targetRowIndex, $targetAssetIndex]).Trim()
+        $targetItemNumber = ([string]$targetValues[$targetRowIndex, $targetItemIndex]).Trim()
+        if ($sourceAssetNumber -ne $targetAssetNumber -or $sourceItemNumber -ne $targetItemNumber) {
+            throw "健全度判定表と写真帳で、No11の$($absoluteRow)行目の資産番号または項目番号が一致しません。写真帳は変更していません。"
+        }
+        foreach ($resultHeader in @('点検結果1', '点検結果2')) {
+            $targetCell = $targetNo11.Cells.Item($absoluteRow, [int]$targetHeaders[$resultHeader])
+            if ([bool]$targetCell.HasFormula) {
+                throw "写真帳No11の$($targetCell.Address($false, $false))に数式があります。写真帳は変更していません。"
+            }
+        }
+    }
+
     $stage = 'No11の点検結果1・2を転記しています'
     for ($row = $sourceHeaderRow + 1; $row -le $sourceRowCount; $row++) {
-        $assetNumber = ([string]$sourceValues[$row, $sourceAssetIndex]).Trim()
-        $itemNumber = ([string]$sourceValues[$row, $sourceItemIndex]).Trim()
-        $targetRow = $targetRows["$assetNumber|$itemNumber"]
-        if (-not $targetRow) { continue }
+        $absoluteRow = [int]($sourceFirstRow + $row - 1)
         foreach ($resultHeader in @('点検結果1', '点検結果2')) {
-            $sourceColumn = $sourceHeaders[$resultHeader]
-            $targetColumn = $targetHeaders[$resultHeader]
-            $sourceCell = $sourceNo11.Cells.Item([int]($sourceFirstRow + $row - 1), $sourceColumn)
-            $targetCell = $targetNo11.Cells.Item($targetRow, $targetColumn)
-            # xlPasteValidation=6。入力規則だけをコピーし、書式・数式は触らない。
-            [void]$sourceCell.Copy()
-            [void]$targetCell.PasteSpecial(6)
+            $column = [int]$sourceHeaders[$resultHeader]
+            $sourceCell = $sourceNo11.Cells.Item($absoluteRow, $column)
+            $targetCell = $targetNo11.Cells.Item($absoluteRow, $column)
             $targetCell.Value2 = $sourceCell.Value2
         }
     }
-    $excel.CutCopyMode = 0
     $healthBook.Close($false)
     $healthBook = $null
     }
