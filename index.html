@@ -32,26 +32,25 @@
       <section id="excel-panel" class="panel" aria-labelledby="excel-heading">
         <div class="step-label">1</div>
         <div class="step-body">
-          <div class="panel-title-row"><h2 id="excel-heading">健全度判定表を読み込む</h2></div>
-          <label class="file-picker">
-            <span>ファイルを選択</span>
-            <input id="excel-input" type="file" accept=".xlsx" />
-          </label>
-          <div id="excel-file-name" class="selected-file-name" hidden></div>
-          <div id="excel-status" class="status neutral" role="status">未読込</div>
-        </div>
-      </section>
-
-      <section id="photo-import-panel" class="panel" aria-labelledby="photo-import-heading">
-        <div class="step-label">3</div>
-        <div class="step-body">
-          <h2 id="photo-import-heading">撮影写真を読み込む</h2>
-          <label class="file-picker">
-            <span>ファイルを選択</span>
-            <input id="photo-input" type="file" accept="image/*,.heic,.heif" multiple disabled />
-          </label>
-          <div id="photo-file-name" class="selected-file-name" hidden></div>
-          <div id="photo-status" class="status neutral" role="status">Excel未読込</div>
+          <div class="panel-title-row"><h2 id="excel-heading">読み込み</h2></div>
+          <div class="import-group">
+            <h3 class="import-group-title">健全度判定表</h3>
+            <label class="file-picker">
+              <span>ファイルを選択</span>
+              <input id="excel-input" type="file" accept=".xlsx" />
+            </label>
+            <div id="excel-file-name" class="selected-file-name" hidden></div>
+            <div id="excel-status" class="status neutral" role="status">未読込</div>
+          </div>
+          <div id="photo-import-panel" class="import-group">
+            <h3 id="photo-import-heading" class="import-group-title">撮影写真</h3>
+            <label class="file-picker">
+              <span>ファイルを選択</span>
+              <input id="photo-input" type="file" accept="image/*,.heic,.heif" multiple disabled />
+            </label>
+            <div id="photo-file-name" class="selected-file-name" hidden></div>
+            <div id="photo-status" class="status neutral" role="status">Excel未読込</div>
+          </div>
         </div>
       </section>
 
@@ -146,7 +145,6 @@
               <h2 class="sr-only">写真整理ツール</h2>
               <div id="bulk-tools-sentinel"></div>
               <div id="bulk-tools" class="bulk-tools" hidden>
-                <button id="bulk-tools-collapse" class="bulk-tools-collapse" type="button" aria-expanded="true" title="ツールバーを折りたたむ">▲</button>
                 <div class="bulk-tools-content">
                 <button id="jump-to-bookmark" class="secondary" type="button" disabled>しおりへ移動</button>
                 <div class="bulk-always-visible">

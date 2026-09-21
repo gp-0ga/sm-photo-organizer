@@ -1153,31 +1153,6 @@ if (bulkToolsSentinel && "IntersectionObserver" in window) {
   ).observe(bulkToolsSentinel);
 }
 
-const BULK_TOOLS_COLLAPSE_KEY = "bulk-tools-collapsed";
-const bulkToolsCollapseButton = document.querySelector("#bulk-tools-collapse");
-
-function applyBulkToolsCollapsed(collapsed) {
-  bulkTools.classList.toggle("collapsed", collapsed);
-  bulkToolsCollapseButton.setAttribute("aria-expanded", String(!collapsed));
-  bulkToolsCollapseButton.textContent = collapsed ? "▼" : "▲";
-  bulkToolsCollapseButton.title = collapsed ? "ツールバーを開く" : "ツールバーを折りたたむ";
-  try {
-    localStorage.setItem(BULK_TOOLS_COLLAPSE_KEY, collapsed ? "1" : "0");
-  } catch {
-    // 折りたたみ設定を保存できない場合も表示は継続する
-  }
-}
-
-bulkToolsCollapseButton.addEventListener("click", () => {
-  applyBulkToolsCollapsed(!bulkTools.classList.contains("collapsed"));
-});
-
-try {
-  applyBulkToolsCollapsed(localStorage.getItem(BULK_TOOLS_COLLAPSE_KEY) === "1");
-} catch {
-  applyBulkToolsCollapsed(false);
-}
-
 function visiblePhotoCards() {
   return [...document.querySelectorAll(".photo-card:not([hidden])")];
 }
