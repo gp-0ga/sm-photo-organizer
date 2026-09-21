@@ -1,6 +1,24 @@
 import * as XLSX from "xlsx";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { createZip } from "./zip.js";
+import { detectOpeningRectangles, intersectionOverUnion } from "./opening-detector.js";
+import {
+  STANDARD_CATEGORIES,
+  STANDARD_UNITS,
+  SUBJECTS,
+  WORK_TYPES,
+  breakdownQuantityDigits,
+  categoryById,
+  measurementSuggestion,
+  partsForCategory,
+  roundBreakdownQuantity,
+  roundMeasurementQuantity,
+  standardClassificationLabel,
+} from "./quantity-classification.js";
 import "./drawing.css";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 const pageKinds = ["平面図", "立面図", "屋上平面図", "断面図", "矩計図", "面積表", "使わない"];
 const kindOptions = {
@@ -23,6 +41,7 @@ const state = {
   dragPreview: null,
   hoverPoint: null,
   suppressClick: false,
+  hideCandidatesInExport: false,
   ruler: {
     lengthM: 20,
     stepM: 4,
@@ -32,7 +51,9 @@ const state = {
 };
 
 const canvas = document.querySelector("#drawing-canvas");
-const ctx = canvas.getContext("2d");
+// 一部のハイブリッドGPU環境でcanvasのバッファ内容と画面表示が食い違う(GPU合成が更新されない)
+// 事象が確認されたため、willReadFrequentlyでソフトウェア(CPU)ラスタライズへ寄せる。
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
 const canvasWrap = document.querySelector("#canvas-wrap");
 const fileInput = document.querySelector("#file-input");
 const pageList = document.querySelector("#page-list");
@@ -58,6 +79,19 @@ const rulerStep = document.querySelector("#ruler-step");
 const rulerHorizontal = document.querySelector("#ruler-horizontal");
 const rulerVertical = document.querySelector("#ruler-vertical");
 const quantityKind = document.querySelector("#quantity-kind");
+const standardCategory = document.querySelector("#standard-category");
+const workType = document.querySelector("#work-type");
+const subjectInput = document.querySelector("#subject-input");
+const subjectOptions = document.querySelector("#subject-options");
+const standardDivision = document.querySelector("#standard-division");
+const standardUnit = document.querySelector("#standard-unit");
+const standardItem = document.querySelector("#standard-item");
+const standardItemOptions = document.querySelector("#standard-item-options");
+const partInput = document.querySelector("#part-input");
+const partOptions = document.querySelector("#part-options");
+const standardRuleNote = document.querySelector("#standard-rule-note");
+const standardRuleSource = document.querySelector("#standard-rule-source");
+const standardMeasurementAdvice = document.querySelector("#standard-measurement-advice");
 const selectEdit = document.querySelector("#select-edit");
 const drawPolygon = document.querySelector("#draw-polygon");
 const drawRect = document.querySelector("#draw-rect");
@@ -67,12 +101,28 @@ const manualAreaInput = document.querySelector("#manual-area-input");
 const buildingInput = document.querySelector("#building-input");
 const elevationInput = document.querySelector("#elevation-input");
 const finishInput = document.querySelector("#finish-input");
+const floorInput = document.querySelector("#floor-input");
+const roomInput = document.querySelector("#room-input");
 const memoInput = document.querySelector("#memo-input");
 const quantityList = document.querySelector("#quantity-list");
+const detectOpenings = document.querySelector("#detect-openings");
+const openingCandidateNote = document.querySelector("#opening-candidate-note");
+const openingCandidateList = document.querySelector("#opening-candidate-list");
 const selectedEditor = document.querySelector("#selected-editor");
 const editBuilding = document.querySelector("#edit-building");
 const editElevation = document.querySelector("#edit-elevation");
 const editFinish = document.querySelector("#edit-finish");
+const editFloor = document.querySelector("#edit-floor");
+const editRoom = document.querySelector("#edit-room");
+const editStandardCategory = document.querySelector("#edit-standard-category");
+const editWorkType = document.querySelector("#edit-work-type");
+const editSubject = document.querySelector("#edit-subject");
+const editStandardDivision = document.querySelector("#edit-standard-division");
+const editStandardUnit = document.querySelector("#edit-standard-unit");
+const editStandardItem = document.querySelector("#edit-standard-item");
+const editStandardItemOptions = document.querySelector("#edit-standard-item-options");
+const editPart = document.querySelector("#edit-part");
+const editPartOptions = document.querySelector("#edit-part-options");
 const editMemo = document.querySelector("#edit-memo");
 const editWidth = document.querySelector("#edit-width");
 const editHeight = document.querySelector("#edit-height");
@@ -89,6 +139,7 @@ const exportImagesZip = document.querySelector("#export-images-zip");
 const showSummary = document.querySelector("#show-summary");
 const closeSummary = document.querySelector("#close-summary");
 const summaryOverlay = document.querySelector("#summary-overlay");
+const summaryStandardTable = document.querySelector("#summary-standard-table");
 const summaryPrimaryTable = document.querySelector("#summary-primary-table");
 const summarySecondaryTable = document.querySelector("#summary-secondary-table");
 const totals = document.querySelector("#totals");
@@ -116,11 +167,24 @@ function activePageIndex() {
   return state.pages.findIndex((page) => page.id === state.activePageId);
 }
 
-function selectPageByIndex(index) {
+async function selectPageByIndex(index) {
   if (index < 0 || index >= state.pages.length) return;
-  state.activePageId = state.pages[index].id;
+  const page = state.pages[index];
+  state.activePageId = page.id;
   state.currentPoints = [];
   state.selectedId = null;
+  if (page.pendingPdf) {
+    setLoading(true);
+    setStatus(`${page.name} を画像化しています。`);
+    try {
+      await ensurePageRendered(page);
+      setStatus(`${page.name} を表示しました。`, "success");
+    } catch (error) {
+      setStatus(error.message || "図面の画像化に失敗しました。");
+    } finally {
+      setLoading(false);
+    }
+  }
   fitActivePageToView();
   syncControls();
   renderPageList();
@@ -239,24 +303,30 @@ function serializePage(page) {
     url: page.url,
     kind: page.kind,
     unsupported: page.unsupported,
+    missingImage: page.missingImage || false,
     scaleDenominator: page.scaleDenominator,
     dpi: page.dpi,
     scaleCorrection: page.scaleCorrection,
     calibrationMeasured: page.calibrationMeasured,
     scaleConfirmed: page.scaleConfirmed,
     shapes: page.shapes,
+    openingCandidates: page.openingCandidates || [],
   };
 }
 
 function pageFromSaved(saved) {
   return new Promise((resolve) => {
-    if (saved.unsupported || !saved.url) {
-      resolve({ ...saved, image: null, shapes: saved.shapes || [] });
+    if (saved.unsupported) {
+      resolve({ ...saved, image: null, shapes: saved.shapes || [], openingCandidates: saved.openingCandidates || [] });
+      return;
+    }
+    if (!saved.url) {
+      resolve({ ...saved, image: null, missingImage: true, shapes: saved.shapes || [], openingCandidates: saved.openingCandidates || [] });
       return;
     }
     const image = new Image();
-    image.onload = () => resolve({ ...saved, image, shapes: saved.shapes || [] });
-    image.onerror = () => resolve({ ...saved, unsupported: true, image: null, shapes: saved.shapes || [] });
+    image.onload = () => resolve({ ...saved, image, missingImage: false, shapes: saved.shapes || [], openingCandidates: saved.openingCandidates || [] });
+    image.onerror = () => resolve({ ...saved, missingImage: true, image: null, shapes: saved.shapes || [], openingCandidates: saved.openingCandidates || [] });
     image.src = saved.url;
   });
 }
@@ -268,6 +338,22 @@ async function saveCurrentWork() {
   }
   const name = workName.value.trim() || `図面数量拾い_${new Date().toLocaleString("ja-JP")}`;
   const id = crypto.randomUUID();
+  const pendingPages = state.pages.filter((page) => page.pendingPdf);
+  if (pendingPages.length > 0) {
+    setLoading(true);
+    setStatus(`保存のため、未表示の${pendingPages.length}ページを画像化しています。しばらくお待ちください。`);
+    try {
+      for (const page of pendingPages) {
+        await ensurePageRendered(page);
+      }
+    } catch (error) {
+      setLoading(false);
+      setStatus(error.message || "図面の画像化に失敗しました。保存を中止しました。");
+      return;
+    }
+    renderPageList();
+    setLoading(false);
+  }
   try {
     await putSavedWork({ ...serializeCurrentWork(name), id });
   } catch {
@@ -331,6 +417,22 @@ async function exportWorkToFile() {
     return;
   }
   const name = workName.value.trim() || `図面数量拾い_${new Date().toLocaleString("ja-JP")}`;
+  const pendingPages = state.pages.filter((page) => page.pendingPdf);
+  if (pendingPages.length > 0) {
+    setLoading(true);
+    setStatus(`書き出しのため、未表示の${pendingPages.length}ページを画像化しています。しばらくお待ちください。`);
+    try {
+      for (const page of pendingPages) {
+        await ensurePageRendered(page);
+      }
+    } catch (error) {
+      setLoading(false);
+      setStatus(error.message || "図面の画像化に失敗しました。書き出しを中止しました。");
+      return;
+    }
+    renderPageList();
+    setLoading(false);
+  }
   const data = serializeCurrentWork(name);
   const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -509,6 +611,113 @@ function updateKindOptions() {
   );
 }
 
+function replaceOptions(select, options, selected = "") {
+  select.replaceChildren(
+    ...options.map(({ value, label }) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      return option;
+    }),
+  );
+  if (options.some((option) => option.value === selected)) select.value = selected;
+}
+
+function populateCategoryOptions(select, selected = "") {
+  replaceOptions(select, [
+    { value: "", label: "未分類" },
+    ...STANDARD_CATEGORIES.map((category) => ({ value: category.id, label: category.label })),
+  ], selected);
+}
+
+function populateSimpleOptions(select, values, selected = "") {
+  replaceOptions(select, values.map((value) => ({ value, label: value })), selected);
+}
+
+function populateDatalist(datalist, values) {
+  datalist.replaceChildren(
+    ...values.map((value) => {
+      const option = document.createElement("option");
+      option.value = value;
+      return option;
+    }),
+  );
+}
+
+function populateClassificationFields(categorySelect, divisionSelect, unitSelect, itemInput, datalist, values = {}) {
+  populateCategoryOptions(categorySelect, values.categoryId || categorySelect.value);
+  const category = categoryById(categorySelect.value);
+  const divisions = category
+    ? Object.entries(category.divisions).map(([value, division]) => ({ value, label: division.label }))
+    : [{ value: "", label: "未選択" }];
+  replaceOptions(divisionSelect, divisions, values.divisionId || divisionSelect.value);
+  replaceOptions(unitSelect, STANDARD_UNITS.map((unit) => ({ value: unit, label: unit })), values.unit || unitSelect.value || "㎡");
+  const division = category?.divisions[divisionSelect.value];
+  datalist.replaceChildren(
+    ...(division?.items || []).map((item) => {
+      const option = document.createElement("option");
+      option.value = item;
+      return option;
+    }),
+  );
+  if (Object.hasOwn(values, "item")) itemInput.value = values.item || "";
+}
+
+function populatePartOptions(categorySelect, partField, datalist, selected = undefined) {
+  populateDatalist(datalist, partsForCategory(categorySelect.value));
+  if (selected !== undefined) partField.value = selected || "";
+}
+
+function updateStandardRuleNote() {
+  const category = categoryById(standardCategory.value);
+  const division = category?.divisions[standardDivision.value];
+  const suggestion = measurementSuggestion(standardItem.value);
+  standardRuleNote.textContent = division?.guidance || "分類を選ぶと、数量積算基準の計測ガイドを表示します。";
+  standardRuleSource.textContent = division?.sourcePage ? `数量積算基準 PDF ${division.sourcePage}ページ` : "";
+  standardMeasurementAdvice.textContent = standardItem.value
+    ? `推奨: ${suggestion.mode} / ${suggestion.unit}`
+    : "細目を選ぶと推奨する拾い方と単位を表示します。";
+}
+
+function classificationFromFields(categorySelect, divisionSelect, unitSelect, itemInput, workTypeSelect, subjectField, partField) {
+  const category = categoryById(categorySelect.value);
+  const division = category?.divisions[divisionSelect.value];
+  return {
+    workTypeId: workTypeSelect.value === "建築工事" ? "building_work" : "building_renovation",
+    workTypeLabel: workTypeSelect.value || "建築改修工事",
+    subject: subjectField.value.trim(),
+    categoryId: category?.id || "",
+    categoryLabel: category?.label || "",
+    categoryOrder: category?.order ?? 99,
+    divisionId: division ? divisionSelect.value : "",
+    divisionLabel: division?.label || "",
+    item: itemInput.value.trim(),
+    part: partField.value.trim(),
+    unit: unitSelect.value,
+  };
+}
+
+function suggestClassificationForKind() {
+  const mapping = {
+    外壁面積: "exterior_wall_renovation",
+    開口控除: "opening_renovation",
+    サッシ周りシール: "opening_renovation",
+    防水面積: "waterproofing_renovation",
+    防水目地: "waterproofing_renovation",
+    伸縮目地: "waterproofing_renovation",
+    床面積: "interior_renovation",
+  };
+  const categoryId = mapping[quantityKind.value];
+  if (!categoryId || standardCategory.value) return;
+  populateClassificationFields(standardCategory, standardDivision, standardUnit, standardItem, standardItemOptions, {
+    categoryId,
+    divisionId: "renovation",
+    unit: state.mode === "line" ? "m" : "㎡",
+  });
+  populatePartOptions(standardCategory, partInput, partOptions);
+  updateStandardRuleNote();
+}
+
 function imagePageFromSource({ name, fileType, src, kind = "平面図" }) {
   return new Promise((resolve) => {
     const image = new Image();
@@ -527,32 +736,112 @@ function imagePageFromSource({ name, fileType, src, kind = "平面図" }) {
         calibrationMeasured: null,
         scaleConfirmed: false,
         shapes: [],
+        openingCandidates: [],
       });
     };
     image.src = src;
   });
 }
 
-async function loadPdfFile(file) {
-  const response = await fetch(`/api/render-pdf?dpi=${PDF_RENDER_DPI}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/pdf" },
-    body: await file.arrayBuffer(),
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("timeout")), ms);
   });
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(result.error || "PDFの画像化に失敗しました。");
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+const pdfjsWasmUrl = `${location.origin}/pdfjs-wasm/`;
+
+async function getPdfDocument(arrayBuffer) {
+  try {
+    return await withTimeout(
+      pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer.slice(0)), wasmUrl: pdfjsWasmUrl }).promise,
+      15000,
+    );
+  } catch {
+    return pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer.slice(0)), disableWorker: true, wasmUrl: pdfjsWasmUrl })
+      .promise;
   }
-  return Promise.all(
-    result.pages.map((page) =>
-      imagePageFromSource({
-        name: `${file.name} p.${page.pageNumber}`,
-        fileType: "application/pdf",
-        src: page.dataUrl,
-        kind: "平面図",
-      }),
-    ),
-  );
+}
+
+async function renderPdfPageToDataUrl(pdf, pageNumber) {
+  const scale = PDF_RENDER_DPI / 72;
+  const pdfPage = await pdf.getPage(pageNumber);
+  const viewport = pdfPage.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  // 一部のハイブリッドGPU環境でDOM未接続canvasのGPU描画結果が読み出せない(白紙になる)事象が
+  // 確認されたため、CPU側ラスタライズに寄せるためwillReadFrequentlyを指定する。
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  try {
+    await withTimeout(pdfPage.render({ canvasContext: context, viewport }).promise, 30000);
+  } catch (error) {
+    throw new Error(`PDFページ${pageNumber}の描画に失敗しました。${error?.message || ""}`.trim());
+  }
+  return canvas.toDataURL("image/png");
+}
+
+async function ensurePageRendered(page) {
+  if (page.image || !page.pendingPdf) return page;
+  const { pdf, pageNumber } = page.pendingPdf;
+  const dataUrl = await renderPdfPageToDataUrl(pdf, pageNumber);
+  const image = new Image();
+  await new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = () => reject(new Error("画像の読み込みに失敗しました。"));
+    image.src = dataUrl;
+  });
+  page.url = dataUrl;
+  page.image = image;
+  page.pendingPdf = null;
+  return page;
+}
+
+async function loadPdfFile(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  let pdf;
+  try {
+    pdf = await getPdfDocument(arrayBuffer);
+  } catch (error) {
+    throw new Error(`PDFの画像化に失敗しました。${error?.message || ""}`.trim());
+  }
+  const pageLimit = Math.min(pdf.numPages, 30);
+  const pages = [];
+  for (let pageNumber = 1; pageNumber <= pageLimit; pageNumber += 1) {
+    pages.push({
+      id: crypto.randomUUID(),
+      name: `${file.name} p.${pageNumber}${pdf.numPages > pageLimit && pageNumber === pageLimit ? "(以降省略)" : ""}`,
+      fileType: "application/pdf",
+      url: null,
+      image: null,
+      pendingPdf: { pdf, pageNumber },
+      kind: "平面図",
+      unsupported: false,
+      scaleDenominator: 100,
+      dpi: PDF_RENDER_DPI,
+      scaleCorrection: 1,
+      calibrationMeasured: null,
+      scaleConfirmed: false,
+      shapes: [],
+      openingCandidates: [],
+    });
+  }
+  if (pages.length > 0) {
+    await ensurePageRendered(pages[0]);
+  }
+  for (let index = 1; index < pages.length; index += 1) {
+    const page = pages[index];
+    setStatus(`${file.name}: ${index + 1} / ${pages.length}ページを画像化しています。`);
+    try {
+      await ensurePageRendered(page);
+      page.renderError = null;
+    } catch (error) {
+      page.renderError = error?.message || `${index + 1}ページ目の画像化に失敗しました。`;
+    }
+  }
+  return pages;
 }
 
 function unsupportedPage(file) {
@@ -568,6 +857,7 @@ function unsupportedPage(file) {
     calibrationMeasured: null,
     scaleConfirmed: false,
     shapes: [],
+    openingCandidates: [],
   };
 }
 
@@ -603,7 +893,12 @@ async function handleFiles(files) {
   setStatus("PDFをローカルで画像化しています。ページ数が多い場合は少し待ちます。");
   try {
     state.pages = await loadFiles([...files]);
-    setStatus(`${state.pages.length}ページを読み込みました。左のカードまたは前/次で確認できます。`, "success");
+    const failedPages = state.pages.filter((page) => page.renderError);
+    if (failedPages.length > 0) {
+      setStatus(`${state.pages.length}ページを読み込み、${failedPages.length}ページは画像化に失敗しました。該当カードの「再表示」を押してください。`);
+    } else {
+      setStatus(`${state.pages.length}ページを読み込みました。左のページカード、または画面下の「前のページ」「次のページ」で確認できます。`, "success");
+    }
   } catch (error) {
     pageList.textContent = "";
     alert(error.message);
@@ -623,7 +918,9 @@ async function handleFiles(files) {
 
 function syncControls() {
   const page = activePage();
-  const disabled = !page || page.unsupported;
+  const disabled = !page || page.unsupported || !page.image;
+  const wallCount = page?.shapes.filter((shape) => shape.kind === "外壁面積" && shape.points.length >= 3).length || 0;
+  detectOpenings.disabled = disabled || page.kind !== "立面図" || !page.scaleConfirmed || wallCount === 0;
   pageKind.disabled = !page;
   scaleDenominator.disabled = disabled;
   confirmScale.disabled = disabled;
@@ -651,6 +948,8 @@ function syncControls() {
   });
   scaleNote.textContent = page.unsupported
     ? "この形式はMVPでは直接表示できません。PDF/TIFFをPNG/JPGに変換して読み込んでください。"
+    : page.missingImage
+      ? "以前の保存データにこのページの画像がありません。元のPDFをもう一度選択してください。今後の読込みでは全ページを保存します。"
       : page.scaleConfirmed
         ? `縮尺確定: 1/${page.scaleDenominator}${page.scaleCorrection !== 1 ? ` / 実寸補正 x${formatNumber(page.scaleCorrection, 3)}` : ""}。次は入力モードを選んで図面上をクリックできます。`
         : "図面に書かれた縮尺を入力して確定してください。DPIは内部固定値で自動処理します。";
@@ -668,17 +967,25 @@ function renderPageList() {
       const text = document.createElement("div");
       const scaleText = page.scaleConfirmed ? `縮尺 1/${page.scaleDenominator} 確定` : "縮尺未確定";
       const calibrationText = page.scaleCorrection !== 1 ? `<span class="badge calibrated">補正x${formatNumber(page.scaleCorrection, 2)}</span>` : "";
+      const pendingText = page.renderError
+        ? `<span class="badge error">画像化失敗・再試行可</span>`
+        : page.missingImage
+          ? `<span class="badge error">元画像なし・再読込必要</span>`
+        : page.pendingPdf
+          ? `<span class="badge unconfirmed">画像化待ち</span>`
+          : `<span class="badge confirmed">表示準備済み</span>`;
       text.innerHTML = `
         <div class="page-name">${index + 1}. ${page.name}</div>
         <div class="page-meta">
           <span class="badge kind">${page.kind}</span>
+          ${pendingText}
           <span class="badge ${page.scaleConfirmed ? "confirmed" : "unconfirmed"}">${scaleText}</span>
           ${calibrationText}
           <span class="badge">${page.shapes.length}件</span>
         </div>`;
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = "表示";
+      button.textContent = page.renderError ? "再表示" : page.missingImage ? "要再読込" : "表示";
       row.addEventListener("click", () => selectPageByIndex(index));
       row.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -708,6 +1015,132 @@ function quantityLabel(page, shape) {
   return `${formatNumber(q.width)}m x ${formatNumber(q.height)}m = ${formatNumber(q.area)}m2${perimeter}`;
 }
 
+function rectangleBounds(points) {
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+}
+
+function renderOpeningCandidates() {
+  const page = activePage();
+  const pending = (page?.openingCandidates || []).filter((candidate) => candidate.status === "pending");
+  const excluded = (page?.openingCandidates || []).filter((candidate) => candidate.status === "excluded").length;
+  openingCandidateNote.textContent = !page?.image
+    ? "立面図を選び、外壁面積を囲んでください。"
+    : page.kind !== "立面図" || !page.scaleConfirmed || !page.shapes.some((shape) => shape.kind === "外壁面積" && shape.points.length >= 3)
+      ? "立面図の外壁面積を先に囲み、縮尺を確定してください。"
+      : `${pending.length}件の未採用候補。除外済み${excluded}件。候補は採用するまで数量に入りません。`;
+  openingCandidateList.replaceChildren(...pending.map((candidate, index) => {
+    const item = document.createElement("div");
+    item.className = "candidate-item";
+    const title = document.createElement("strong");
+    title.textContent = `候補 ${index + 1} / 確からしさ ${Math.round(candidate.confidence * 100)}%`;
+    const detail = document.createElement("span");
+    const width = metric(page, candidate.box.width);
+    const height = metric(page, candidate.box.height);
+    detail.textContent = `${formatNumber(width)}m x ${formatNumber(height)}m = ${formatNumber(width * height)}㎡`;
+    const actions = document.createElement("div");
+    actions.className = "candidate-actions";
+    const accept = document.createElement("button");
+    accept.type = "button";
+    accept.textContent = "採用";
+    accept.addEventListener("click", () => acceptOpeningCandidate(candidate.id));
+    const exclude = document.createElement("button");
+    exclude.type = "button";
+    exclude.textContent = "除外";
+    exclude.addEventListener("click", () => {
+      candidate.status = "excluded";
+      renderOpeningCandidates();
+      draw();
+      scheduleAutosave();
+    });
+    actions.append(accept, exclude);
+    item.append(title, detail, actions);
+    return item;
+  }));
+}
+
+function acceptOpeningCandidate(id) {
+  const page = activePage();
+  const candidate = page?.openingCandidates?.find((item) => item.id === id && item.status === "pending");
+  const wall = page?.shapes.find((shape) => shape.id === candidate?.wallId);
+  if (!candidate || !wall || !page.scaleConfirmed) {
+    setStatus("候補の元になった外壁範囲か縮尺を確認してください。");
+    return;
+  }
+  const { x, y, width, height } = candidate.box;
+  const shape = {
+    id: crypto.randomUUID(),
+    mode: "opening",
+    kind: "開口控除",
+    building: wall.building || "",
+    elevation: wall.elevation || "",
+    finish: wall.finish || "",
+    floor: wall.floor || "",
+    room: wall.room || "",
+    memo: "画像処理候補から採用。内法寸法・控除条件を要確認",
+    classification: { ...wall.classification, item: "開口控除", unit: "㎡" },
+    points: rectFromTwoPoints([{ x, y }, { x: x + width, y: y + height }]),
+    source: "画像処理候補を人確定",
+    ruleId: "E-02",
+    confidence: candidate.confidence,
+    createdAt: new Date().toLocaleString("ja-JP"),
+  };
+  page.shapes.push(shape);
+  page.openingCandidates = page.openingCandidates.filter((item) => item.id !== id);
+  state.selectedId = shape.id;
+  state.interaction = "select";
+  setDrawTypeButton(selectEdit);
+  setStatus("開口候補を採用しました。図形を選択し、内法寸法と控除条件を確認してください。", "success");
+  renderAllPanels();
+  syncControls();
+  draw();
+  scheduleAutosave();
+}
+
+async function findOpeningCandidates() {
+  const page = activePage();
+  if (!page?.image || page.kind !== "立面図" || !page.scaleConfirmed) return;
+  const walls = page.shapes.filter((shape) => shape.kind === "外壁面積" && shape.points.length >= 3);
+  if (walls.length === 0) return;
+  detectOpenings.disabled = true;
+  setStatus("ブラウザ内で外壁範囲の開口候補を調べています。");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  try {
+    const image = page.image;
+    const factor = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+    const buffer = document.createElement("canvas");
+    buffer.width = Math.max(1, Math.round(image.naturalWidth * factor));
+    buffer.height = Math.max(1, Math.round(image.naturalHeight * factor));
+    const bufferContext = buffer.getContext("2d", { willReadFrequently: true });
+    bufferContext.drawImage(image, 0, 0, buffer.width, buffer.height);
+    const scaleX = buffer.width / image.naturalWidth;
+    const scaleY = buffer.height / image.naturalHeight;
+    const found = detectOpeningRectangles(bufferContext.getImageData(0, 0, buffer.width, buffer.height), walls.map((wall) => ({
+      id: wall.id,
+      points: wall.points.map((point) => ({ x: point.x * scaleX, y: point.y * scaleY })),
+    })));
+    page.openingCandidates ||= [];
+    let added = 0;
+    for (const item of found) {
+      const box = { x: item.x / scaleX, y: item.y / scaleY, width: item.width / scaleX, height: item.height / scaleY };
+      const seen = page.openingCandidates.some((candidate) => intersectionOverUnion(candidate.box, box) > 0.55);
+      const confirmed = page.shapes.some((shape) => shape.mode === "opening" && shape.points.length >= 3 && intersectionOverUnion(rectangleBounds(shape.points), box) > 0.55);
+      if (seen || confirmed) continue;
+      page.openingCandidates.push({ id: crypto.randomUUID(), wallId: item.wallId, box, confidence: item.confidence, status: "pending", ruleId: "E-02" });
+      added += 1;
+    }
+    setStatus(`${added}件の開口候補を追加しました。採用前に位置と寸法を確認してください。`, "success");
+    renderOpeningCandidates();
+    draw();
+    scheduleAutosave();
+  } catch (error) {
+    setStatus(`候補検出に失敗しました: ${error.message || "画像を確認してください"}`);
+  } finally {
+    syncControls();
+  }
+}
+
 function renderQuantityList() {
   const entries = allShapeEntries();
   if (entries.length === 0) {
@@ -718,7 +1151,8 @@ function renderQuantityList() {
         const item = document.createElement("button");
         item.type = "button";
         item.className = `quantity-item${shape.id === state.selectedId ? " selected" : ""}`;
-        item.innerHTML = `<strong>${shape.kind} ${quantityLabel(page, shape)}</strong><span>${page.kind} / ${shape.building || "-"} / ${shape.elevation || "-"} / ${shape.finish || "-"} / No.${index + 1}</span>`;
+        const standardLabel = standardClassificationLabel(shape.classification) || "標準分類未設定";
+        item.innerHTML = `<strong>${shape.kind} ${quantityLabel(page, shape)}</strong><span>${standardLabel} / ${page.kind} / ${shape.building || "-"} / ${shape.floor || "-"} / ${shape.room || shape.elevation || "-"} / No.${index + 1}</span>`;
         item.addEventListener("click", () => {
           state.selectedId = shape.id;
           state.activePageId = page.id;
@@ -733,6 +1167,7 @@ function renderQuantityList() {
     );
   }
   renderSelectedEditor();
+  renderOpeningCandidates();
 }
 
 function renderSelectedEditor() {
@@ -744,7 +1179,20 @@ function renderSelectedEditor() {
   editBuilding.value = entry.shape.building || "";
   editElevation.value = entry.shape.elevation || "";
   editFinish.value = entry.shape.finish || "";
+  editFloor.value = entry.shape.floor || "";
+  editRoom.value = entry.shape.room || "";
   editMemo.value = entry.shape.memo || "";
+  populateSimpleOptions(editWorkType, WORK_TYPES, entry.shape.classification?.workTypeLabel || "建築改修工事");
+  editSubject.value = entry.shape.classification?.subject || "";
+  populateClassificationFields(
+    editStandardCategory,
+    editStandardDivision,
+    editStandardUnit,
+    editStandardItem,
+    editStandardItemOptions,
+    entry.shape.classification || {},
+  );
+  populatePartOptions(editStandardCategory, editPart, editPartOptions, entry.shape.classification?.part || "");
   editWidth.value = entry.shape.mode === "line" || isManual ? "" : formatNumber(q.width, 3);
   editHeight.value = entry.shape.mode === "line" || isManual ? "" : formatNumber(q.height, 3);
   editArea.value = entry.shape.mode === "line" ? "" : formatNumber(q.area, 3);
@@ -784,7 +1232,10 @@ function applySelectedEdits() {
   shape.building = editBuilding.value.trim();
   shape.elevation = editElevation.value.trim();
   shape.finish = editFinish.value.trim();
+  shape.floor = editFloor.value.trim();
+  shape.room = editRoom.value.trim();
   shape.memo = editMemo.value.trim();
+  shape.classification = classificationFromFields(editStandardCategory, editStandardDivision, editStandardUnit, editStandardItem, editWorkType, editSubject, editPart);
   shape.adopted = shape.adopted || {};
   if (shape.mode === "line") {
     const length = Number(editLength.value);
@@ -864,7 +1315,12 @@ function draw() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#667782";
     ctx.font = "24px sans-serif";
-    ctx.fillText("図面画像を読み込んでください", 60, 90);
+    const emptyMessage = page?.missingImage
+      ? "このページは元画像が未保存です。左上のファイル選択から元PDFを再読込みしてください"
+      : page?.pendingPdf
+        ? "このページを画像化しています"
+        : "図面画像を読み込んでください";
+    ctx.fillText(emptyMessage, 60, 90);
     return;
   }
   canvas.width = page.image.naturalWidth;
@@ -880,6 +1336,18 @@ function draw() {
     const fill = shape.mode === "line" ? null : selected ? "rgb(212 72 47 / 18%)" : "rgb(23 107 77 / 14%)";
     drawPolyline(shape.points, shape.mode !== "line", color, fill);
   });
+  if (!state.hideCandidatesInExport) {
+    ctx.save();
+    ctx.strokeStyle = "#b87817";
+    ctx.fillStyle = "rgb(255 202 87 / 16%)";
+    ctx.lineWidth = 2 / state.zoom;
+    ctx.setLineDash([7 / state.zoom, 5 / state.zoom]);
+    (page.openingCandidates || []).filter((candidate) => candidate.status === "pending").forEach(({ box }) => {
+      ctx.fillRect(box.x, box.y, box.width, box.height);
+      ctx.strokeRect(box.x, box.y, box.width, box.height);
+    });
+    ctx.restore();
+  }
   drawPolyline(state.currentPoints, false, "#c47717");
   if (state.dragPreview) {
     drawPolyline(state.dragPreview, state.dragPreview.length > 2, "#c47717", "rgb(196 119 23 / 16%)");
@@ -1080,7 +1548,10 @@ function addShape(points) {
     building: buildingInput.value.trim(),
     elevation: elevationInput.value.trim(),
     finish: finishInput.value.trim(),
+    floor: floorInput.value.trim(),
+    room: roomInput.value.trim(),
     memo: memoInput.value.trim(),
+    classification: classificationFromFields(standardCategory, standardDivision, standardUnit, standardItem, workType, subjectInput, partInput),
     points: points.map((point) => ({ ...point })),
     source: "人確定",
     createdAt: new Date().toLocaleString("ja-JP"),
@@ -1109,7 +1580,10 @@ function addManualShape() {
     building: buildingInput.value.trim(),
     elevation: elevationInput.value.trim(),
     finish: finishInput.value.trim(),
+    floor: floorInput.value.trim(),
+    room: roomInput.value.trim(),
     memo: memoInput.value.trim(),
+    classification: classificationFromFields(standardCategory, standardDivision, standardUnit, standardItem, workType, subjectInput, partInput),
     points: [],
     drawType: "manual",
     adopted: { area },
@@ -1258,6 +1732,12 @@ function compareText(a = "", b = "") {
 
 function compareOutputRows(a, b) {
   return (
+    compareText(a.工事種目, b.工事種目) ||
+    compareText(a.科目, b.科目) ||
+    (Number(a.標準分類順) || 99) - (Number(b.標準分類順) || 99) ||
+    compareText(a.区分, b.区分) ||
+    compareText(a.部位, b.部位) ||
+    compareText(a.細目, b.細目) ||
     compareText(a.棟, b.棟) ||
     directionRank(a.立面方位 || a.立面範囲) - directionRank(b.立面方位 || b.立面範囲) ||
     compareText(a.立面範囲, b.立面範囲) ||
@@ -1267,6 +1747,34 @@ function compareOutputRows(a, b) {
     compareText(a.図面名, b.図面名) ||
     compareText(a.対象ID, b.対象ID)
   );
+}
+
+function adoptedQuantityForUnit(row) {
+  if (row.単位 === "㎡") return row.面積m2 || 0;
+  if (row.単位 === "m") return row.延長m || row.周長m || 0;
+  if (row.単位 === "か所" || row.単位 === "枚" || row.単位 === "本") return 1;
+  return row.面積m2 || row.延長m || 0;
+}
+
+function buildStandardSummaryRows(quantityRows) {
+  const map = new Map();
+  quantityRows.forEach((row) => {
+    const keyFields = ["工事種目", "科目", "中科目", "区分", "部位", "細目", "摘要", "単位"];
+    const key = keyFields.map((field) => row[field] || "-").join("\t");
+    const current = map.get(key) || Object.fromEntries(keyFields.map((field) => [field, row[field] || "-"]));
+    current.計測数量未丸め = (current.計測数量未丸め || 0) + adoptedQuantityForUnit(row);
+    current.根拠件数 = (current.根拠件数 || 0) + 1;
+    current.標準分類順 = row.標準分類順;
+    map.set(key, current);
+  });
+  return [...map.values()]
+    .map((row) => ({
+      ...row,
+      計測数量: roundMeasurementQuantity(row.計測数量未丸め),
+      内訳数量: roundBreakdownQuantity(row.計測数量未丸め),
+      丸め: Number(row.計測数量未丸め) >= 100 ? "整数" : "小数第1位",
+    }))
+    .sort(compareOutputRows);
 }
 
 function sumFields(rows) {
@@ -1449,21 +1957,24 @@ function buildPrimarySummaryRows(quantityRows) {
 }
 
 const QUANTITY_HEADERS = [
-  "図面名", "図面種別", "対象ID", "棟", "立面方位", "立面範囲", "仕上", "分類", "入力種別",
+  "図面名", "図面種別", "対象ID", "工事種目", "科目", "中科目", "区分", "部位", "細目", "摘要", "単位", "棟", "階", "室名", "立面方位", "立面範囲", "仕上", "分類", "入力種別",
   "実測幅m", "実測高さm", "実測延長m", "実測面積m2", "実測周長m",
   "幅m", "高さm", "延長m", "面積m2", "周長m",
   "手修正", "縮尺", "実寸補正係数", "補正確認m", "画像DPI", "備考",
 ];
 const EVIDENCE_HEADERS = [
-  "図面名", "図面種別", "対象ID", "棟", "立面方位", "立面範囲", "仕上", "分類", "入力種別",
+  "図面名", "図面種別", "対象ID", "工事種目", "科目", "中科目", "区分", "部位", "細目", "摘要", "単位", "棟", "階", "室名", "立面方位", "立面範囲", "仕上", "分類", "入力種別",
   "採用幅m", "採用高さm", "採用延長m", "採用面積m2", "採用周長m",
   "根拠番号", "AI候補人確定", "縮尺確定", "実寸補正係数", "補正確認m", "概算区分", "座標", "承認日時", "備考",
 ];
 const SUMMARY_HEADERS = ["集計区分", "棟", "仕上", "立面方位", "立面範囲", "分類", "面積m2", "延長m", "周長m", "備考"];
 const PRIMARY_SUMMARY_HEADERS = ["集計区分", "棟", "仕上", "分類", "面積m2", "延長m", "周長m", "備考"];
+const STANDARD_SUMMARY_HEADERS = ["工事種目", "科目", "中科目", "区分", "部位", "細目", "摘要", "計測数量", "内訳数量", "単位", "丸め", "根拠件数"];
 
 const COLUMN_WIDTHS = {
   図面名: 22, 図面種別: 10, 対象ID: 12, 棟: 8, 立面方位: 8, 立面範囲: 14, 仕上: 16,
+  工事種目: 14, 科目: 12, 中科目: 12, 区分: 8, 部位: 12, 細目: 24, 摘要: 20, 単位: 7, 階: 8, 室名: 14,
+  計測数量: 10, 内訳数量: 10, 丸め: 10, 根拠件数: 9,
   分類: 12, 入力種別: 8, 集計区分: 12,
   実測幅m: 9, 実測高さm: 9, 実測延長m: 9, 実測面積m2: 10, 実測周長m: 9,
   幅m: 8, 高さm: 8, 延長m: 8, 面積m2: 9, 周長m: 8,
@@ -1488,7 +1999,18 @@ function buildQuantityRows() {
         図面名: page.name,
         図面種別: page.kind,
         対象ID: shape.id,
+        工事種目: shape.classification?.workTypeLabel || "未分類",
+        科目: shape.classification?.subject || "未分類",
+        中科目: shape.classification?.categoryLabel || "未分類",
+        区分: shape.classification?.divisionLabel || "未分類",
+        部位: shape.classification?.part || "未分類",
+        細目: shape.classification?.item || "未分類",
+        摘要: shape.finish || shape.memo || "",
+        単位: shape.classification?.unit || (shape.mode === "line" ? "m" : "㎡"),
+        標準分類順: shape.classification?.categoryOrder ?? 99,
         棟: shape.building,
+        階: shape.floor,
+        室名: shape.room,
         立面方位: elevationDirection(shape.elevation),
         立面範囲: shape.elevation,
         仕上: shape.finish,
@@ -1522,7 +2044,7 @@ function renderSummaryTable(container, rows, headers) {
     container.innerHTML = "<p class=\"small-note\">数量がまだありません。</p>";
     return;
   }
-  const numericHeaders = new Set(["面積m2", "延長m", "周長m"]);
+  const numericHeaders = new Set(["面積m2", "延長m", "周長m", "計測数量", "内訳数量", "根拠件数"]);
   const table = document.createElement("table");
   table.className = "summary-table";
   const thead = document.createElement("thead");
@@ -1536,7 +2058,8 @@ function renderSummaryTable(container, rows, headers) {
         .map((header) => {
           const value = row[header];
           if (numericHeaders.has(header)) {
-            return `<td>${Number(value) ? formatNumber(Number(value), 2) : ""}</td>`;
+            const digits = header === "内訳数量" ? breakdownQuantityDigits(value) : header === "根拠件数" ? 0 : 2;
+            return `<td>${Number(value) ? formatNumber(Number(value), digits) : ""}</td>`;
           }
           return `<td>${value ?? ""}</td>`;
         })
@@ -1550,6 +2073,7 @@ function renderSummaryTable(container, rows, headers) {
 
 function renderSummaryDialog() {
   const quantityRows = buildQuantityRows();
+  renderSummaryTable(summaryStandardTable, buildStandardSummaryRows(quantityRows), STANDARD_SUMMARY_HEADERS);
   renderSummaryTable(summaryPrimaryTable, buildPrimarySummaryRows(quantityRows), PRIMARY_SUMMARY_HEADERS);
   renderSummaryTable(summarySecondaryTable, buildSummaryRows(quantityRows), SUMMARY_HEADERS);
 }
@@ -1564,7 +2088,18 @@ function exportWorkbook() {
         図面名: page.name,
         図面種別: page.kind,
         対象ID: shape.id,
+        工事種目: shape.classification?.workTypeLabel || "未分類",
+        科目: shape.classification?.subject || "未分類",
+        中科目: shape.classification?.categoryLabel || "未分類",
+        区分: shape.classification?.divisionLabel || "未分類",
+        部位: shape.classification?.part || "未分類",
+        細目: shape.classification?.item || "未分類",
+        摘要: shape.finish || shape.memo || "",
+        単位: shape.classification?.unit || (shape.mode === "line" ? "m" : "㎡"),
+        標準分類順: shape.classification?.categoryOrder ?? 99,
         棟: shape.building,
+        階: shape.floor,
+        室名: shape.room,
         立面方位: elevationDirection(shape.elevation),
         立面範囲: shape.elevation,
         仕上: shape.finish,
@@ -1592,6 +2127,7 @@ function exportWorkbook() {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, buildPrintSheet(quantityRows, QUANTITY_HEADERS), "数量表");
   XLSX.utils.book_append_sheet(workbook, buildPrintSheet(evidenceRows, EVIDENCE_HEADERS), "根拠一覧");
+  XLSX.utils.book_append_sheet(workbook, buildPrintSheet(buildStandardSummaryRows(quantityRows), STANDARD_SUMMARY_HEADERS), "標準書式別集計");
   XLSX.utils.book_append_sheet(workbook, buildPrintSheet(buildPrimarySummaryRows(quantityRows), PRIMARY_SUMMARY_HEADERS), "一次集計");
   XLSX.utils.book_append_sheet(workbook, buildPrintSheet(buildSummaryRows(quantityRows), SUMMARY_HEADERS), "二次集計");
   XLSX.writeFile(workbook, `図面数量拾い_${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -1609,17 +2145,15 @@ function exportCanvasImage() {
   }
   const hadHorizontal = state.ruler.horizontal.visible;
   const hadVertical = state.ruler.vertical.visible;
-  if (hadHorizontal || hadVertical) {
-    state.ruler.horizontal.visible = false;
-    state.ruler.vertical.visible = false;
-    draw();
-  }
+  state.ruler.horizontal.visible = false;
+  state.ruler.vertical.visible = false;
+  state.hideCandidatesInExport = true;
+  draw();
   const dataUrl = canvas.toDataURL("image/png");
-  if (hadHorizontal || hadVertical) {
-    state.ruler.horizontal.visible = hadHorizontal;
-    state.ruler.vertical.visible = hadVertical;
-    draw();
-  }
+  state.ruler.horizontal.visible = hadHorizontal;
+  state.ruler.vertical.visible = hadVertical;
+  state.hideCandidatesInExport = false;
+  draw();
   const link = document.createElement("a");
   link.href = dataUrl;
   link.download = `${sanitizeFileName(page.name)}_数量拾い.png`;
@@ -1638,6 +2172,7 @@ async function exportAllImagesZip() {
   const hadVertical = state.ruler.vertical.visible;
   state.ruler.horizontal.visible = false;
   state.ruler.vertical.visible = false;
+  state.hideCandidatesInExport = true;
   const usedNames = new Set();
   const entries = [];
   for (const page of targetPages) {
@@ -1656,6 +2191,7 @@ async function exportAllImagesZip() {
   state.activePageId = originalActiveId;
   state.ruler.horizontal.visible = hadHorizontal;
   state.ruler.vertical.visible = hadVertical;
+  state.hideCandidatesInExport = false;
   draw();
   const zipBlob = await createZip(entries);
   const url = URL.createObjectURL(zipBlob);
@@ -1668,6 +2204,7 @@ async function exportAllImagesZip() {
 }
 
 fileInput.addEventListener("change", (event) => handleFiles(event.target.files));
+detectOpenings.addEventListener("click", findOpeningCandidates);
 saveWork.addEventListener("click", saveCurrentWork);
 loadWork.addEventListener("click", loadSelectedWork);
 deleteWork.addEventListener("click", deleteSelectedWork);
@@ -1678,6 +2215,30 @@ importWorkFile.addEventListener("change", (event) => {
   event.target.value = "";
 });
 applySelected.addEventListener("click", applySelectedEdits);
+standardCategory.addEventListener("change", () => {
+  standardItem.value = "";
+  partInput.value = "";
+  populateClassificationFields(standardCategory, standardDivision, standardUnit, standardItem, standardItemOptions);
+  populatePartOptions(standardCategory, partInput, partOptions);
+  updateStandardRuleNote();
+});
+standardDivision.addEventListener("change", () => {
+  standardItem.value = "";
+  populateClassificationFields(standardCategory, standardDivision, standardUnit, standardItem, standardItemOptions);
+  updateStandardRuleNote();
+});
+editStandardCategory.addEventListener("change", () => {
+  editStandardItem.value = "";
+  editPart.value = "";
+  populateClassificationFields(editStandardCategory, editStandardDivision, editStandardUnit, editStandardItem, editStandardItemOptions);
+  populatePartOptions(editStandardCategory, editPart, editPartOptions);
+});
+editStandardDivision.addEventListener("change", () => {
+  editStandardItem.value = "";
+  populateClassificationFields(editStandardCategory, editStandardDivision, editStandardUnit, editStandardItem, editStandardItemOptions);
+});
+quantityKind.addEventListener("change", suggestClassificationForKind);
+standardItem.addEventListener("input", updateStandardRuleNote);
 editWidth.addEventListener("input", refreshAreaPreview);
 editHeight.addEventListener("input", refreshAreaPreview);
 pageKind.addEventListener("change", () => {
@@ -1685,6 +2246,7 @@ pageKind.addEventListener("change", () => {
   if (!page) return;
   page.kind = pageKind.value;
   renderAllPanels();
+  syncControls();
   scheduleAutosave();
 });
 confirmScale.addEventListener("click", () => {
@@ -1772,6 +2334,8 @@ document.querySelectorAll(".mode-button").forEach((button) => {
     drawManual.disabled = state.mode === "line";
     setDrawTypeButton(drawPolygon);
     updateKindOptions();
+    standardUnit.value = state.mode === "line" ? "m" : "㎡";
+    suggestClassificationForKind();
     draw();
   });
 });
@@ -2021,6 +2585,15 @@ exportImage.addEventListener("click", exportCanvasImage);
 exportImagesZip.addEventListener("click", exportAllImagesZip);
 
 updateKindOptions();
+populateClassificationFields(standardCategory, standardDivision, standardUnit, standardItem, standardItemOptions, { unit: "㎡" });
+populateSimpleOptions(workType, WORK_TYPES, "建築改修工事");
+populateDatalist(subjectOptions, SUBJECTS);
+subjectInput.value = "庁舎";
+populatePartOptions(standardCategory, partInput, partOptions);
+suggestClassificationForKind();
+updateStandardRuleNote();
+populateCategoryOptions(editStandardCategory);
+populateSimpleOptions(editWorkType, WORK_TYPES, "建築改修工事");
 renderSavedWorks();
 updateZoomReadout();
 syncControls();

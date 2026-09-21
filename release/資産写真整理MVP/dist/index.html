@@ -4,71 +4,109 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#163a5f" />
-    <title>資産写真整理 MVP</title>
-    <script type="module" crossorigin src="/assets/index-DFnndkqn.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/xlsx-CSDiKpwJ.js">
-    <link rel="modulepreload" crossorigin href="/assets/qr-YEjG3M_E.js">
-    <link rel="modulepreload" crossorigin href="/assets/zip-DhXGBq_l.js">
-    <link rel="stylesheet" crossorigin href="/assets/qr-DlhOwIyv.css">
+    <title>施設調査ツール　写真ファイリング</title>
+    <script type="module" crossorigin src="./assets/index-8xFyvSIN.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/domain-BdU-FpMW.js">
+    <link rel="modulepreload" crossorigin href="./assets/excel-D0RPNfop.js">
+    <link rel="modulepreload" crossorigin href="./assets/zip-Bw9NSO-N.js">
+    <link rel="stylesheet" crossorigin href="./assets/excel-CztVpkN4.css">
   </head>
   <body>
     <header class="app-header">
-      <div>
-        <p class="eyebrow">施設調査 写真整理</p>
-        <h1>資産写真整理 MVP</h1>
+      <div class="app-title-block">
+        <div>
+        <p class="eyebrow">施設調査ツール</p>
+        <h1>写真ファイリング</h1>
+        </div>
+        <span class="header-privacy">写真・Excelは外部へ送信しません</span>
       </div>
-      <span class="local-badge">PC内で処理</span>
+      <div class="header-actions">
+        <a class="header-action" href="./">写真切替マーカーを開く</a>
+      </div>
     </header>
 
     <main>
-      <section class="privacy-banner" aria-label="データの取扱い">
-        <strong>写真・Excelは外部へ送信しません</strong>
-        <span>選択したファイルは、このPCのブラウザ内だけで処理します。</span>
-        <a class="header-action organizer-back-link" href="./">資産マーカーを表示</a>
-      </section>
-      <section class="panel" aria-labelledby="excel-heading">
+      <div class="workspace-layout">
+        <div class="workspace-side-columns">
+        <aside class="workspace-pane workspace-side" data-pane="prep" aria-label="準備と作業管理">
+      <div class="pane-toggle-bar">
+        <span class="pane-toggle-label">準備と作業管理</span>
+        <button class="pane-toggle-button" data-pane-toggle="prep" type="button" aria-expanded="true" title="このペインを折りたたむ">◀</button>
+      </div>
+      <div class="pane-body">
+      <section id="excel-panel" class="panel" aria-labelledby="excel-heading">
         <div class="step-label">1</div>
         <div class="step-body">
-          <h2 id="excel-heading">健全度判定表を読み込む</h2>
-          <p>「No11」シートから資産番号・資産名称・点検項目を読み取ります。元のExcelは変更しません。</p>
-          <label class="file-picker">
-            <span>Excelファイルを選択</span>
-            <input id="excel-input" type="file" accept=".xlsx" />
-          </label>
-          <div id="excel-status" class="status neutral" role="status">Excelを選択してください。</div>
-        </div>
-      </section>
-
-      <section class="panel" aria-labelledby="assets-heading">
-        <div class="step-label">2</div>
-        <div class="step-body">
-          <div class="section-heading-row">
-            <div>
-              <h2 id="assets-heading">資産とフォルダ構成を確認する</h2>
-              <p>「経過年数」はサブフォルダから除外します。</p>
-            </div>
-            <button id="create-folders" class="primary" disabled>フォルダを作成</button>
+          <div class="panel-title-row"><h2 id="excel-heading">読み込み</h2></div>
+          <div class="import-group">
+            <h3 class="import-group-title">健全度判定表</h3>
+            <label class="file-picker">
+              <span>ファイルを選択</span>
+              <input id="excel-input" type="file" accept=".xlsx" />
+            </label>
+            <div id="excel-file-name" class="selected-file-name" hidden></div>
+            <div id="excel-status" class="status neutral" role="status">未読込</div>
           </div>
-          <div id="summary" class="summary-grid" hidden></div>
-          <div id="assets-empty" class="empty-state">Excelを読み込むと資産一覧が表示されます。</div>
-          <div id="asset-list" class="asset-list"></div>
-          <div id="folder-status" class="status neutral" role="status" hidden></div>
+          <div id="photo-import-panel" class="import-group">
+            <h3 id="photo-import-heading" class="import-group-title">撮影写真</h3>
+            <label class="file-picker">
+              <span>ファイルを選択</span>
+              <input id="photo-input" type="file" accept="image/*,.heic,.heif" multiple disabled />
+            </label>
+            <div id="photo-file-name" class="selected-file-name" hidden></div>
+            <div id="photo-status" class="status neutral" role="status">Excel未読込</div>
+          </div>
         </div>
       </section>
 
-      <section id="camera-panel" class="panel camera-panel" aria-labelledby="camera-heading">
+      <section class="work-select-panel ui-card" aria-labelledby="work-select-heading">
+        <h2 id="work-select-heading">作業を選択</h2>
+        <div class="work-select-list">
+          <button class="workspace-tab" data-workspace-tab="assets" type="button">資産フォルダの作成</button>
+          <button class="workspace-tab active" data-workspace-tab="photos" type="button">写真整理</button>
+          <button class="workspace-tab" data-workspace-tab="output" type="button">出力・写真帳</button>
+        </div>
+      </section>
+
+      <section class="work-file-panel ui-card" aria-labelledby="work-file-heading">
+        <h2 id="work-file-heading">作業の保存・再開</h2>
+        <div class="work-file-group">
+          <h3 class="work-file-group-title">このPCで一時保存・再開</h3>
+          <div class="work-file-local">
+            <label>作業名<input id="session-name" class="ui-control" type="text" placeholder="例：管理本館 1回目" /></label>
+            <button id="save-session-snapshot" class="secondary" type="button">作業を保存</button>
+            <select id="saved-session-select" class="ui-control" aria-label="保存済み作業"></select>
+            <div class="work-file-actions">
+              <button id="load-session-snapshot" class="secondary" type="button" disabled>保存作業を開く</button>
+              <button id="delete-session-snapshot" class="secondary" type="button" disabled>削除</button>
+            </div>
+          </div>
+          <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
+        </div>
+        <div class="work-file-group">
+          <h3 class="work-file-group-title">他のPCへ引き継ぐ</h3>
+          <div class="work-file-transfer">
+            <button id="export-work-file" class="secondary" type="button">作業ファイル保存</button>
+            <button id="choose-work-folder" class="secondary" type="button">保存先変更</button>
+            <button id="import-work-file" class="secondary" type="button">作業ファイル読込</button>
+            <input id="import-work-file-input" type="file" accept="application/json,.json" hidden />
+          </div>
+        </div>
+      </section>
+
+      <section id="camera-panel" class="panel camera-panel" aria-labelledby="camera-heading" hidden>
         <div class="step-label">T</div>
         <div class="step-body">
           <div class="section-heading-row">
             <div>
               <p class="stage-badge">段階1・実機テスト</p>
               <h2 id="camera-heading">iPhoneで資産を選んで撮影する</h2>
-              <p>撮影前に資産を手動で選びます。別の資産へ切り替えた後、元の資産へ戻って追加撮影できます。</p>
+              <p>撮影する資産を選択します。</p>
             </div>
           </div>
 
           <label class="camera-asset-label" for="camera-asset">撮影する資産</label>
-          <select id="camera-asset" class="camera-asset-select" disabled>
+          <select id="camera-asset" class="camera-asset-select ui-control" disabled>
             <option value="">先にExcelを読み込んでください</option>
           </select>
 
@@ -87,8 +125,7 @@
               <span>ズーム <strong id="camera-zoom-value">1.0×</strong></span>
               <input id="camera-zoom" type="range" min="1" max="5" value="1" step="0.1" />
             </label>
-            <div id="camera-status" class="status neutral" role="status">撮影した写真は、下の写真一覧で選択資産に振り分けられます。
-            </div>
+            <div id="camera-status" class="status neutral" role="status">撮影後、写真一覧で確認できます。</div>
             <p class="camera-test-warning">※この段階は操作テスト用です。画面を再読み込み・終了すると撮影写真は消えるため、本番調査には使用しないでください。</p>
             <div id="camera-counts" class="camera-counts"></div>
             <button id="camera-save-zip" class="primary camera-save" type="button" disabled>資産別ZIPを保存</button>
@@ -96,44 +133,113 @@
           </div>
         </div>
       </section>
+      </div>
+        </aside>
+        <button class="pane-toggle-rail" data-pane-toggle="prep" type="button" hidden title="準備と作業管理を表示">
+          <span>▶</span><span class="pane-toggle-rail-label">準備と作業管理</span>
+        </button>
 
-      <section id="marker-panel" class="panel" aria-labelledby="marker-heading">
+        <aside class="workspace-pane workspace-side workspace-tools" data-pane="tools" aria-label="写真整理ツール">
+          <div class="pane-toggle-bar">
+            <span class="pane-toggle-label">写真整理ツール</span>
+            <button class="pane-toggle-button" data-pane-toggle="tools" type="button" aria-expanded="true" title="このペインを折りたたむ">◀</button>
+          </div>
+          <div class="pane-body">
+          <section class="panel workspace-tab-panel" data-workspace-panel="photos" aria-label="写真整理ツール">
+            <div class="step-body photo-tools-body">
+              <h2 class="sr-only">写真整理ツール</h2>
+              <div id="bulk-tools-sentinel"></div>
+              <div id="photo-tools-empty" class="tool-empty-state">
+                <strong>写真整理の操作パネル</strong>
+                <span id="photo-tools-empty-copy">健全度判定表と撮影写真を読み込むと、絞り込み・一括変更・確認済み操作が表示されます。</span>
+              </div>
+              <div id="bulk-tools" class="bulk-tools" hidden>
+                <div class="bulk-tools-content">
+                <div class="grid-density-toggle" role="group" aria-label="写真の表示サイズ">
+                  <span>写真の大きさ</span>
+                  <div class="grid-density-buttons">
+                    <button id="grid-density-6" type="button" class="secondary" aria-pressed="true">1列に6枚</button>
+                    <button id="grid-density-3" type="button" class="secondary" aria-pressed="false">1列に3枚</button>
+                  </div>
+                </div>
+                <button id="jump-to-bookmark" class="secondary" type="button" disabled>しおりへ移動</button>
+                <div class="bulk-always-visible">
+                  <label><input id="select-all-photos" type="checkbox" /> 表示中を全選択</label>
+                  <label><input id="bulk-exclude-toggle" type="checkbox" disabled /> <span id="bulk-exclude-toggle-label">選択写真を除外にする</span></label>
+                  <span id="bulk-selection-status" class="bulk-selection-status">0枚選択中</span>
+                  <select id="bulk-asset" aria-label="選択写真に設定する資産"></select>
+                  <button id="apply-bulk-asset" class="secondary" type="button" disabled>資産を一括変更</button>
+                  <button id="clear-review" class="secondary" type="button" disabled>確認済みにする</button>
+                </div>
+                <div id="photo-action-status" class="photo-action-status" aria-live="polite" hidden>
+                  <span id="photo-action-status-copy"></span>
+                  <button id="undo-photo-action" class="secondary" type="button">元に戻す</button>
+                </div>
+                <button id="edit-destination-order" class="secondary" type="button">分類順を編集</button>
+                <span id="export-toolbar-status" class="toolbar-status" role="status" hidden></span>
+                <div class="photo-toolbar-row bulk-photo-controls">
+                  <label class="photo-filter">並び替え・絞り込み<select id="photo-sort-filter" aria-label="写真の並び替え・絞り込み"></select></label>
+                  <label class="photo-filter">キーワード<input id="photo-filter-keyword" type="search" placeholder="写真名・資産名" aria-label="写真のキーワード絞り込み" /></label>
+                  <span id="photo-filter-status" class="photo-filter-status"></span>
+                  <button id="clear-all-review" class="secondary" type="button" hidden>表示中の要確認をまとめて解除</button>
+                </div>
+                <div id="photo-summary" class="summary-grid bulk-photo-summary" hidden></div>
+                <div id="photo-destination-alert" class="photo-destination-alert" role="status" hidden></div>
+                <button id="view-selection-summary" class="secondary" type="button">選択状況一覧</button>
+                </div>
+              </div>
+            </div>
+          </section>
+          </div>
+        </aside>
+        <button class="pane-toggle-rail" data-pane-toggle="tools" type="button" hidden title="写真整理ツールを表示">
+          <span>▶</span><span class="pane-toggle-rail-label">写真整理ツール</span>
+        </button>
+        </div>
+
+        <div class="workspace-main">
+
+        <section id="assets-panel" class="panel workspace-tab-panel" data-workspace-panel="assets" aria-labelledby="assets-heading" hidden>
+          <div class="step-label">2</div>
+          <div class="step-body">
+            <div class="section-heading-row">
+              <div>
+                <h2 id="assets-heading">資産とフォルダ構成を確認する</h2>
+                <p>「経過年数」はサブフォルダから除外します。</p>
+              </div>
+              <div class="section-heading-actions">
+                <button id="add-asset" class="secondary" type="button" disabled>資産を追加</button>
+                <button id="create-folders" class="primary" disabled>フォルダを作成</button>
+              </div>
+            </div>
+            <div id="summary" class="summary-grid" hidden></div>
+            <div id="asset-bulk-tools" class="asset-bulk-tools" hidden>
+              <label><input id="select-all-assets" type="checkbox" /> 全資産を選択</label>
+              <span id="asset-bulk-status" class="bulk-selection-status">0件選択中</span>
+              <button id="asset-bulk-site-absent" class="secondary" type="button" disabled>選択資産を現地なしにする</button>
+              <button id="asset-bulk-site-present" class="secondary" type="button" disabled>選択資産の現地なしを解除</button>
+            </div>
+            <div id="assets-empty" class="empty-state">Excelを読み込むと資産一覧が表示されます。</div>
+            <div id="asset-list" class="asset-list"></div>
+            <div id="folder-status" class="status neutral" role="status" hidden></div>
+          </div>
+        </section>
+
+      <section class="panel workspace-tab-panel" data-workspace-panel="photos" aria-labelledby="photos-heading">
         <div class="step-label">3</div>
         <div class="step-body">
-          <div class="section-heading-row">
-            <div>
-              <h2 id="marker-heading">資産切替マーカーを作る</h2>
-              <p>資産が変わるときに標準カメラで撮影するQR一覧です。</p>
+          <h2 id="photos-heading" class="sr-only">写真整理</h2>
+          <div id="photo-list" class="photo-grid">
+            <div class="photo-empty-state">
+              <strong>写真整理はここに表示されます</strong>
+              <span>左の「読み込み」から健全度判定表、次に撮影写真を選択してください。</span>
             </div>
-            <button id="print-markers" class="secondary" disabled>QR一覧を印刷</button>
           </div>
-          <div id="marker-list" class="marker-grid"></div>
         </div>
       </section>
 
-      <section class="panel" aria-labelledby="photos-heading">
+      <section class="panel workspace-tab-panel" data-workspace-panel="output" aria-labelledby="export-heading" hidden>
         <div class="step-label">4</div>
-        <div class="step-body">
-          <h2 id="photos-heading">撮影写真を読み込んで確認する</h2>
-          <p>端末1台分ずつ選択してください。ファイル名順にQRを読み取り、マーカー写真は納品対象から除外します。</p>
-          <label class="file-picker">
-            <span>写真をまとめて選択</span>
-            <input id="photo-input" type="file" accept="image/*,.heic,.heif" multiple disabled />
-          </label>
-          <div id="photo-status" class="status neutral" role="status">先にExcelを読み込んでください。</div>
-          <div id="bulk-tools" class="bulk-tools" hidden>
-            <label><input id="select-all-photos" type="checkbox" /> 表示中をすべて選択</label>
-            <select id="bulk-asset"></select>
-            <button id="apply-bulk-asset" class="secondary">選択写真の資産を変更</button>
-            <button id="clear-review" class="secondary">選択写真を確認済みにする</button>
-          </div>
-          <div id="photo-summary" class="summary-grid" hidden></div>
-          <div id="photo-list" class="photo-grid"></div>
-        </div>
-      </section>
-
-      <section class="panel" aria-labelledby="export-heading">
-        <div class="step-label">5</div>
         <div class="step-body">
           <div class="section-heading-row">
             <div>
@@ -151,48 +257,109 @@
         </div>
       </section>
 
-      <section id="album-panel" class="panel" aria-labelledby="album-heading">
-        <div class="step-label">6</div>
+      <section id="album-panel" class="panel workspace-tab-panel" data-workspace-panel="output" aria-labelledby="album-heading" hidden>
+        <div class="step-label">5</div>
         <div class="step-body">
           <div class="section-heading-row">
             <div>
-              <h2 id="album-heading">所定様式の写真帳を作成する</h2>
-              <p>写真帳様式のコピー内へ最新の「No11」と、全景1枚・確認項目ごとに最大4枚の写真を反映します。</p>
+              <h2 id="album-heading">写真帳作成セットを保存する</h2>
+              <p>写真の選択結果と実行用バッチをZIPで保存します。会社PCで展開して実行すると、写真帳のコピーへ写真を貼り付け、No11の点検結果1・2を転記します。</p>
             </div>
-            <button id="create-album" class="primary" disabled>写真帳を作成</button>
+            <button id="export-album-kit" class="primary" disabled>写真帳作成セットを保存</button>
           </div>
-          <label class="file-picker">
-            <span>写真帳様式を選択</span>
-            <input id="album-input" type="file" accept=".xlsx" disabled />
-          </label>
-          <div id="album-template-status" class="status neutral" role="status">先に健全度判定表を読み込んでください。</div>
           <div id="album-status" class="status neutral" role="status">写真帳分類で採用写真を選んでください。</div>
-          <p class="caution-note">作成中はMicrosoft Excelを操作しないでください。元の健全度判定表と写真帳様式は変更しません。</p>
+          <p class="caution-note">バッチ実行時に、写真帳Excel・元写真フォルダ・出力先を選択します。点検結果1・2はNo11の同じセルへ値だけを転記し、元のExcelと元写真は変更しません。</p>
+          <details class="local-album-direct">
+            <summary>ローカル版で直接作成する場合</summary>
+            <label class="file-picker">
+              <span>写真帳様式を選択</span>
+              <input id="album-input" type="file" accept=".xlsx" disabled />
+            </label>
+            <div id="album-template-status" class="status neutral" role="status">写真帳様式を選択してください。</div>
+            <button id="create-album" class="secondary" disabled>ローカル版で直接作成</button>
+          </details>
         </div>
       </section>
+        </div>
+      </div>
     </main>
+
+    <dialog id="preflight-dialog" class="preflight-dialog">
+      <form method="dialog">
+        <h2>出力前の確認</h2>
+        <p>次の項目を修正してから出力してください。まだファイル保存は開始していません。</p>
+        <div id="preflight-list" class="preflight-list"></div>
+        <button class="secondary" value="cancel">一覧へ戻る</button>
+      </form>
+    </dialog>
+    <dialog id="output-preview-dialog" class="output-preview-dialog">
+      <form method="dialog">
+        <h2 id="output-preview-title">出力内容の確認</h2>
+        <p id="output-preview-description">資産ごとに、全景・サブフォルダーへ入る写真を確認してください。</p>
+        <div id="output-preview-list" class="output-preview-list"></div>
+        <div class="output-preview-actions">
+          <button class="secondary" value="cancel">戻る</button>
+          <button id="output-preview-confirm" class="primary" value="confirm">この内容で出力</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="order-dialog" class="preflight-dialog">
+      <form method="dialog">
+        <h2>分類ごとの写真順</h2>
+        <p>写真帳への貼り付け順を変更できます。上下ボタンで並べ替えてください。</p>
+        <label class="order-picker">分類<select id="order-destination-select"></select></label>
+        <div id="order-list" class="order-list"></div>
+        <button class="secondary" value="cancel">閉じる</button>
+      </form>
+    </dialog>
+
+    <dialog id="asset-editor-dialog" class="asset-editor-dialog" aria-labelledby="asset-editor-heading">
+      <form id="asset-editor-form" method="dialog">
+        <h2 id="asset-editor-heading">資産を追加</h2>
+        <label>資産番号<input id="asset-editor-number" type="text" required /></label>
+        <label>資産名<input id="asset-editor-name" type="text" required /></label>
+        <div id="asset-editor-error" class="status error" role="alert" hidden></div>
+        <div class="dialog-actions">
+          <button class="secondary" type="button" value="cancel">キャンセル</button>
+          <button class="primary" type="submit" value="save">保存</button>
+        </div>
+      </form>
+    </dialog>
 
     <template id="asset-template">
       <details class="asset-card">
         <summary>
+          <label class="asset-select-label"><input class="asset-select" type="checkbox" /></label>
           <span class="asset-number"></span>
           <span class="asset-name"></span>
           <span class="item-count"></span>
+          <label class="asset-site-status"><input class="asset-site-absent" type="checkbox" /> 現地なし／対象外</label>
+          <span class="asset-warning" hidden></span>
         </summary>
+        <div class="asset-actions">
+          <button class="secondary asset-edit" type="button">番号・名称を変更</button>
+          <button class="secondary asset-delete" type="button">資産を削除</button>
+        </div>
         <ul class="item-list"></ul>
       </details>
     </template>
 
     <template id="photo-template">
       <article class="photo-card">
-        <label class="photo-check"><input class="photo-select" type="checkbox" /> 選択</label>
-        <img class="photo-thumb" alt="" loading="lazy" />
+        <div class="photo-thumb-wrap">
+          <div class="photo-card-checks">
+            <label class="photo-check"><input class="photo-select" type="checkbox" /> 選択</label>
+            <label class="photo-check"><input class="photo-exclude" type="checkbox" /> 除外</label>
+          </div>
+          <button class="photo-bookmark" type="button" title="ここまで確認" aria-label="ここまで確認済みにする">🔖</button>
+          <button class="photo-full-badge" type="button" title="全景として使う">全景</button>
+          <img class="photo-thumb" alt="" loading="lazy" />
+        </div>
         <div class="photo-info">
-          <strong class="photo-name"></strong>
+          <div class="photo-meta-row"><strong class="photo-name"></strong><span class="photo-date"></span></div>
           <label>資産<select class="photo-asset"></select></label>
-          <label>写真帳分類<select class="photo-destination"></select></label>
-          <label><input class="photo-exclude" type="checkbox" /> 納品から除外</label>
-          <span class="review-badge" hidden>要確認</span>
+          <div class="photo-destination-options"></div>
+          <button class="review-badge" type="button" hidden>要確認（押して解除）</button>
         </div>
       </article>
     </template>

@@ -103,6 +103,7 @@ label { display: grid; gap: .35rem; color: #34444f; font-size: .9rem; font-weigh
 .badge.confirmed { color: #15583f; background: #dff4ea; }
 .badge.unconfirmed { color: #704d11; background: #fff2d8; }
 .badge.calibrated { color: #5a3c88; background: #eee6fa; }
+.badge.error { color: #8c2d1f; background: #ffe7e2; }
 
 .scale-grid { display: grid; gap: .55rem; }
 .save-tools { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .45rem; }
@@ -166,6 +167,21 @@ label { display: grid; gap: .35rem; color: #34444f; font-size: .9rem; font-weigh
 .icon-btn:hover::after, .icon-btn:focus-visible::after { opacity: 1; }
 .mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
+.classification-fields {
+  display: grid;
+  gap: .5rem;
+  margin: 0;
+  padding: .65rem;
+  border: 1px solid #c8d4db;
+  border-radius: 6px;
+  background: #f7fafb;
+}
+.classification-fields legend { padding: 0 .3rem; color: #244a5c; font-size: .82rem; font-weight: 800; }
+.standard-rule-note { margin: 0; color: #4d626e; font-size: .76rem; line-height: 1.45; }
+.standard-guide { display: grid; gap: .3rem; padding-top: .5rem; border-top: 1px solid #d6e0e6; }
+.standard-guide-heading { display: flex; justify-content: space-between; gap: .5rem; color: #244a5c; font-size: .78rem; }
+.standard-guide-heading span { color: #667782; font-weight: 700; }
+.standard-measurement-advice { margin: 0; color: #15583f; font-size: .76rem; font-weight: 800; }
 .draw-type { display: grid; grid-template-columns: repeat(auto-fit, minmax(44px, 1fr)); gap: .4rem; }
 .draw-type--4 { grid-template-columns: repeat(auto-fit, minmax(44px, 1fr)); }
 .draw-type button.selected { color: #fff; border-color: #176b4d; background: #176b4d; }
@@ -213,7 +229,7 @@ label { display: grid; gap: .35rem; color: #34444f; font-size: .9rem; font-weigh
   align-items: center;
   gap: .45rem;
 }
-.page-nav button { padding: .45rem .75rem; }
+.page-nav button { min-width: 7.5rem; padding: .45rem .75rem; }
 .page-nav span { color: #34444f; font-weight: 800; text-align: center; white-space: nowrap; }
 .canvas-wrap {
   overflow: auto;
@@ -289,6 +305,12 @@ label { display: grid; gap: .35rem; color: #34444f; font-size: .9rem; font-weigh
 .summary-table td:first-child, .summary-table th:first-child { text-align: left; }
 .summary-table tr.summary-total-row td { font-weight: 800; background: #f6f9fa; }
 .quantity-list { display: grid; gap: .35rem; max-height: 220px; overflow: auto; }
+.candidate-list { display: grid; gap: .4rem; max-height: 260px; overflow: auto; }
+.candidate-item { display: grid; gap: .4rem; padding: .5rem; border: 1px dashed #b87817; border-radius: 6px; background: #fff9ed; }
+.candidate-item strong { font-size: .82rem; color: #69460e; }
+.candidate-item span { font-size: .76rem; color: #6b6250; }
+.candidate-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+.candidate-actions button { padding: .4rem; font-size: .8rem; }
 .quantity-item {
   display: grid;
   gap: .2rem;

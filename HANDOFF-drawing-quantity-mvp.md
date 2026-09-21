@@ -13,7 +13,9 @@ npm run dev
 
 ブラウザで `http://127.0.0.1:5173/drawing.html` を開く。
 
-ローカル処理前提。PDFレンダリングもVite開発サーバー内のローカルAPIで行い、図面データは外部送信しない。
+ローカル処理前提。PDFレンダリングはブラウザ内のPDF.js(pdfjs-dist)で行い、図面データは外部送信しない。サーバー側の変換処理(poppler)は不要になり、`npm run build`で生成した静的ファイル一式だけで動作する(社内サーバーへの配置やPCへのコピー配布が可能)。
+
+スキャン系PDF(JBIG2圧縮の白黒画像を含むもの、コピー機経由でPDF化した図面など)を正しく画像化するため、`pdfjs-dist`のJBIG2/OpenJPEG等のWASMデコーダを`public/pdfjs-wasm/`に配置し、`getDocument()`へ`wasmUrl`を明示指定している。これがないと該当ページが白紙のまま表示される不具合が起きるため、`pdfjs-dist`を更新した際は`node_modules/pdfjs-dist/wasm/`の中身を`public/pdfjs-wasm/`へ再コピーすること。
 
 ## 主要ファイル
 

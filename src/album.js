@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { photoDestinations } from "./domain.js";
 
 export async function inspectPhotoAlbumTemplate(file, assets) {
   const data = await file.arrayBuffer();
@@ -51,44 +52,106 @@ export function albumEntries(assets, photos) {
   const counts = new Map();
 
   for (const photo of photos) {
-    if (photo.excluded || !photo.destination) continue;
+    const destinations = photoDestinations(photo);
+    if (photo.excluded || !destinations.length) continue;
     if (photo.reviewRequired || photo.qrReadError) throw new Error(`${photo.file.name}は要確認です。確認済みにしてから写真帳を作成してください。`);
     const asset = assetMap.get(photo.assetNumber);
     if (!asset) throw new Error(`${photo.file.name}の資産分類が不正です。`);
-
-    let destinationType;
-    let itemNumber = null;
-    let limit;
-    let countKey;
-    if (photo.destination === "全景") {
-      destinationType = "full";
-      limit = 1;
-      countKey = `${asset.assetNumber}/full`;
-    } else {
-      const item = asset.items.find((candidate) => candidate.folderName === photo.destination);
-      if (!item) throw new Error(`${photo.file.name}の写真帳分類先が不正です。`);
-      destinationType = "item";
-      itemNumber = item.itemNumber;
-      limit = 4;
-      countKey = `${asset.assetNumber}/${itemNumber}`;
+    for (const destination of destinations) {
+      let destinationType;
+      let itemNumber = null;
+      let limit;
+      let countKey;
+      if (destination === "全景") {
+        destinationType = "full";
+        limit = 1;
+        countKey = `${asset.assetNumber}/full`;
+      } else {
+        const item = asset.items.find((candidate) => candidate.folderName === destination);
+        if (!item) throw new Error(`${photo.file.name}の写真帳分類先が不正です。`);
+        destinationType = "item";
+        itemNumber = item.itemNumber;
+        limit = 4;
+        countKey = `${asset.assetNumber}/${itemNumber}`;
+      }
+      const count = (counts.get(countKey) ?? 0) + 1;
+      counts.set(countKey, count);
+      if (count > limit) throw new Error(`${asset.assetNumber}の「${destination}」は最大${limit}枚です。`);
+      entries.push({ photo, assetNumber: asset.assetNumber, destinationType, itemNumber, destination, slotIndex: count - 1 });
     }
+  }
 
-    const count = (counts.get(countKey) ?? 0) + 1;
-    counts.set(countKey, count);
-    if (count > limit) {
-      const label = destinationType === "full" ? "全景" : photo.destination;
-      throw new Error(`${asset.assetNumber}の「${label}」は最大${limit}枚です。`);
+  for (const asset of assets) {
+    if (asset.siteAbsent) continue;
+    const fullCount = counts.get(`${asset.assetNumber}/full`) ?? 0;
+    if (fullCount !== 1) {
+      throw new Error(`${asset.assetNumber}の「全景」は必ず1枚選択してください（現在${fullCount}枚）。`);
     }
-    entries.push({ photo, assetNumber: asset.assetNumber, destinationType, itemNumber, slotIndex: count - 1 });
+  }
+
+  entries.sort((left, right) => {
+    if (left.assetNumber !== right.assetNumber) {
+      return left.assetNumber.localeCompare(right.assetNumber, "ja", { numeric: true });
+    }
+    if (left.destinationType !== right.destinationType) return left.destinationType === "full" ? -1 : 1;
+    if (left.destinationType === "item" && left.itemNumber !== right.itemNumber) {
+      return String(left.itemNumber).localeCompare(String(right.itemNumber), "ja", { numeric: true });
+    }
+    const leftOrder = left.photo.destinationOrder?.[left.destination] ?? photos.indexOf(left.photo);
+    const rightOrder = right.photo.destinationOrder?.[right.destination] ?? photos.indexOf(right.photo);
+    return leftOrder - rightOrder;
+  });
+  const slotCounts = new Map();
+  for (const entry of entries) {
+    const key = `${entry.assetNumber}/${entry.destination}`;
+    entry.slotIndex = slotCounts.get(key) ?? 0;
+    slotCounts.set(key, entry.slotIndex + 1);
   }
 
   if (!entries.length) throw new Error("写真帳に貼る写真が選ばれていません。");
   return entries;
 }
 
-async function postBinary(url, body) {
-  const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body });
-  if (!response.ok) throw new Error(await response.text() || "ファイルの受け渡しに失敗しました。");
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function postBinary(url, body, label, { timeoutMs = 120000, retries = 2 } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body,
+        signal: controller.signal,
+      });
+      const responseText = await response.text();
+      if (response.ok) return;
+
+      const detail = responseText.trim().replace(/\s+/g, " ").slice(0, 240);
+      const error = new Error(`${label}の受け渡しに失敗しました（HTTP ${response.status}${detail ? `：${detail}` : ""}）。`);
+      // 4xxは再試行しても同じ入力では直らないため、すぐに表示する。
+      if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) {
+        error.noRetry = true;
+        throw error;
+      }
+      lastError = error;
+    } catch (error) {
+      if (error?.noRetry) throw error;
+      if (error?.name === "AbortError") {
+        lastError = new Error(`${label}の送信がタイムアウトしました（${Math.round(timeoutMs / 1000)}秒）。通信状態を確認して再実行してください。`);
+      } else if (error instanceof TypeError) {
+        lastError = new Error(`${label}を送信できませんでした。通信状態を確認して再実行してください。`);
+      } else {
+        lastError = error;
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (attempt < retries) await sleep(600 * (attempt + 1));
+  }
+  throw lastError ?? new Error(`${label}の受け渡しに失敗しました。`);
 }
 
 export async function createPhotoAlbum({ healthWorkbook, albumTemplate, assets, photos, compress, onProgress = () => {} }) {
@@ -97,16 +160,16 @@ export async function createPhotoAlbum({ healthWorkbook, albumTemplate, assets, 
   const base = `/api/session/${sessionId}`;
 
   onProgress(0, entries.length + 3, "健全度判定表を準備中");
-  await postBinary(`${base}/health`, healthWorkbook);
+  await postBinary(`${base}/health`, healthWorkbook, `健全度判定表「${healthWorkbook.name}」`);
   onProgress(1, entries.length + 3, "写真帳様式を準備中");
-  await postBinary(`${base}/album`, albumTemplate);
+  await postBinary(`${base}/album`, albumTemplate, `写真帳様式「${albumTemplate.name}」`);
 
   const manifestEntries = [];
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index];
     const fileKey = String(index + 1).padStart(4, "0");
     const blob = await compress(entry.photo.file);
-    await postBinary(`${base}/photo/${fileKey}`, blob);
+    await postBinary(`${base}/photo/${fileKey}`, blob, `写真「${entry.photo.file.name}」`, { timeoutMs: 60000 });
     manifestEntries.push({
       fileKey,
       sourceName: entry.photo.file.name,

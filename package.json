@@ -7,11 +7,12 @@
     "dev": "vite",
     "build": "vite build && node scripts/prepare-hosted-site.mjs && node scripts/make-release.mjs",
     "preview": "vite preview",
-    "test": "node --test test/domain.test.js test/folders.test.js test/album.test.js test/camera.test.js test/zip.test.js test/photo-settings.test.js test/marker-storage.test.js",
+    "test": "node --test test/domain.test.js test/folders.test.js test/album.test.js test/photo-book-kit.test.js test/camera.test.js test/zip.test.js test/photo-settings.test.js test/marker-storage.test.js test/quantity-classification.test.js test/opening-detector.test.js",
     "fixtures": "node scripts/generate-photo-fixtures.mjs"
   },
   "dependencies": {
     "jsqr": "^1.4.0",
+    "pdfjs-dist": "^6.3.289",
     "qrcode": "^1.5.4",
     "xlsx": "^0.18.5"
   },
