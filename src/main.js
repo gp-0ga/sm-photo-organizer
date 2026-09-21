@@ -438,8 +438,7 @@ function destinationChoices(photo) {
   if (!asset) return "";
   const selected = new Set(photoDestinations(photo));
   const options = [{ value: "", label: "写真帳には使わない" }, ...asset.items.map((item) => ({ value: item.folderName, label: item.folderName }))];
-  return `<label class="photo-full-choice"><input type="checkbox" class="photo-full-check"${selected.has("全景") ? " checked" : ""} /> 全景</label>
-    <label class="photo-item-choice">サブフォルダー<select class="photo-item-select">${options.map(({ value, label }) => `<option value="${value}"${selected.has(value) ? " selected" : ""}>${label}</option>`).join("")}</select></label>`;
+  return `<label class="photo-item-choice">サブフォルダー<select class="photo-item-select">${options.map(({ value, label }) => `<option value="${value}"${selected.has(value) ? " selected" : ""}>${label}</option>`).join("")}</select></label>`;
 }
 
 function destinationLimit(destination) {
@@ -888,6 +887,7 @@ function createPhotoCard(photo) {
   assetSelect.innerHTML = assetOptions(photo.assetNumber ?? "");
   const destinationButton = node.querySelector(".photo-destination");
   const destinationOptionsPanel = node.querySelector(".photo-destination-options");
+  const fullBadge = node.querySelector(".photo-full-badge");
   const renderDestinationChooser = () => {
     const destinations = photoDestinations(photo);
     destinationButton.textContent = destinations.length ? destinations.join("・") : "分類なし";
@@ -895,6 +895,12 @@ function createPhotoCard(photo) {
     destinationButton.hidden = true;
     destinationOptionsPanel.dataset.open = "true";
     destinationOptionsPanel.hidden = false;
+    const hasAsset = Boolean(assets.find((item) => item.assetNumber === photo.assetNumber));
+    const isFull = destinations.includes("全景");
+    fullBadge.hidden = !hasAsset;
+    fullBadge.classList.toggle("active", isFull);
+    fullBadge.setAttribute("aria-pressed", String(isFull));
+    fullBadge.title = isFull ? "全景を解除" : "全景として使う";
   };
   renderDestinationChooser();
   node.querySelector(".photo-exclude").checked = photo.excluded;
@@ -946,20 +952,28 @@ function createPhotoCard(photo) {
     destinationOptionsPanel.hidden = destinationOptionsPanel.dataset.open !== "true";
   });
   destinationOptionsPanel.addEventListener("change", (event) => {
-    if (!event.target.matches(".photo-full-check, .photo-item-select")) return;
-    const full = destinationOptionsPanel.querySelector(".photo-full-check")?.checked;
-    const item = destinationOptionsPanel.querySelector(".photo-item-select")?.value || "";
-    if (full && destinationCount(photo, "全景") >= destinationLimit("全景") && !photoDestinations(photo).includes("全景") && !photo.excluded) {
-      event.target.checked = false;
-      setStatus(albumStatus, "全景は最大1枚です。", "error");
-      return;
-    }
+    if (!event.target.matches(".photo-item-select")) return;
+    const full = photoDestinations(photo).includes("全景");
+    const item = event.target.value || "";
     if (item && destinationCount(photo, item) >= destinationLimit(item) && !photoDestinations(photo).includes(item) && !photo.excluded) {
       event.target.value = "";
       setStatus(albumStatus, `${item}は最大4枚です。`, "error");
       return;
     }
     setPhotoDestinations(photo, [full ? "全景" : "", item]);
+    renderDestinationChooser();
+    updatePhotoDestinationAlert();
+    updateAlbumReadiness();
+    scheduleSessionSave();
+  });
+  fullBadge.addEventListener("click", () => {
+    const currentlyFull = photoDestinations(photo).includes("全景");
+    if (!currentlyFull && destinationCount(photo, "全景") >= destinationLimit("全景") && !photo.excluded) {
+      setStatus(albumStatus, "全景は最大1枚です。", "error");
+      return;
+    }
+    const item = destinationOptionsPanel.querySelector(".photo-item-select")?.value || "";
+    setPhotoDestinations(photo, [currentlyFull ? "" : "全景", item]);
     renderDestinationChooser();
     updatePhotoDestinationAlert();
     updateAlbumReadiness();
@@ -1527,6 +1541,11 @@ applyBulkAsset.addEventListener("click", () => {
       destinationPanel.innerHTML = destinationChoices(photo);
       destinationPanel.dataset.open = "true";
       destinationPanel.hidden = false;
+      const fullBadge = card.querySelector(".photo-full-badge");
+      fullBadge.hidden = !assets.find((item) => item.assetNumber === photo.assetNumber);
+      fullBadge.classList.remove("active");
+      fullBadge.setAttribute("aria-pressed", "false");
+      fullBadge.title = "全景として使う";
     }
   }
   updatePhotoSummary();

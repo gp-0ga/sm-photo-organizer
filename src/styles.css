@@ -231,11 +231,9 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .photo-meta-row .photo-date { flex: 0 0 auto; white-space: nowrap; font-size: .62rem; }
 .photo-destination-field { display: grid; gap: .3rem; color: #42515c; font-size: .8rem; font-weight: 700; }
 .photo-destination { justify-self: start; padding: .5rem .75rem; font-size: .8rem; }
-.photo-destination-options { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .28rem .45rem; max-height: 8rem; overflow: auto; padding: .4rem .45rem; border: 1px solid #c9d6de; border-radius: 7px; background: #f7fafb; font-size: .76rem; font-weight: 400; }
-.photo-destination-options label { display: flex; align-items: flex-start; gap: .35rem; }
-.photo-destination-options .photo-full-choice { display: inline-flex; align-items: center; width: fit-content; gap: .2rem; padding: .2rem .35rem; border: 1px solid #c9d6de; border-radius: 5px; background: white; font-size: .7rem; line-height: 1; }
-.photo-item-choice { display: flex; align-items: center; min-width: 0; gap: .25rem; white-space: nowrap; }
-.photo-item-select { min-width: 0; padding: .35rem; border: 1px solid #b9c9d4; border-radius: 6px; background: white; font: inherit; }
+.photo-destination-options { display: flex; align-items: center; padding: .4rem .45rem; border: 1px solid #c9d6de; border-radius: 7px; background: #f7fafb; font-size: .76rem; font-weight: 400; }
+.photo-item-choice { display: flex; align-items: center; width: 100%; min-width: 0; gap: .35rem; white-space: nowrap; }
+.photo-item-select { flex: 1 1 auto; min-width: 0; padding: .35rem; border: 1px solid #b9c9d4; border-radius: 6px; background: white; font: inherit; }
 .photo-destination-chip { display: inline-block; margin: .1rem .2rem .1rem 0; padding: .12rem .35rem; border-radius: 999px; color: #23485d; background: #e5f1f7; font-size: .7rem; }
 .preflight-dialog { width: min(680px, calc(100% - 2rem)); border: 0; border-radius: 14px; padding: 1.25rem; box-shadow: 0 20px 60px rgb(23 33 43 / 28%); }
 .preflight-dialog::backdrop { background: rgb(23 33 43 / 48%); }
@@ -398,6 +396,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   0%, 100% { box-shadow: none; }
   30% { box-shadow: 0 0 0 6px rgb(217 154 0 / 45%); }
 }
+.photo-thumb-wrap { position: relative; }
 .photo-bookmark {
   position: absolute; z-index: 1; top: .45rem; right: .45rem;
   width: 2.2rem; height: 2.2rem; display: grid; place-items: center;
@@ -409,6 +408,13 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .photo-card-checks { position: absolute; z-index: 1; top: .35rem; left: .35rem; display: flex; gap: .25rem; }
 .photo-check { display: flex; align-items: center; gap: .2rem; padding: .2rem .3rem; border-radius: 5px; background: rgb(255 255 255 / 94%); font-size: .68rem; line-height: 1; }
 .photo-thumb { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #e8edf0; }
+.photo-full-badge {
+  position: absolute; z-index: 1; bottom: .45rem; left: .45rem;
+  padding: .3rem .6rem; border: 1px solid #2a658f; border-radius: 999px;
+  background: rgb(255 255 255 / 90%); color: #163a5f; font-size: .74rem; font-weight: 800;
+  cursor: pointer; box-shadow: 0 2px 6px rgb(23 33 43 / 18%);
+}
+.photo-full-badge.active { background: #163a5f; color: white; border-color: #163a5f; }
 .photo-info { display: grid; gap: .3rem; padding: .45rem; }
 .photo-info strong { display: block; max-height: 2.4em; overflow: hidden; overflow-wrap: anywhere; font-size: .7rem; line-height: 1.2; }
 .photo-info label { display: grid; gap: .12rem; font-size: .66rem; color: #53616c; }

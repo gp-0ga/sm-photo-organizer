@@ -307,12 +307,15 @@
 
     <template id="photo-template">
       <article class="photo-card">
-        <div class="photo-card-checks">
-          <label class="photo-check"><input class="photo-select" type="checkbox" /> 選択</label>
-          <label class="photo-check"><input class="photo-exclude" type="checkbox" /> 除外</label>
+        <div class="photo-thumb-wrap">
+          <div class="photo-card-checks">
+            <label class="photo-check"><input class="photo-select" type="checkbox" /> 選択</label>
+            <label class="photo-check"><input class="photo-exclude" type="checkbox" /> 除外</label>
+          </div>
+          <button class="photo-bookmark" type="button" title="ここまで確認">🔖</button>
+          <button class="photo-full-badge" type="button" title="全景として使う">全景</button>
+          <img class="photo-thumb" alt="" loading="lazy" />
         </div>
-        <button class="photo-bookmark" type="button" title="ここまで確認">🔖</button>
-        <img class="photo-thumb" alt="" loading="lazy" />
         <div class="photo-info">
           <div class="photo-meta-row"><strong class="photo-name"></strong><span class="photo-date"></span></div>
           <label>資産<select class="photo-asset"></select></label>
