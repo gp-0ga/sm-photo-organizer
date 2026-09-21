@@ -38,6 +38,32 @@ function Add-EmbeddedPicture {
     )
 }
 
+function Find-PhotoFrame {
+    param(
+        $Sheet,
+        [string]$LeftColumn,
+        [int]$HeaderRow,
+        [int]$NextHeaderRow,
+        $FallbackRange
+    )
+
+    # 写真帳の様式で実際に結合されている写真枠を使う。
+    # 行数の決め打ちではなく、枠そのものの上端・幅を取得するため、
+    # 項目ごとの高さが異なっても写真が枠からずれない。
+    for ($row = $HeaderRow + 1; $row -lt $NextHeaderRow; $row++) {
+        $cell = $Sheet.Range("$LeftColumn$row")
+        if (-not [bool]$cell.MergeCells) { continue }
+        $frame = $cell.MergeArea
+        if (
+            ([int]$frame.Row -ne $row) -or
+            ([int]$frame.Column -ne [int]$cell.Column) -or
+            ([int]$frame.Rows.Count -lt 4)
+        ) { continue }
+        return $frame
+    }
+    return $FallbackRange
+}
+
 try {
     $stage = 'Excelを起動しています'
     try { $excel = New-Object -ComObject Excel.Application }
@@ -201,20 +227,19 @@ try {
             foreach ($photo in $photosByItem[$key]) {
                 $stage = "資産 $($asset.assetNumber)・項目 $($item.ItemNumber) の写真「$($photo.sourceName)」を貼り付けています"
                 $slot = [int]$photo.slotIndex
-                # 写真欄は項目見出しの直下ではなく、その次の赤枠セルから始まります。
-                # 幅は既存の列範囲のまま、上端だけを写真欄の上端に合わせます。
                 $topRow = $item.Row + 5
                 $nextHeaderRow = if ($itemIndex -lt $itemRows.Count - 1) { $itemRows[$itemIndex + 1].Row } else { $item.Row + 14 }
                 $bottomRow = [Math]::Max($topRow, $nextHeaderRow - 2)
-                $address = switch ($slot) {
-                    0 { "C${topRow}:K${bottomRow}" }
-                    1 { "N${topRow}:T${bottomRow}" }
-                    2 { "W${topRow}:AC${bottomRow}" }
-                    3 { "AF${topRow}:AL${bottomRow}" }
+                $frame = switch ($slot) {
+                    0 { @{ Column = 'C'; Address = "C${topRow}:K${bottomRow}" } }
+                    1 { @{ Column = 'N'; Address = "N${topRow}:T${bottomRow}" } }
+                    2 { @{ Column = 'W'; Address = "W${topRow}:AC${bottomRow}" } }
+                    3 { @{ Column = 'AF'; Address = "AF${topRow}:AL${bottomRow}" } }
                     default { throw "Invalid photo slot for item $($item.ItemNumber)." }
                 }
                 $photoPath = Join-Path (Join-Path $SessionRoot 'photos') ($photo.fileKey + '.jpg')
-                $target = $sheet.Range($address)
+                $fallback = $sheet.Range($frame.Address)
+                $target = Find-PhotoFrame -Sheet $sheet -LeftColumn $frame.Column -HeaderRow $item.Row -NextHeaderRow $nextHeaderRow -FallbackRange $fallback
                 $shape = Add-EmbeddedPicture -Sheet $sheet -PhotoPath $photoPath -TargetRange $target
                 $shape.LockAspectRatio = -1
                 $shape.Width = [single][Math]::Min([double]$target.Width, 170.0787)
