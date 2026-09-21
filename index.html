@@ -22,8 +22,12 @@
 
     <main>
       <div class="workspace-layout">
-        <aside class="workspace-side" aria-label="準備と作業管理">
-      <div class="side-panel-heading"><span>準備と作業管理</span><button id="hide-side-panel" class="secondary" type="button">左ペインを隠す</button></div>
+        <aside class="workspace-pane workspace-side" data-pane="prep" aria-label="準備と作業管理">
+      <div class="pane-toggle-bar">
+        <span class="pane-toggle-label">準備と作業管理</span>
+        <button class="pane-toggle-button" data-pane-toggle="prep" type="button" aria-expanded="true" title="このペインを折りたたむ">◀</button>
+      </div>
+      <div class="pane-body">
       <section id="excel-panel" class="panel" aria-labelledby="excel-heading">
         <div class="step-label">1</div>
         <div class="step-body">
@@ -79,44 +83,6 @@
         <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
       </section>
 
-      <section class="panel workspace-tab-panel" data-workspace-panel="photos" aria-label="写真整理ツール">
-        <div class="step-body photo-tools-body">
-          <h2 class="sr-only">写真整理ツール</h2>
-          <div id="bulk-tools-sentinel"></div>
-          <div id="bulk-tools" class="bulk-tools" hidden>
-            <button id="bulk-tools-collapse" class="bulk-tools-collapse" type="button" aria-expanded="true" title="ツールバーを折りたたむ">▲</button>
-            <div class="bulk-tools-content">
-            <button id="jump-to-bookmark" class="secondary" type="button" disabled>しおりへ移動</button>
-            <div class="bulk-always-visible">
-              <label><input id="select-all-photos" type="checkbox" /> 表示中を全選択</label>
-              <span id="bulk-selection-status" class="bulk-selection-status">0枚選択中</span>
-              <select id="bulk-asset" aria-label="選択写真に設定する資産"></select>
-              <button id="apply-bulk-asset" class="secondary" type="button" disabled>資産を一括変更</button>
-              <button id="clear-review" class="secondary" type="button" disabled>確認済みにする</button>
-              <button id="bulk-exclude" class="secondary" type="button" disabled>選択写真を除外にする</button>
-              <button id="bulk-include" class="secondary" type="button" disabled>選択写真の除外を解除</button>
-            </div>
-            <button id="edit-destination-order" class="secondary" type="button">分類順を編集</button>
-            <button id="view-selection-summary" class="secondary" type="button">選択状況一覧</button>
-            <span id="export-toolbar-status" class="toolbar-status" role="status" hidden></span>
-            <div class="photo-toolbar-row bulk-photo-controls">
-              <label class="photo-filter">並び替え・絞り込み<select id="photo-sort-filter" aria-label="写真の並び替え・絞り込み"></select></label>
-              <label class="photo-filter">キーワード<input id="photo-filter-keyword" type="search" placeholder="写真名・資産名" aria-label="写真のキーワード絞り込み" /></label>
-              <span id="photo-filter-status" class="photo-filter-status"></span>
-              <button id="clear-all-review" class="secondary" type="button" hidden>表示中の要確認をまとめて解除</button>
-              <div class="grid-density-toggle" role="group" aria-label="写真の表示サイズ">
-                <span>写真の大きさ</span>
-                <button id="grid-density-6" type="button" class="secondary" aria-pressed="true">1列に6枚</button>
-                <button id="grid-density-3" type="button" class="secondary" aria-pressed="false">1列に3枚</button>
-              </div>
-            </div>
-            <div id="photo-summary" class="summary-grid bulk-photo-summary" hidden></div>
-            <div id="photo-destination-alert" class="photo-destination-alert" role="status" hidden></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section id="camera-panel" class="panel camera-panel" aria-labelledby="camera-heading" hidden>
         <div class="step-label">T</div>
         <div class="step-body">
@@ -156,9 +122,60 @@
           </div>
         </div>
       </section>
+      </div>
         </aside>
+        <button class="pane-toggle-rail" data-pane-toggle="prep" type="button" hidden title="準備と作業管理を表示">
+          <span>▶</span><span class="pane-toggle-rail-label">準備と作業管理</span>
+        </button>
 
-        <button id="show-side-panel" class="side-panel-reopen secondary" type="button" hidden>左ペインを表示</button>
+        <aside class="workspace-pane workspace-side workspace-tools" data-pane="tools" aria-label="写真整理ツール">
+          <div class="pane-toggle-bar">
+            <span class="pane-toggle-label">写真整理ツール</span>
+            <button class="pane-toggle-button" data-pane-toggle="tools" type="button" aria-expanded="true" title="このペインを折りたたむ">◀</button>
+          </div>
+          <div class="pane-body">
+          <section class="panel workspace-tab-panel" data-workspace-panel="photos" aria-label="写真整理ツール">
+            <div class="step-body photo-tools-body">
+              <h2 class="sr-only">写真整理ツール</h2>
+              <div id="bulk-tools-sentinel"></div>
+              <div id="bulk-tools" class="bulk-tools" hidden>
+                <button id="bulk-tools-collapse" class="bulk-tools-collapse" type="button" aria-expanded="true" title="ツールバーを折りたたむ">▲</button>
+                <div class="bulk-tools-content">
+                <button id="jump-to-bookmark" class="secondary" type="button" disabled>しおりへ移動</button>
+                <div class="bulk-always-visible">
+                  <label><input id="select-all-photos" type="checkbox" /> 表示中を全選択</label>
+                  <span id="bulk-selection-status" class="bulk-selection-status">0枚選択中</span>
+                  <select id="bulk-asset" aria-label="選択写真に設定する資産"></select>
+                  <button id="apply-bulk-asset" class="secondary" type="button" disabled>資産を一括変更</button>
+                  <button id="clear-review" class="secondary" type="button" disabled>確認済みにする</button>
+                  <button id="bulk-exclude" class="secondary" type="button" disabled>選択写真を除外にする</button>
+                  <button id="bulk-include" class="secondary" type="button" disabled>選択写真の除外を解除</button>
+                </div>
+                <button id="edit-destination-order" class="secondary" type="button">分類順を編集</button>
+                <button id="view-selection-summary" class="secondary" type="button">選択状況一覧</button>
+                <span id="export-toolbar-status" class="toolbar-status" role="status" hidden></span>
+                <div class="photo-toolbar-row bulk-photo-controls">
+                  <label class="photo-filter">並び替え・絞り込み<select id="photo-sort-filter" aria-label="写真の並び替え・絞り込み"></select></label>
+                  <label class="photo-filter">キーワード<input id="photo-filter-keyword" type="search" placeholder="写真名・資産名" aria-label="写真のキーワード絞り込み" /></label>
+                  <span id="photo-filter-status" class="photo-filter-status"></span>
+                  <button id="clear-all-review" class="secondary" type="button" hidden>表示中の要確認をまとめて解除</button>
+                  <div class="grid-density-toggle" role="group" aria-label="写真の表示サイズ">
+                    <span>写真の大きさ</span>
+                    <button id="grid-density-6" type="button" class="secondary" aria-pressed="true">1列に6枚</button>
+                    <button id="grid-density-3" type="button" class="secondary" aria-pressed="false">1列に3枚</button>
+                  </div>
+                </div>
+                <div id="photo-summary" class="summary-grid bulk-photo-summary" hidden></div>
+                <div id="photo-destination-alert" class="photo-destination-alert" role="status" hidden></div>
+                </div>
+              </div>
+            </div>
+          </section>
+          </div>
+        </aside>
+        <button class="pane-toggle-rail" data-pane-toggle="tools" type="button" hidden title="写真整理ツールを表示">
+          <span>▶</span><span class="pane-toggle-rail-label">写真整理ツール</span>
+        </button>
 
         <div class="workspace-main">
 

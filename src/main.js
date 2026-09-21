@@ -84,10 +84,8 @@ const viewSelectionSummaryButton = document.querySelector("#view-selection-summa
 const showAssetsTabButton = document.querySelector("#show-assets-tab");
 const workspaceTabs = [...document.querySelectorAll("[data-workspace-tab]")];
 const workspacePanels = [...document.querySelectorAll("[data-workspace-panel]")];
-const workspaceLayout = document.querySelector(".workspace-layout");
-const workspaceSide = document.querySelector(".workspace-side");
-const hideSidePanelButton = document.querySelector("#hide-side-panel");
-const showSidePanelButton = document.querySelector("#show-side-panel");
+const workspacePanes = [...document.querySelectorAll(".workspace-pane[data-pane]")];
+const paneToggleButtons = [...document.querySelectorAll("[data-pane-toggle]")];
 const editDestinationOrderButton = document.querySelector("#edit-destination-order");
 const orderDialog = document.querySelector("#order-dialog");
 const orderDestinationSelect = document.querySelector("#order-destination-select");
@@ -1010,15 +1008,45 @@ function selectWorkspaceTab(name) {
 for (const tab of workspaceTabs) tab.addEventListener("click", () => selectWorkspaceTab(tab.dataset.workspaceTab));
 if (showAssetsTabButton) showAssetsTabButton.addEventListener("click", () => selectWorkspaceTab("assets"));
 
-function setSidePanelCollapsed(collapsed) {
-  workspaceLayout?.classList.toggle("side-panel-collapsed", collapsed);
-  if (workspaceSide) workspaceSide.setAttribute("aria-hidden", String(collapsed));
-  if (hideSidePanelButton) hideSidePanelButton.hidden = collapsed;
-  if (showSidePanelButton) showSidePanelButton.hidden = !collapsed;
+const PANE_COLLAPSE_KEY_PREFIX = "workspace-pane-collapsed-";
+
+function setPaneCollapsed(paneName, collapsed) {
+  const pane = workspacePanes.find((element) => element.dataset.pane === paneName);
+  if (pane) {
+    pane.classList.toggle("pane-collapsed", collapsed);
+    pane.setAttribute("aria-hidden", String(collapsed));
+  }
+  for (const button of paneToggleButtons) {
+    if (button.dataset.paneToggle !== paneName) continue;
+    if (button.classList.contains("pane-toggle-rail")) {
+      button.hidden = !collapsed;
+      button.classList.toggle("visible", collapsed);
+    } else {
+      button.setAttribute("aria-expanded", String(!collapsed));
+    }
+  }
+  try {
+    localStorage.setItem(`${PANE_COLLAPSE_KEY_PREFIX}${paneName}`, collapsed ? "1" : "0");
+  } catch {
+    // 開閉状態を保存できない場合も表示は継続する
+  }
 }
 
-hideSidePanelButton?.addEventListener("click", () => setSidePanelCollapsed(true));
-showSidePanelButton?.addEventListener("click", () => setSidePanelCollapsed(false));
+for (const button of paneToggleButtons) {
+  const paneName = button.dataset.paneToggle;
+  const collapseOnClick = !button.classList.contains("pane-toggle-rail");
+  button.addEventListener("click", () => setPaneCollapsed(paneName, collapseOnClick));
+}
+
+for (const pane of workspacePanes) {
+  let restored = false;
+  try {
+    restored = localStorage.getItem(`${PANE_COLLAPSE_KEY_PREFIX}${pane.dataset.pane}`) === "1";
+  } catch {
+    restored = false;
+  }
+  setPaneCollapsed(pane.dataset.pane, restored);
+}
 editDestinationOrderButton.addEventListener("click", openDestinationOrderEditor);
 orderDestinationSelect.addEventListener("change", renderDestinationOrder);
 orderList.addEventListener("click", (event) => {
