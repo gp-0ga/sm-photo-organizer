@@ -11,6 +11,7 @@ import { createPhotoWorkFile, readPhotoWorkFile } from "./photo-work-file.js";
 
 const hostedOrganizer = /\/organize(?:\.html)?$/i.test(window.location.pathname);
 if (hostedOrganizer) document.body.classList.add("hosted-organizer");
+const isLocalPhotoBookApp = ["127.0.0.1", "localhost", "[::1]"].includes(window.location.hostname);
 
 const excelInput = document.querySelector("#excel-input");
 const excelFileName = document.querySelector("#excel-file-name");
@@ -105,6 +106,10 @@ const cameraStatus = document.querySelector("#camera-status");
 const cameraCounts = document.querySelector("#camera-counts");
 const cameraSaveZip = document.querySelector("#camera-save-zip");
 const cameraSaveStatus = document.querySelector("#camera-save-status");
+
+function photoBookLocalOnlyMessage() {
+  return "写真帳作成は、ExcelをPC内で操作するためローカル版で実行します。作業用フォルダの start-mvp.bat を開き、http://127.0.0.1:8765/ で作業してください。";
+}
 
 let assets = [];
 let photos = [];
@@ -1493,6 +1498,10 @@ exportPhotosButton.addEventListener("click", async () => {
 });
 
 createAlbumButton.addEventListener("click", async () => {
+  if (!isLocalPhotoBookApp) {
+    setStatus(albumStatus, photoBookLocalOnlyMessage(), "error");
+    return;
+  }
   createAlbumButton.disabled = true;
   setStatus(albumStatus, "写真帳を準備しています…", "working");
   try {
@@ -1681,5 +1690,10 @@ deleteSessionSnapshotButton.addEventListener("click", async () => {
     void refreshSnapshotList();
   }
 });
+
+if (!isLocalPhotoBookApp) {
+  createAlbumButton.title = "写真帳作成はPC用ローカル版で実行します";
+  setStatus(albumStatus, "写真帳作成はPC用ローカル版で実行します。", "neutral");
+}
 
 void restoreSession();
