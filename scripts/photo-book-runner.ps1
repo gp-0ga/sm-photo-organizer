@@ -43,8 +43,7 @@ try {
     if ($instruction.kind -ne 'asset-photo-album-instruction' -or $instruction.version -ne 1) { throw 'この写真整理MVPで作成した写真帳作成セットではありません。' }
     if (-not @($instruction.photos).Count) { throw '写真帳へ貼り付ける写真がありません。' }
 
-    $healthPath = Select-InputFile '健全度判定表を選択してください'
-    $templatePath = Select-InputFile '写真帳様式を選択してください'
+    $templatePath = Select-InputFile '写真を貼り付ける写真帳Excelを選択してください'
     $photoFolder = Select-InputFolder '元写真が入ったフォルダを選択してください（子フォルダも検索します）'
     $outputFolder = Select-InputFolder '写真帳の出力先フォルダを選択してください'
 
@@ -58,7 +57,6 @@ try {
     $sessionRoot = Join-Path ([IO.Path]::GetTempPath()) ("sm-photo-book-" + [guid]::NewGuid().ToString())
     $photoRoot = Join-Path $sessionRoot 'photos'
     New-Item -ItemType Directory -Path $photoRoot -Force | Out-Null
-    Copy-Item -LiteralPath $healthPath -Destination (Join-Path $sessionRoot 'health.xlsx') -Force
     Copy-Item -LiteralPath $templatePath -Destination (Join-Path $sessionRoot 'album.xlsx') -Force
 
     $manifestPhotos = @()

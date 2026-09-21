@@ -724,10 +724,10 @@ async function createPhotoBookKit() {
     "",
     "1. ZIPを展開します。",
     "2. 「START-PHOTO-BOOK.bat」をダブルクリックします。",
-    "3. 健全度判定表、写真帳様式、元写真フォルダ、出力先フォルダを順に選びます。",
-    "4. 元のExcelは変更せず、出力先に写真貼付済みのコピーを作成します。",
+    "3. 写真帳Excel、元写真フォルダ、出力先フォルダを順に選びます。",
+    "4. 元の写真帳Excelは変更せず、出力先に写真だけを貼り付けたコピーを作成します。",
     "",
-    "注意：Microsoft ExcelがインストールされたWindows PCで実行してください。",
+    "注意：このセットでは点検結果1・2を転記しません。Microsoft ExcelがインストールされたWindows PCで実行してください。",
     "元写真はJPG、JPEG、PNGに対応します。同名写真が複数ある場合は整理してから実行してください。",
   ].join("\r\n");
   const blob = await createZip([

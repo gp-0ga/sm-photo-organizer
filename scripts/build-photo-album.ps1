@@ -48,15 +48,18 @@ try {
     $excel.EnableEvents = $false
     $excel.ScreenUpdating = $false
 
-    $stage = '健全度判定表と写真帳コピーを開いています'
-    $healthBook = $excel.Workbooks.Open($healthPath, 0, $true)
+    $stage = '写真帳コピーを開いています'
     $albumBook = $excel.Workbooks.Open($outputPath, 0, $false)
+
+    # 健全度判定表のコピーがある場合だけ、点検結果1・2の転記を行う。
+    # 写真貼付のみのセットではhealth.xlsxを作らないため、この処理は完全に省略される。
+    if (Test-Path -LiteralPath $healthPath -PathType Leaf) {
+    $stage = '健全度判定表を開いています'
+    $healthBook = $excel.Workbooks.Open($healthPath, 0, $true)
     $sourceNo11 = $healthBook.Worksheets.Item('No11')
     $targetNo11 = $albumBook.Worksheets.Item('No11')
     if ($targetNo11.ProtectContents) { throw 'The No11 sheet in the photo album is protected.' }
 
-    # No11全体は置き換えず、点検結果1・2の値と入力規則だけを対応セルへ反映する。
-    # 写真帳側の書式、数式、行構成、既存のセレクトボックスは維持する。
     $sourceUsed = $sourceNo11.UsedRange
     $targetUsed = $targetNo11.UsedRange
     $sourceValues = $sourceUsed.Value2
@@ -137,15 +140,12 @@ try {
     $excel.CutCopyMode = 0
     $healthBook.Close($false)
     $healthBook = $null
-
-    $albumBook.Save()
-    $excel.CalculateFullRebuild()
+    }
 
     $sheetByAsset = @{}
     $stage = '写真帳の資産シートを確認しています'
     foreach ($sheet in $albumBook.Worksheets) {
         if ($sheet.Name -match '^\d+_\d+$') {
-            $sheet.Calculate()
             $assetNumber = [string]$sheet.Range('AB4').Value2
             if ([string]::IsNullOrWhiteSpace($assetNumber)) { $assetNumber = [string]$sheet.Range('AO2').Value2 }
             if (-not [string]::IsNullOrWhiteSpace($assetNumber)) { $sheetByAsset[$assetNumber.Trim()] = $sheet }
