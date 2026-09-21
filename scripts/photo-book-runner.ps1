@@ -89,7 +89,8 @@ try {
     $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $sessionRoot 'manifest.json') -Encoding UTF8
 
     & (Join-Path $PSScriptRoot 'build-photo-album.ps1') -SessionRoot $sessionRoot
-    $outputName = [IO.Path]::GetFileNameWithoutExtension($templatePath) + '_写真貼付済_' + (Get-Date -Format 'yyyyMMdd_HHmm') + '.xlsx'
+    # 選択した写真帳の名前を残し、同じ分に複数回実行しても重複しないよう秒まで付ける。
+    $outputName = [IO.Path]::GetFileNameWithoutExtension($templatePath) + '_写真貼付済_' + (Get-Date -Format 'yyyyMMdd_HHmmss') + '.xlsx'
     $outputPath = Join-Path $outputFolder $outputName
     Copy-Item -LiteralPath (Join-Path $sessionRoot 'output.xlsx') -Destination $outputPath -Force
     [System.Windows.Forms.MessageBox]::Show("写真帳を作成しました。`n$outputPath", '資産写真整理MVP') | Out-Null
