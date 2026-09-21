@@ -63,6 +63,7 @@ const photoFilterKeyword = document.querySelector("#photo-filter-keyword");
 const photoFilterStatus = document.querySelector("#photo-filter-status");
 const photoTemplate = document.querySelector("#photo-template");
 const bulkTools = document.querySelector("#bulk-tools");
+const photoToolsEmpty = document.querySelector("#photo-tools-empty");
 const bulkToolsSentinel = document.querySelector("#bulk-tools-sentinel");
 const selectAllPhotos = document.querySelector("#select-all-photos");
 const bulkSelectionStatus = document.querySelector("#bulk-selection-status");
@@ -94,6 +95,8 @@ const workspaceTabs = [...document.querySelectorAll("[data-workspace-tab]")];
 const workspacePanels = [...document.querySelectorAll("[data-workspace-panel]")];
 const workspacePanes = [...document.querySelectorAll(".workspace-pane[data-pane]")];
 const paneToggleButtons = [...document.querySelectorAll("[data-pane-toggle]")];
+const workspaceToolsPane = document.querySelector('.workspace-pane[data-pane="tools"]');
+const workspaceToolsRail = document.querySelector('.pane-toggle-rail[data-pane-toggle="tools"]');
 const editDestinationOrderButton = document.querySelector("#edit-destination-order");
 const orderDialog = document.querySelector("#order-dialog");
 const orderDestinationSelect = document.querySelector("#order-destination-select");
@@ -229,7 +232,7 @@ function renderAssets() {
   assetsEmpty.hidden = true;
   addAssetButton.disabled = false;
   renderSummary();
-  bulkTools.hidden = assets.length === 0 && photos.length === 0;
+  updatePhotoToolsVisibility();
   renderPhotoFilterOptions();
   const currentAssetNumbers = new Set(assets.map((asset) => asset.assetNumber));
   for (const assetNumber of [...selectedAssetNumbers]) {
@@ -311,6 +314,21 @@ function renderPhotoFilterOptions() {
   `;
   const allValues = [...orderOptions, ...filterOptions].map((option) => option.value);
   photoSortFilter.value = allValues.includes(previousValue) ? previousValue : ORDER_CAPTURE_VALUE;
+}
+
+function updatePhotoToolsVisibility() {
+  const hasPhotos = photos.length > 0;
+  bulkTools.hidden = !hasPhotos;
+  if (photoToolsEmpty) photoToolsEmpty.hidden = hasPhotos;
+}
+
+function renderPhotoEmptyState() {
+  const empty = document.createElement("div");
+  empty.className = "photo-empty-state";
+  empty.innerHTML = assets.length
+    ? "<strong>撮影写真を読み込んでください</strong><span>写真を選択すると、QRマーカーをもとに資産ごとの整理を始められます。</span>"
+    : "<strong>写真整理はここに表示されます</strong><span>左の「読み込み」から健全度判定表、次に撮影写真を選択してください。</span>";
+  photoList.replaceChildren(empty);
 }
 
 function matchesPhotoFilter(photo) {
@@ -1020,6 +1038,14 @@ function renderPhotos() {
   thumbnailUrls.clear();
   photoRenderObserver?.disconnect();
   photoList.replaceChildren();
+  if (!photos.length) {
+    renderPhotoEmptyState();
+    updatePhotoToolsVisibility();
+    updatePhotoSummary();
+    updateBulkControls();
+    jumpToBookmarkButton.disabled = true;
+    return;
+  }
   let displayPhotos = photos.slice();
   if (currentOrderMode() === "asset") {
     const assetOrder = new Map([...assets, OTHER_ASSET].map((asset, index) => [asset.assetNumber, index]));
@@ -1055,7 +1081,7 @@ function renderPhotos() {
   }
   photoRenderCursor = 0;
   appendPhotoRenderChunk();
-  bulkTools.hidden = assets.length === 0 && photos.length === 0;
+  updatePhotoToolsVisibility();
   bulkAsset.innerHTML = assetOptions();
   selectAllPhotos.checked = false;
   selectAllPhotos.indeterminate = false;
@@ -1075,12 +1101,22 @@ function selectWorkspaceTab(name) {
     tab.setAttribute("aria-selected", String(active));
   }
   for (const panel of workspacePanels) panel.hidden = panel.dataset.workspacePanel !== name;
+  syncToolsPaneForWorkspace(name);
 }
 
 for (const tab of workspaceTabs) tab.addEventListener("click", () => selectWorkspaceTab(tab.dataset.workspaceTab));
 if (showAssetsTabButton) showAssetsTabButton.addEventListener("click", () => selectWorkspaceTab("assets"));
 
 const PANE_COLLAPSE_KEY_PREFIX = "workspace-pane-collapsed-";
+
+function syncToolsPaneForWorkspace(workspaceName) {
+  if (!workspaceToolsPane || !workspaceToolsRail) return;
+  const isPhotoWorkspace = workspaceName === "photos";
+  const isCollapsed = workspaceToolsPane.classList.contains("pane-collapsed");
+  workspaceToolsPane.hidden = !isPhotoWorkspace;
+  workspaceToolsRail.hidden = !isPhotoWorkspace || !isCollapsed;
+  workspaceToolsRail.classList.toggle("visible", isPhotoWorkspace && isCollapsed);
+}
 
 function setPaneCollapsed(paneName, collapsed) {
   const pane = workspacePanes.find((element) => element.dataset.pane === paneName);
@@ -1101,6 +1137,10 @@ function setPaneCollapsed(paneName, collapsed) {
     localStorage.setItem(`${PANE_COLLAPSE_KEY_PREFIX}${paneName}`, collapsed ? "1" : "0");
   } catch {
     // 開閉状態を保存できない場合も表示は継続する
+  }
+  if (paneName === "tools") {
+    const activeWorkspace = workspaceTabs.find((tab) => tab.classList.contains("active"))?.dataset.workspaceTab;
+    syncToolsPaneForWorkspace(activeWorkspace);
   }
 }
 
@@ -1345,7 +1385,7 @@ cameraShutter.addEventListener("click", async () => {
     // 撮影時は既存カードを作り直さず、新しい1枚だけを追加する。
     // 大量の写真を扱う現場で、既存サムネイルの再読込を避けるため。
     photoList.append(createPhotoCard(photos.at(-1)));
-    bulkTools.hidden = false;
+    updatePhotoToolsVisibility();
     bulkAsset.innerHTML = assetOptions();
     updatePhotoSummary();
     updateBulkControls();
