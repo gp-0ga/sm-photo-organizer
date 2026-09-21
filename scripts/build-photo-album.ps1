@@ -17,6 +17,7 @@ $healthBook = $null
 $albumBook = $null
 $sourceNo11 = $null
 $targetNo11 = $null
+$stage = 'Excelを起動しています'
 
 function Add-EmbeddedPicture {
     param(
@@ -38,6 +39,7 @@ function Add-EmbeddedPicture {
 }
 
 try {
+    $stage = 'Excelを起動しています'
     try { $excel = New-Object -ComObject Excel.Application }
     catch { throw 'Microsoft Excel is not installed or could not be started.' }
     $excel.Visible = $false
@@ -46,6 +48,7 @@ try {
     $excel.EnableEvents = $false
     $excel.ScreenUpdating = $false
 
+    $stage = '健全度判定表と写真帳コピーを開いています'
     $healthBook = $excel.Workbooks.Open($healthPath, 0, $true)
     $albumBook = $excel.Workbooks.Open($outputPath, 0, $false)
     $sourceNo11 = $healthBook.Worksheets.Item('No11')
@@ -114,6 +117,7 @@ try {
     }
     $sourceAssetIndex = [int]$sourceHeaders['資産番号'] - $sourceFirstColumn + 1
     $sourceItemIndex = [int]$sourceHeaders['項目番号'] - $sourceFirstColumn + 1
+    $stage = 'No11の点検結果1・2を転記しています'
     for ($row = $sourceHeaderRow + 1; $row -le $sourceRowCount; $row++) {
         $assetNumber = ([string]$sourceValues[$row, $sourceAssetIndex]).Trim()
         $itemNumber = ([string]$sourceValues[$row, $sourceItemIndex]).Trim()
@@ -138,6 +142,7 @@ try {
     $excel.CalculateFullRebuild()
 
     $sheetByAsset = @{}
+    $stage = '写真帳の資産シートを確認しています'
     foreach ($sheet in $albumBook.Worksheets) {
         if ($sheet.Name -match '^\d+_\d+$') {
             $sheet.Calculate()
@@ -155,6 +160,7 @@ try {
     }
 
     foreach ($asset in $manifest.assets) {
+        $stage = "資産 $($asset.assetNumber) の写真貼り付け先を確認しています"
         if (-not $sheetByAsset.ContainsKey([string]$asset.assetNumber)) { throw "No photo sheet found for asset $($asset.assetNumber)." }
         $sheet = $sheetByAsset[[string]$asset.assetNumber]
         $validItems = @{}
@@ -163,6 +169,7 @@ try {
         $fullKey = "$($asset.assetNumber)/full"
         if ($photosByItem.ContainsKey($fullKey)) {
             $photo = $photosByItem[$fullKey][0]
+            $stage = "資産 $($asset.assetNumber) の全景写真「$($photo.sourceName)」を貼り付けています"
             $photoPath = Join-Path (Join-Path $SessionRoot 'photos') ($photo.fileKey + '.jpg')
             $target = $sheet.Range('E5:S18')
             $shape = Add-EmbeddedPicture -Sheet $sheet -PhotoPath $photoPath -TargetRange $target
@@ -186,6 +193,7 @@ try {
             $key = "$($asset.assetNumber)/$($item.ItemNumber)"
             if (-not $photosByItem.ContainsKey($key)) { continue }
             foreach ($photo in $photosByItem[$key]) {
+                $stage = "資産 $($asset.assetNumber)・項目 $($item.ItemNumber) の写真「$($photo.sourceName)」を貼り付けています"
                 $slot = [int]$photo.slotIndex
                 $topRow = $item.Row + 4
                 $bottomRow = $item.Row + 12
@@ -215,6 +223,9 @@ try {
     $albumBook.Save()
     $albumBook.Close($true)
     $albumBook = $null
+}
+catch {
+    throw "処理段階：$stage`n$($_.Exception.Message)"
 }
 finally {
     if ($healthBook -ne $null) { $healthBook.Close($false) }

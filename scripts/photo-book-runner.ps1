@@ -96,8 +96,11 @@ try {
     [System.Windows.Forms.MessageBox]::Show("写真帳を作成しました。`n$outputPath", '資産写真整理MVP') | Out-Null
 }
 catch {
-    [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, '写真帳作成エラー') | Out-Null
-    Write-Error $_.Exception.Message
+    $message = $_.Exception.Message
+    $errorLogPath = Join-Path $PSScriptRoot 'photo-book-error.log'
+    Set-Content -LiteralPath $errorLogPath -Value $message -Encoding UTF8
+    [System.Windows.Forms.MessageBox]::Show("$message`n`n詳細を $errorLogPath に保存しました。", '写真帳作成エラー') | Out-Null
+    Write-Error $message
 }
 finally {
     if ($sessionRoot -and (Test-Path -LiteralPath $sessionRoot)) { Remove-Item -LiteralPath $sessionRoot -Recurse -Force -ErrorAction SilentlyContinue }
