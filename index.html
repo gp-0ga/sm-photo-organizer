@@ -22,6 +22,7 @@
 
     <main>
       <div class="workspace-layout">
+        <div class="workspace-side-columns">
         <aside class="workspace-pane workspace-side" data-pane="prep" aria-label="準備と作業管理">
       <div class="pane-toggle-bar">
         <span class="pane-toggle-label">準備と作業管理</span>
@@ -65,22 +66,28 @@
 
       <section class="work-file-panel ui-card" aria-labelledby="work-file-heading">
         <h2 id="work-file-heading">作業の保存・再開</h2>
-        <div class="work-file-local">
-          <label>作業名<input id="session-name" class="ui-control" type="text" placeholder="例：管理本館 1回目" /></label>
-          <button id="save-session-snapshot" class="secondary" type="button">作業を保存</button>
-          <select id="saved-session-select" class="ui-control" aria-label="保存済み作業"></select>
-          <div class="work-file-actions">
-            <button id="load-session-snapshot" class="secondary" type="button" disabled>保存作業を開く</button>
-            <button id="delete-session-snapshot" class="secondary" type="button" disabled>削除</button>
+        <div class="work-file-group">
+          <h3 class="work-file-group-title">このPCで一時保存・再開</h3>
+          <div class="work-file-local">
+            <label>作業名<input id="session-name" class="ui-control" type="text" placeholder="例：管理本館 1回目" /></label>
+            <button id="save-session-snapshot" class="secondary" type="button">作業を保存</button>
+            <select id="saved-session-select" class="ui-control" aria-label="保存済み作業"></select>
+            <div class="work-file-actions">
+              <button id="load-session-snapshot" class="secondary" type="button" disabled>保存作業を開く</button>
+              <button id="delete-session-snapshot" class="secondary" type="button" disabled>削除</button>
+            </div>
+          </div>
+          <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
+        </div>
+        <div class="work-file-group">
+          <h3 class="work-file-group-title">他のPCへ引き継ぐ</h3>
+          <div class="work-file-transfer">
+            <button id="export-work-file" class="secondary" type="button">作業ファイル保存</button>
+            <button id="choose-work-folder" class="secondary" type="button">保存先変更</button>
+            <button id="import-work-file" class="secondary" type="button">作業ファイル読込</button>
+            <input id="import-work-file-input" type="file" accept="application/json,.json" hidden />
           </div>
         </div>
-        <div class="work-file-transfer" title="別PCへ作業を引き継ぐ場合">
-          <button id="export-work-file" class="secondary" type="button">作業ファイル保存</button>
-          <button id="choose-work-folder" class="secondary" type="button">保存先変更</button>
-          <button id="import-work-file" class="secondary" type="button">作業ファイル読込</button>
-          <input id="import-work-file-input" type="file" accept="application/json,.json" hidden />
-        </div>
-        <div id="session-status" class="session-status" role="status">作業内容はこのPCのブラウザに自動保存されます。</div>
       </section>
 
       <section id="camera-panel" class="panel camera-panel" aria-labelledby="camera-heading" hidden>
@@ -175,6 +182,7 @@
         <button class="pane-toggle-rail" data-pane-toggle="tools" type="button" hidden title="写真整理ツールを表示">
           <span>▶</span><span class="pane-toggle-rail-label">写真整理ツール</span>
         </button>
+        </div>
 
         <div class="workspace-main">
 

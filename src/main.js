@@ -828,7 +828,7 @@ function applyLoadedSession(saved, message = "") {
     albumTemplateFile = saved.albumTemplateFile;
     bookmarkPhotoId = photos.some((photo) => photo.id === saved.bookmarkPhotoId) ? saved.bookmarkPhotoId : null;
     setSelectedFileName(excelFileName, healthWorkbookFile?.name || "");
-    setSelectedFileName(photoFileName, photos.length ? `${photos.length}枚` : "");
+    setSelectedFileName(photoFileName, "");
     if (saved.photoTargetKb) photoTargetKb.value = saved.photoTargetKb;
     renderAssets();
     renderCameraAssets();
@@ -1495,7 +1495,7 @@ photoInput.addEventListener("change", async () => {
     markerCount = result.markers.length;
     bookmarkPhotoId = null;
     renderPhotos();
-    setSelectedFileName(photoFileName, `${photos.length}枚`);
+    setSelectedFileName(photoFileName, "");
     setStatus(photoStatus, `${photos.length}枚の写真と${markerCount}枚のマーカーを読み取りました。`, "success");
   } catch (error) {
     setStatus(photoStatus, error.message ?? String(error), "error");
