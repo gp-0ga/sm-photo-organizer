@@ -85,6 +85,7 @@ main { width: min(1440px, calc(100% - 2rem)); margin: 1.5rem auto 4rem; }
 .workspace-side .panel { grid-template-columns: 2rem minmax(0, 1fr); min-width: 0; border-radius: 11px; box-shadow: 0 5px 14px rgb(23 33 43 / 6%); }
 .workspace-side .step-label { border-radius: 11px 0 0 11px; font-size: 1rem; }
 .workspace-side .step-body { min-width: 0; overflow: hidden; padding: .7rem; }
+.workspace-side .photo-tools-body { overflow: visible; }
 .workspace-side h2 { font-size: 1.02rem; }
 .workspace-side p { overflow-wrap: anywhere; font-size: .82rem; }
 .workspace-side .status { margin-top: .55rem; padding: .5rem .6rem; font-size: .78rem; }
