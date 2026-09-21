@@ -25,8 +25,16 @@ function Select-InputFolder {
     return $dialog.SelectedPath
 }
 
-function Convert-ToJpeg {
+function Prepare-PhotoForExcel {
     param([string]$SourcePath, [string]$DestinationPath)
+
+    # JPG/JPEGは同じ形式なので再圧縮せず、画質と処理時間を保ったまま連番名へコピーする。
+    if ([IO.Path]::GetExtension($SourcePath) -match '^(?i)\.jpe?g$') {
+        Copy-Item -LiteralPath $SourcePath -Destination $DestinationPath -Force
+        return
+    }
+
+    # PNGだけ、Excelへ同じ手順で挿入できるようJPEGへ変換する。
     $image = $null
     try {
         $image = [System.Drawing.Image]::FromFile($SourcePath)
@@ -71,8 +79,8 @@ try {
         if ($matches.Count -gt 1) { throw "同名の元写真が複数あります：$($photo.fileName)。写真フォルダを整理してから再実行してください。" }
         $index += 1
         $fileKey = $index.ToString('0000')
-        try { Convert-ToJpeg -SourcePath $matches[0].FullName -DestinationPath (Join-Path $photoRoot ($fileKey + '.jpg')) }
-        catch { throw "写真をJPEGへ変換できません：$($photo.fileName)。JPG、JPEG、PNG形式の写真を選択してください。" }
+        try { Prepare-PhotoForExcel -SourcePath $matches[0].FullName -DestinationPath (Join-Path $photoRoot ($fileKey + '.jpg')) }
+        catch { throw "写真を貼り付け用に準備できません：$($photo.fileName)。JPG、JPEG、PNG形式の写真を選択してください。" }
         $manifestPhotos += [PSCustomObject]@{
             fileKey = $fileKey
             sourceName = [string]$photo.fileName
