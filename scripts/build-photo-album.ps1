@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Mandatory = $true)]
     [string]$SessionRoot
 )
@@ -177,18 +177,7 @@ try {
             }
         }
 
-        foreach ($item in ($itemRows | Sort-Object Row -Descending)) {
-            if (-not $validItems.ContainsKey($item.ItemNumber)) {
-                $sheet.Rows("$($item.Row):$($item.Row + 2)").Delete()
-                continue
-            }
-            $key = "$($asset.assetNumber)/$($item.ItemNumber)"
-            if (-not $photosByItem.ContainsKey($key)) {
-                $rows = $sheet.Rows("$($item.Row + 3):$($item.Row + 13)")
-                $rows.Group()
-                $rows.Hidden = $true
-            }
-        }
+        # 写真がない項目も、写真帳様式の行構成・数式・表示を維持する。
     }
 
     $albumBook.Save()

@@ -5,9 +5,12 @@ import { OTHER_ASSET, OTHER_ASSET_NUMBER, photoDestinations } from "./domain.js"
 import { analyzePhotoFiles, compressToJpeg, jpegFileName, targetBytesFromKilobytes } from "./photos.js";
 import { albumEntries, createPhotoAlbum, inspectPhotoAlbumTemplate } from "./album.js";
 import { cameraFileName, captureVideoFrame, openRearCamera, stopCamera } from "./camera.js";
-import { createAssetPhotoZip, zipFileName } from "./zip.js";
+import { createAssetPhotoZip, createZip, zipFileName } from "./zip.js";
 import { deletePhotoSnapshot, listPhotoSnapshots, loadPhotoSession, savePhotoSession, savePhotoSnapshot } from "./photo-session-storage.js";
 import { createPhotoWorkFile, readPhotoWorkFile } from "./photo-work-file.js";
+import photoBookBat from "../scripts/写真帳作成.bat?raw";
+import photoBookRunner from "../scripts/photo-book-runner.ps1?raw";
+import photoBookBuilder from "../scripts/build-photo-album.ps1?raw";
 
 const hostedOrganizer = /\/organize(?:\.html)?$/i.test(window.location.pathname);
 if (hostedOrganizer) document.body.classList.add("hosted-organizer");
@@ -73,6 +76,7 @@ const albumInput = document.querySelector("#album-input");
 const albumTemplateStatus = document.querySelector("#album-template-status");
 const albumStatus = document.querySelector("#album-status");
 const createAlbumButton = document.querySelector("#create-album");
+const exportAlbumKitButton = document.querySelector("#export-album-kit");
 const preflightDialog = document.querySelector("#preflight-dialog");
 const preflightList = document.querySelector("#preflight-list");
 const outputPreviewDialog = document.querySelector("#output-preview-dialog");
@@ -656,6 +660,21 @@ function moveDestinationOrder(direction, photoId) {
 
 function updateAlbumReadiness() {
   createAlbumButton.disabled = true;
+  exportAlbumKitButton.disabled = true;
+  let entries;
+  try {
+    entries = albumEntries(assets, photos);
+    exportAlbumKitButton.disabled = false;
+  } catch (error) {
+    const message = error.message ?? String(error);
+    const tone = message.includes("選ばれていません") ? "neutral" : "error";
+    setStatus(albumStatus, message, tone);
+    return;
+  }
+  if (!isLocalPhotoBookApp) {
+    setStatus(albumStatus, `${entries.length}枚を写真帳へ貼り付ける指示を保存できます。`, "success");
+    return;
+  }
   if (!healthWorkbookFile) {
     setStatus(albumStatus, "先に健全度判定表を読み込んでください。", "neutral");
     return;
@@ -665,7 +684,6 @@ function updateAlbumReadiness() {
     return;
   }
   try {
-    const entries = albumEntries(assets, photos);
     createAlbumButton.disabled = false;
     setStatus(albumStatus, `${entries.length}枚を写真帳へ貼り付けます。`, "success");
   } catch (error) {
@@ -673,6 +691,50 @@ function updateAlbumReadiness() {
     const tone = message.includes("選ばれていません") ? "neutral" : "error";
     setStatus(albumStatus, message, tone);
   }
+}
+
+function photoBookKitFileName() {
+  const base = String(sessionName.value || "写真整理").replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_").trim() || "写真整理";
+  return `${base}_写真帳作成セット.zip`;
+}
+
+async function createPhotoBookKit() {
+  const entries = albumEntries(assets, photos);
+  const instruction = {
+    kind: "asset-photo-album-instruction",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    assets: assets.map((asset) => ({
+      assetNumber: asset.assetNumber,
+      itemNumbers: asset.items.map((item) => item.itemNumber),
+    })),
+    photos: entries.map((entry) => ({
+      fileName: entry.photo.file.name,
+      assetNumber: entry.assetNumber,
+      destinationType: entry.destinationType,
+      itemNumber: entry.itemNumber,
+      slotIndex: entry.slotIndex,
+    })),
+  };
+  const guide = [
+    "資産写真整理MVP 写真帳作成セット",
+    "",
+    "1. ZIPを展開します。",
+    "2. 「写真帳を作成.bat」をダブルクリックします。",
+    "3. 健全度判定表、写真帳様式、元写真フォルダ、出力先フォルダを順に選びます。",
+    "4. 元のExcelは変更せず、出力先に写真貼付済みのコピーを作成します。",
+    "",
+    "注意：Microsoft ExcelがインストールされたWindows PCで実行してください。",
+    "元写真はJPG、JPEG、PNGに対応します。同名写真が複数ある場合は整理してから実行してください。",
+  ].join("\r\n");
+  const blob = await createZip([
+    { path: "写真帳を作成.bat", blob: new Blob([photoBookBat], { type: "text/plain;charset=utf-8" }) },
+    { path: "photo-book-runner.ps1", blob: new Blob([photoBookRunner], { type: "text/plain;charset=utf-8" }) },
+    { path: "build-photo-album.ps1", blob: new Blob([photoBookBuilder], { type: "text/plain;charset=utf-8" }) },
+    { path: "photo-book-instruction.json", blob: new Blob([JSON.stringify(instruction, null, 2)], { type: "application/json" }) },
+    { path: "使い方.txt", blob: new Blob([guide], { type: "text/plain;charset=utf-8" }) },
+  ]);
+  return { blob, entryCount: entries.length };
 }
 
 function formatSavedAt(value) {
@@ -1522,6 +1584,21 @@ exportPhotosButton.addEventListener("click", async () => {
     else setExportStatus(error.message ?? String(error), "error");
   } finally {
     updatePhotoSummary();
+  }
+});
+
+exportAlbumKitButton.addEventListener("click", async () => {
+  exportAlbumKitButton.disabled = true;
+  try {
+    if (showDestinationIssues()) return;
+    setStatus(albumStatus, "写真帳作成セットを準備しています…", "working");
+    const result = await createPhotoBookKit();
+    downloadBlob(result.blob, photoBookKitFileName());
+    setStatus(albumStatus, `写真帳作成セットを保存しました。${result.entryCount}枚を貼り付けます。`, "success");
+  } catch (error) {
+    setStatus(albumStatus, error.message ?? String(error), "error");
+  } finally {
+    updateAlbumReadiness();
   }
 });
 

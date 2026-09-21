@@ -237,6 +237,10 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .output-preview-item img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 4px; background: #e8edf0; }
 .output-preview-item figcaption { margin-top: .25rem; overflow: hidden; color: #52616d; font-size: .62rem; text-overflow: ellipsis; white-space: nowrap; }
 .output-preview-actions { display: flex; justify-content: flex-end; gap: .5rem; }
+.local-album-direct { margin-top: .8rem; padding-top: .75rem; border-top: 1px solid var(--ui-border); }
+.local-album-direct summary { cursor: pointer; color: var(--ui-primary); font-size: .86rem; font-weight: 800; }
+.local-album-direct .file-picker { margin-top: .7rem; }
+.local-album-direct > button { margin-top: .65rem; }
 .preflight-list { display: grid; gap: .5rem; max-height: 55vh; overflow: auto; margin: 1rem 0; }
 .preflight-item { display: grid; gap: .15rem; padding: .65rem .75rem; border-left: 4px solid #b23838; border-radius: 7px; background: #fff0f0; }
 .preflight-item strong { color: #8b2020; }
