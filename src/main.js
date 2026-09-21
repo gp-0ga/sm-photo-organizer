@@ -77,6 +77,9 @@ const bulkExcludeToggleLabel = document.querySelector("#bulk-exclude-toggle-labe
 const exportPhotosButton = document.querySelector("#export-photos");
 const exportStatus = document.querySelector("#export-status");
 const exportToolbarStatus = document.querySelector("#export-toolbar-status");
+const photoActionStatus = document.querySelector("#photo-action-status");
+const photoActionStatusCopy = document.querySelector("#photo-action-status-copy");
+const undoPhotoActionButton = document.querySelector("#undo-photo-action");
 const photoTargetKb = document.querySelector("#photo-target-kb");
 const albumInput = document.querySelector("#album-input");
 const albumTemplateStatus = document.querySelector("#album-template-status");
@@ -96,6 +99,12 @@ const workspaceTabs = [...document.querySelectorAll("[data-workspace-tab]")];
 const workspacePanels = [...document.querySelectorAll("[data-workspace-panel]")];
 const workspacePanes = [...document.querySelectorAll(".workspace-pane[data-pane]")];
 const paneToggleButtons = [...document.querySelectorAll("[data-pane-toggle]")];
+const assetEditorDialog = document.querySelector("#asset-editor-dialog");
+const assetEditorForm = document.querySelector("#asset-editor-form");
+const assetEditorHeading = document.querySelector("#asset-editor-heading");
+const assetEditorNumber = document.querySelector("#asset-editor-number");
+const assetEditorName = document.querySelector("#asset-editor-name");
+const assetEditorError = document.querySelector("#asset-editor-error");
 const workspaceToolsPane = document.querySelector('.workspace-pane[data-pane="tools"]');
 const workspaceToolsRail = document.querySelector('.pane-toggle-rail[data-pane-toggle="tools"]');
 const editDestinationOrderButton = document.querySelector("#edit-destination-order");
@@ -172,6 +181,72 @@ function setStatus(element, message, tone = "neutral") {
 function setExportStatus(message, tone = "neutral") {
   setStatus(exportStatus, message, tone);
   setStatus(exportToolbarStatus, message, tone);
+}
+
+let undoPhotoAction = null;
+
+function showPhotoActionStatus(message, undo = null) {
+  undoPhotoAction = undo;
+  photoActionStatusCopy.textContent = message;
+  undoPhotoActionButton.hidden = typeof undo !== "function";
+  photoActionStatus.hidden = false;
+}
+
+function hidePhotoActionStatus() {
+  undoPhotoAction = null;
+  photoActionStatus.hidden = true;
+}
+
+undoPhotoActionButton.addEventListener("click", () => {
+  const undo = undoPhotoAction;
+  if (!undo) return;
+  undoPhotoAction = null;
+  undo();
+  photoActionStatusCopy.textContent = "直前の操作を元に戻しました。";
+  undoPhotoActionButton.hidden = true;
+});
+
+function openAssetEditor({ title, assetNumber = "", assetName = "", originalNumber = "" }) {
+  assetEditorHeading.textContent = title;
+  assetEditorNumber.value = assetNumber;
+  assetEditorName.value = assetName;
+  assetEditorError.hidden = true;
+  assetEditorError.textContent = "";
+  assetEditorDialog.showModal();
+  assetEditorNumber.focus();
+
+  return new Promise((resolve) => {
+    const cancelButton = assetEditorForm.querySelector('button[value="cancel"]');
+    const onCancel = () => assetEditorDialog.close("cancel");
+    const onSubmit = (event) => {
+      event.preventDefault();
+      const nextNumber = assetEditorNumber.value.trim();
+      const nextName = assetEditorName.value.trim();
+      if (!nextNumber || !nextName) {
+        assetEditorError.textContent = "資産番号と資産名を入力してください。";
+        assetEditorError.hidden = false;
+        return;
+      }
+      if (assets.some((asset) => asset.assetNumber === nextNumber && asset.assetNumber !== originalNumber)) {
+        assetEditorError.textContent = "同じ資産番号がすでにあります。";
+        assetEditorError.hidden = false;
+        assetEditorNumber.focus();
+        return;
+      }
+      assetEditorDialog.close("save");
+    };
+    const onClose = () => {
+      assetEditorForm.removeEventListener("submit", onSubmit);
+      cancelButton.removeEventListener("click", onCancel);
+      assetEditorDialog.removeEventListener("close", onClose);
+      resolve(assetEditorDialog.returnValue === "save"
+        ? { assetNumber: assetEditorNumber.value.trim(), assetName: assetEditorName.value.trim() }
+        : null);
+    };
+    assetEditorForm.addEventListener("submit", onSubmit);
+    cancelButton.addEventListener("click", onCancel);
+    assetEditorDialog.addEventListener("close", onClose);
+  });
 }
 
 function renderSummary() {
@@ -527,13 +602,13 @@ function updatePhotoDestinationAlert() {
   const fullIssues = issues.filter((issue) => issue.title.includes("全景"));
   const otherIssues = issues.filter((issue) => !issue.title.includes("全景"));
   const labels = [
-    ...fullIssues.slice(0, 4).map((issue) => `${issue.title}（${issue.detail}）`),
-    ...otherIssues.slice(0, 2).map((issue) => `${issue.title}（${issue.detail}）`),
+    ...fullIssues.slice(0, 2).map((issue) => `${issue.title}（${issue.detail}）`),
+    ...otherIssues.slice(0, 1).map((issue) => `${issue.title}（${issue.detail}）`),
   ];
   const remaining = issues.length - labels.length;
   photoDestinationAlert.hidden = false;
   photoDestinationAlert.className = "photo-destination-alert";
-  photoDestinationAlert.textContent = `出力前に確認：${labels.join("、")}${remaining > 0 ? `、ほか${remaining}件` : ""}`;
+  photoDestinationAlert.textContent = `出力前に確認：${labels.join("、")}${remaining > 0 ? `、ほか${remaining}件。下の「選択状況一覧」で確認できます。` : ""}`;
 }
 
 function destinationIssues() {
@@ -926,17 +1001,13 @@ function createPhotoCard(photo) {
   const reviewBadge = node.querySelector(".review-badge");
   reviewBadge.hidden = !(photo.reviewRequired || photo.qrReadError);
   reviewBadge.addEventListener("click", () => {
-    photo.reviewRequired = false;
-    photo.qrReadError = false;
-    reviewBadge.hidden = true;
-    card.classList.remove("needs-review");
-    updatePhotoSummary();
-    scheduleSessionSave();
+    clearPhotoReviews([photo]);
   });
   const bookmarkButton = node.querySelector(".photo-bookmark");
   const isBookmarked = photo.id === bookmarkPhotoId;
   card.classList.toggle("bookmarked", isBookmarked);
   bookmarkButton.title = isBookmarked ? "ここまで確認済み（解除）" : "ここまで確認";
+  bookmarkButton.setAttribute("aria-label", isBookmarked ? "しおりを解除" : "ここまで確認済みにする");
   bookmarkButton.setAttribute("aria-pressed", String(isBookmarked));
   bookmarkButton.addEventListener("click", () => {
     const previousBookmarkId = bookmarkPhotoId;
@@ -947,24 +1018,40 @@ function createPhotoCard(photo) {
         previousCard.classList.remove("bookmarked");
         const previousButton = previousCard.querySelector(".photo-bookmark");
         previousButton.title = "ここまで確認";
+        previousButton.setAttribute("aria-label", "ここまで確認済みにする");
         previousButton.setAttribute("aria-pressed", "false");
       }
     }
     const marked = bookmarkPhotoId === photo.id;
     card.classList.toggle("bookmarked", marked);
     bookmarkButton.title = marked ? "ここまで確認済み（解除）" : "ここまで確認";
+    bookmarkButton.setAttribute("aria-label", marked ? "しおりを解除" : "ここまで確認済みにする");
     bookmarkButton.setAttribute("aria-pressed", String(marked));
     jumpToBookmarkButton.disabled = !bookmarkPhotoId;
     scheduleSessionSave();
   });
 
   assetSelect.addEventListener("change", () => {
-    photo.assetNumber = assetSelect.value || null;
+    const previousAssetNumber = photo.assetNumber;
+    const previousDestinations = photoDestinations(photo);
+    const nextAssetNumber = assetSelect.value || null;
+    if (nextAssetNumber === previousAssetNumber) return;
+    photo.assetNumber = nextAssetNumber;
     setPhotoDestinations(photo, []);
     renderDestinationChooser();
     updatePhotoSummary();
     scheduleSessionSave();
     applyPhotoFilter();
+    const cleared = previousDestinations.filter(Boolean).length > 0;
+    showPhotoActionStatus(
+      `${photo.file.name}の資産を変更しました。${cleared ? "写真帳分類は解除されました。" : ""}`,
+      () => {
+        photo.assetNumber = previousAssetNumber;
+        setPhotoDestinations(photo, previousDestinations);
+        renderPhotos();
+        scheduleSessionSave();
+      },
+    );
   });
   destinationOptionsPanel.addEventListener("change", (event) => {
     if (!event.target.matches(".photo-item-select")) return;
@@ -1201,17 +1288,18 @@ function selectedPhotoIds() {
 
 function updateBulkControls() {
   const visibleIds = photos.filter(matchesPhotoFilter).map((photo) => photo.id);
+  const visibleIdSet = new Set(visibleIds);
   const selectedCount = visibleIds.filter((id) => selectedPhotoIdsState.has(id)).length;
+  const selectedPhotos = photos.filter((photo) => visibleIdSet.has(photo.id) && selectedPhotoIdsState.has(photo.id));
   const total = visibleIds.length;
   bulkSelectionStatus.textContent = `${selectedCount}枚選択中`;
   selectAllPhotos.indeterminate = selectedCount > 0 && selectedCount < total;
   selectAllPhotos.checked = total > 0 && selectedCount === total;
   bulkAsset.disabled = selectedCount === 0;
   applyBulkAsset.disabled = selectedCount === 0 || !bulkAsset.value;
-  clearReview.disabled = selectedCount === 0;
+  clearReview.disabled = !selectedPhotos.some((photo) => photo.reviewRequired || photo.qrReadError);
   bulkExcludeToggle.disabled = selectedCount === 0;
   if (selectedCount > 0) {
-    const selectedPhotos = photos.filter((photo) => selectedPhotoIdsState.has(photo.id));
     const excludedCount = selectedPhotos.filter((photo) => photo.excluded).length;
     bulkExcludeToggle.indeterminate = excludedCount > 0 && excludedCount < selectedPhotos.length;
     bulkExcludeToggle.checked = excludedCount === selectedPhotos.length;
@@ -1267,15 +1355,10 @@ excelInput.addEventListener("change", async () => {
   }
 });
 
-addAssetButton.addEventListener("click", () => {
-  const assetNumber = window.prompt("追加する資産番号を入力してください。")?.trim();
-  if (!assetNumber) return;
-  if (assets.some((asset) => asset.assetNumber === assetNumber)) {
-    setStatus(folderStatus, "同じ資産番号がすでにあります。", "error");
-    return;
-  }
-  const assetName = window.prompt("資産名を入力してください。")?.trim();
-  if (!assetName) return;
+addAssetButton.addEventListener("click", async () => {
+  const result = await openAssetEditor({ title: "資産を追加" });
+  if (!result) return;
+  const { assetNumber, assetName } = result;
   assets.push({
     assetNumber,
     assetName,
@@ -1289,7 +1372,7 @@ addAssetButton.addEventListener("click", () => {
   scheduleSessionSave();
 });
 
-assetList.addEventListener("click", (event) => {
+assetList.addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-asset-number]");
   if (!button) return;
   const assetNumber = button.dataset.assetNumber;
@@ -1301,10 +1384,14 @@ assetList.addEventListener("click", (event) => {
     assets.splice(index, 1);
   } else {
     const asset = assets[index];
-    const nextNumber = window.prompt("資産番号を入力してください。", asset.assetNumber)?.trim();
-    if (!nextNumber || (nextNumber !== asset.assetNumber && assets.some((item) => item.assetNumber === nextNumber))) return;
-    const nextName = window.prompt("資産名を入力してください。", asset.assetName)?.trim();
-    if (!nextName) return;
+    const result = await openAssetEditor({
+      title: "資産の番号・名称を変更",
+      assetNumber: asset.assetNumber,
+      assetName: asset.assetName,
+      originalNumber: asset.assetNumber,
+    });
+    if (!result) return;
+    const { assetNumber: nextNumber, assetName: nextName } = result;
     if (nextNumber !== asset.assetNumber) unclassifyPhotosForAssetNumbers([asset.assetNumber]);
     assets[index] = { ...asset, assetNumber: nextNumber, assetName: nextName, folderName: `${nextNumber}_${nextName}`, notInExcel: true };
   }
@@ -1537,12 +1624,45 @@ function cardsByPhotoId() {
   return map;
 }
 
+function clearPhotoReviews(targetPhotos) {
+  const affected = targetPhotos.filter((photo) => photo.reviewRequired || photo.qrReadError);
+  if (!affected.length) return;
+  const previous = affected.map((photo) => ({
+    id: photo.id,
+    reviewRequired: photo.reviewRequired,
+    qrReadError: photo.qrReadError,
+  }));
+  for (const photo of affected) {
+    photo.reviewRequired = false;
+    photo.qrReadError = false;
+  }
+  renderPhotos();
+  scheduleSessionSave();
+  showPhotoActionStatus(`${affected.length}枚を確認済みにしました。`, () => {
+    for (const saved of previous) {
+      const photo = photos.find((item) => item.id === saved.id);
+      if (!photo) continue;
+      photo.reviewRequired = saved.reviewRequired;
+      photo.qrReadError = saved.qrReadError;
+    }
+    renderPhotos();
+    scheduleSessionSave();
+  });
+}
+
 applyBulkAsset.addEventListener("click", () => {
   const ids = selectedPhotoIds();
   if (!ids.size || !bulkAsset.value) return;
+  const previous = photos
+    .filter((photo) => ids.has(photo.id) && photo.assetNumber !== bulkAsset.value)
+    .map((photo) => ({ id: photo.id, assetNumber: photo.assetNumber, destinations: photoDestinations(photo) }));
+  if (!previous.length) {
+    showPhotoActionStatus("選択写真には、すでに同じ資産が設定されています。");
+    return;
+  }
   const cards = cardsByPhotoId();
   for (const photo of photos) {
-    if (ids.has(photo.id)) {
+    if (ids.has(photo.id) && photo.assetNumber !== bulkAsset.value) {
       photo.assetNumber = bulkAsset.value;
       setPhotoDestinations(photo, []);
       const card = cards.get(photo.id);
@@ -1560,28 +1680,29 @@ applyBulkAsset.addEventListener("click", () => {
   updateBulkControls();
   scheduleSessionSave();
   applyPhotoFilter();
+  const cleared = previous.some((item) => item.destinations.filter(Boolean).length > 0);
+  showPhotoActionStatus(
+    `${previous.length}枚の資産を変更しました。${cleared ? "写真帳分類は解除されました。" : ""}`,
+    () => {
+      for (const saved of previous) {
+        const photo = photos.find((item) => item.id === saved.id);
+        if (!photo) continue;
+        photo.assetNumber = saved.assetNumber;
+        setPhotoDestinations(photo, saved.destinations);
+      }
+      renderPhotos();
+      scheduleSessionSave();
+    },
+  );
 });
 
 clearReview.addEventListener("click", () => {
   const ids = selectedPhotoIds();
-  for (const photo of photos) {
-    if (ids.has(photo.id)) {
-      photo.reviewRequired = false;
-      photo.qrReadError = false;
-    }
-  }
-  renderPhotos();
-  scheduleSessionSave();
+  clearPhotoReviews(photos.filter((photo) => ids.has(photo.id)));
 });
 
 clearAllReview.addEventListener("click", () => {
-  for (const photo of photos) {
-    if (!matchesPhotoFilter(photo)) continue;
-    photo.reviewRequired = false;
-    photo.qrReadError = false;
-  }
-  renderPhotos();
-  scheduleSessionSave();
+  clearPhotoReviews(photos.filter(matchesPhotoFilter));
 });
 
 function setExcludedForSelection(excluded) {

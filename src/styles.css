@@ -364,6 +364,13 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .toolbar-status.success { color: #176b4d; background: #e8f6ee; }
 .toolbar-status.error { color: #8b2020; background: #ffe6e6; }
 .toolbar-status.neutral { color: #52616d; background: #eef2f4; }
+.photo-action-status {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  width: 100%; padding: .45rem .5rem; border-left: 4px solid #2677a8; border-radius: 6px;
+  color: #23485d; background: #edf7fc; font-size: .76rem; line-height: 1.35;
+}
+.photo-action-status span { min-width: 0; overflow-wrap: anywhere; }
+.photo-action-status button { flex: 0 0 auto; width: auto !important; padding: .35rem .55rem; white-space: nowrap; }
 .bulk-tools.is-stuck { background: #e7f0f5; box-shadow: 0 4px 10px rgb(23 33 43 / 15%); border: 1px solid #c3d5df; }
 .bulk-tools select { min-width: min(280px, 100%); padding: .45rem; }
 .bulk-tools button { padding: .5rem .75rem; font-size: .8rem; }
@@ -478,6 +485,12 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .photo-info select { width: 100%; min-height: 2rem; padding: .32rem .35rem; border: 1px solid #becbd3; border-radius: 6px; background: white; font-size: .72rem; }
 .review-badge { justify-self: start; padding: .25rem .5rem; border: 1px solid #e2a0a0; border-radius: 999px; color: #8b2020; background: #ffe6e6; font-size: .78rem; font-weight: 700; cursor: pointer; }
 .review-badge:hover { background: #ffd2d2; }
+.asset-editor-dialog { width: min(92vw, 32rem); }
+.asset-editor-dialog form { display: grid; gap: .8rem; }
+.asset-editor-dialog label { display: grid; gap: .3rem; color: #52616d; font-size: .82rem; font-weight: 700; }
+.asset-editor-dialog input { width: 100%; padding: .65rem .7rem; border: 1px solid #b9c9d4; border-radius: 7px; background: white; }
+.asset-editor-dialog .status { margin: 0; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; }
 .caution-note { margin: 12px 0 0; color: #704d11; font-size: .9rem; }
 
 .stage-badge { display: inline-block; margin: 0 0 .4rem; padding: .25rem .55rem; border-radius: 999px; color: #15583f; background: #dff4ea; font-size: .78rem; font-weight: 800; }

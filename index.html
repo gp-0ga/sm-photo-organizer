@@ -166,6 +166,10 @@
                   <button id="apply-bulk-asset" class="secondary" type="button" disabled>資産を一括変更</button>
                   <button id="clear-review" class="secondary" type="button" disabled>確認済みにする</button>
                 </div>
+                <div id="photo-action-status" class="photo-action-status" aria-live="polite" hidden>
+                  <span id="photo-action-status-copy"></span>
+                  <button id="undo-photo-action" class="secondary" type="button">元に戻す</button>
+                </div>
                 <button id="edit-destination-order" class="secondary" type="button">分類順を編集</button>
                 <span id="export-toolbar-status" class="toolbar-status" role="status" hidden></span>
                 <div class="photo-toolbar-row bulk-photo-controls">
@@ -304,6 +308,19 @@
       </form>
     </dialog>
 
+    <dialog id="asset-editor-dialog" class="asset-editor-dialog" aria-labelledby="asset-editor-heading">
+      <form id="asset-editor-form" method="dialog">
+        <h2 id="asset-editor-heading">資産を追加</h2>
+        <label>資産番号<input id="asset-editor-number" type="text" required /></label>
+        <label>資産名<input id="asset-editor-name" type="text" required /></label>
+        <div id="asset-editor-error" class="status error" role="alert" hidden></div>
+        <div class="dialog-actions">
+          <button class="secondary" type="button" value="cancel">キャンセル</button>
+          <button class="primary" type="submit" value="save">保存</button>
+        </div>
+      </form>
+    </dialog>
+
     <template id="asset-template">
       <details class="asset-card">
         <summary>
@@ -329,7 +346,7 @@
             <label class="photo-check"><input class="photo-select" type="checkbox" /> 選択</label>
             <label class="photo-check"><input class="photo-exclude" type="checkbox" /> 除外</label>
           </div>
-          <button class="photo-bookmark" type="button" title="ここまで確認">🔖</button>
+          <button class="photo-bookmark" type="button" title="ここまで確認" aria-label="ここまで確認済みにする">🔖</button>
           <button class="photo-full-badge" type="button" title="全景として使う">全景</button>
           <img class="photo-thumb" alt="" loading="lazy" />
         </div>
