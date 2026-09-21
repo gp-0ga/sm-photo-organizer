@@ -182,21 +182,28 @@ try {
             $shape.Name = "SM_$($asset.assetNumber)_full"
         }
 
+        # 項目は14行間隔と決め打ちせず、写真帳のAP列にある実際の項目番号の行を探す。
+        # 項目ごとの高さが異なっても、次の項目の直前までを写真枠として扱う。
         $itemRows = @()
-        for ($headerRow = 21; $headerRow -le $sheet.UsedRange.Rows.Count; $headerRow += 14) {
-            $itemNumber = [string]$sheet.Range("AP$headerRow").Value2
-            if (-not [string]::IsNullOrWhiteSpace($itemNumber)) { $itemRows += [PSCustomObject]@{ Row = $headerRow; ItemNumber = $itemNumber.Trim() } }
+        $sheetFirstRow = [int]$sheet.UsedRange.Row
+        $sheetLastRow = $sheetFirstRow + [int]$sheet.UsedRange.Rows.Count - 1
+        for ($row = $sheetFirstRow; $row -le $sheetLastRow; $row++) {
+            $itemNumber = ([string]$sheet.Range("AP$row").Value2).Trim()
+            if ($itemNumber -and $validItems.ContainsKey($itemNumber)) {
+                $itemRows += [PSCustomObject]@{ Row = $row; ItemNumber = $itemNumber }
+            }
         }
 
-        foreach ($item in $itemRows) {
-            if (-not $validItems.ContainsKey($item.ItemNumber)) { continue }
+        for ($itemIndex = 0; $itemIndex -lt $itemRows.Count; $itemIndex++) {
+            $item = $itemRows[$itemIndex]
             $key = "$($asset.assetNumber)/$($item.ItemNumber)"
             if (-not $photosByItem.ContainsKey($key)) { continue }
             foreach ($photo in $photosByItem[$key]) {
                 $stage = "資産 $($asset.assetNumber)・項目 $($item.ItemNumber) の写真「$($photo.sourceName)」を貼り付けています"
                 $slot = [int]$photo.slotIndex
                 $topRow = $item.Row + 4
-                $bottomRow = $item.Row + 12
+                $nextHeaderRow = if ($itemIndex -lt $itemRows.Count - 1) { $itemRows[$itemIndex + 1].Row } else { $item.Row + 14 }
+                $bottomRow = [Math]::Max($topRow, $nextHeaderRow - 2)
                 $address = switch ($slot) {
                     0 { "C${topRow}:K${bottomRow}" }
                     1 { "N${topRow}:T${bottomRow}" }
