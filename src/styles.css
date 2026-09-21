@@ -149,6 +149,15 @@ main {
 .workspace-side .file-picker { display: flex; justify-content: center; width: 100%; padding: .6rem .65rem; overflow: hidden; }
 .workspace-tools .bulk-always-visible,
 .workspace-tools .photo-toolbar-row { flex-direction: column; align-items: stretch; gap: .5rem; }
+.workspace-tools .bulk-always-visible {
+  margin-top: .1rem; padding: .6rem 0;
+  border-top: 1px solid #cbd9e1; border-bottom: 1px solid #cbd9e1;
+}
+.workspace-tools .bulk-always-visible > label {
+  display: flex; align-items: center; gap: .45rem;
+  min-height: 2rem; padding: .3rem .4rem; border-radius: 6px;
+}
+.workspace-tools .bulk-always-visible > label:hover { background: #edf5f9; }
 .workspace-tools .photo-filter { display: grid; gap: .25rem; }
 .workspace-tools .photo-filter select,
 .workspace-tools .photo-filter input { width: 100%; min-width: 0; max-width: 100%; }
@@ -157,7 +166,7 @@ main {
 .workspace-tools .bulk-always-visible > button,
 .workspace-tools .bulk-tools-content > button { width: 100%; }
 .workspace-tools .grid-density-toggle { flex-wrap: wrap; }
-.workspace-tools .bulk-selection-status { text-align: center; }
+.workspace-tools .bulk-selection-status { padding: .35rem .5rem; border-radius: 6px; background: #e8f6ee; text-align: center; }
 .workspace-side .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
 .workspace-side .summary-grid div { min-width: 0; padding: .45rem .25rem; }
 .workspace-side .summary-grid strong { font-size: 1.1rem; }
@@ -396,9 +405,17 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .grid-density-toggle { display: grid; gap: .3rem; font-size: .82rem; color: #52616d; font-weight: 700; }
 .grid-density-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; }
 .grid-density-toggle button { padding: .5rem .75rem; font-size: .8rem; }
-.grid-density-toggle button[aria-pressed="true"] { background: #163a5f; color: white; }
+.grid-density-toggle button[aria-pressed="true"],
+.grid-density-toggle button[aria-pressed="true"]:hover { border-color: #163a5f; background: #163a5f; color: white; }
 @media (min-width: 701px) {
   .photo-grid.grid-density-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .photo-grid.grid-density-3 { gap: .65rem; }
+  .photo-grid.grid-density-3 .photo-check { font-size: .76rem; }
+  .photo-grid.grid-density-3 .photo-full-badge { font-size: .8rem; }
+  .photo-grid.grid-density-3 .photo-info { gap: .45rem; padding: .6rem; }
+  .photo-grid.grid-density-3 .photo-info strong { font-size: .82rem; }
+  .photo-grid.grid-density-3 .photo-info label { font-size: .76rem; }
+  .photo-grid.grid-density-3 .photo-info select { min-height: 2.2rem; font-size: .8rem; }
 }
 @media (max-width: 980px) {
   .workspace-pane { flex-basis: min(230px, 36vw); }

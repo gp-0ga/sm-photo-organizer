@@ -64,6 +64,7 @@ const photoFilterStatus = document.querySelector("#photo-filter-status");
 const photoTemplate = document.querySelector("#photo-template");
 const bulkTools = document.querySelector("#bulk-tools");
 const photoToolsEmpty = document.querySelector("#photo-tools-empty");
+const photoToolsEmptyCopy = document.querySelector("#photo-tools-empty-copy");
 const bulkToolsSentinel = document.querySelector("#bulk-tools-sentinel");
 const selectAllPhotos = document.querySelector("#select-all-photos");
 const bulkSelectionStatus = document.querySelector("#bulk-selection-status");
@@ -320,6 +321,11 @@ function updatePhotoToolsVisibility() {
   const hasPhotos = photos.length > 0;
   bulkTools.hidden = !hasPhotos;
   if (photoToolsEmpty) photoToolsEmpty.hidden = hasPhotos;
+  if (photoToolsEmptyCopy && !hasPhotos) {
+    photoToolsEmptyCopy.textContent = assets.length
+      ? "撮影写真を読み込むと、絞り込み・一括変更・確認済み操作が表示されます。"
+      : "健全度判定表と撮影写真を読み込むと、絞り込み・一括変更・確認済み操作が表示されます。";
+  }
 }
 
 function renderPhotoEmptyState() {
