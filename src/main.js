@@ -50,8 +50,7 @@ const photoDestinationAlert = document.querySelector("#photo-destination-alert")
 const photoList = document.querySelector("#photo-list");
 const gridDensity6Button = document.querySelector("#grid-density-6");
 const gridDensity3Button = document.querySelector("#grid-density-3");
-const photoViewMode = document.querySelector("#photo-view-mode");
-const photoFilterAssetSelect = document.querySelector("#photo-filter-asset");
+const photoSortFilter = document.querySelector("#photo-sort-filter");
 const photoFilterKeyword = document.querySelector("#photo-filter-keyword");
 const photoFilterStatus = document.querySelector("#photo-filter-status");
 const photoTemplate = document.querySelector("#photo-template");
@@ -62,6 +61,7 @@ const bulkSelectionStatus = document.querySelector("#bulk-selection-status");
 const bulkAsset = document.querySelector("#bulk-asset");
 const applyBulkAsset = document.querySelector("#apply-bulk-asset");
 const clearReview = document.querySelector("#clear-review");
+const clearAllReview = document.querySelector("#clear-all-review");
 const bulkExclude = document.querySelector("#bulk-exclude");
 const bulkInclude = document.querySelector("#bulk-include");
 const exportPhotosButton = document.querySelector("#export-photos");
@@ -263,32 +263,54 @@ selectAllAssets.addEventListener("change", () => {
 assetBulkSiteAbsent.addEventListener("click", () => setSiteAbsentForSelection(true));
 assetBulkSitePresent.addEventListener("click", () => setSiteAbsentForSelection(false));
 
-const UNCLASSIFIED_FILTER_VALUE = "__unclassified__";
-const NEEDS_REVIEW_FILTER_VALUE = "__needs_review__";
+const UNCLASSIFIED_FILTER_VALUE = "filter:unclassified";
+const NEEDS_REVIEW_FILTER_VALUE = "filter:needs";
+const ORDER_CAPTURE_VALUE = "order:capture";
+const ORDER_ASSET_VALUE = "order:asset";
+
+function currentSortFilterValue() {
+  return photoSortFilter.value || ORDER_CAPTURE_VALUE;
+}
+
+function currentOrderMode() {
+  const value = currentSortFilterValue();
+  return value === ORDER_ASSET_VALUE ? "asset" : "capture";
+}
+
+function currentFilterValue() {
+  const value = currentSortFilterValue();
+  return value.startsWith("filter:") ? value : "";
+}
 
 function renderPhotoFilterOptions() {
-  const previousValue = photoFilterAssetSelect.value;
-  const options = [
-    { value: "", label: "すべて表示" },
-    { value: UNCLASSIFIED_FILTER_VALUE, label: "未分類" },
-    { value: NEEDS_REVIEW_FILTER_VALUE, label: "要確認・読込失敗" },
-    ...assets.map((asset) => ({ value: asset.assetNumber, label: `${asset.assetNumber} ${asset.assetName}` })),
-    { value: OTHER_ASSET_NUMBER, label: "その他（資産不明）" },
+  const previousValue = photoSortFilter.value;
+  const orderOptions = [
+    { value: ORDER_CAPTURE_VALUE, label: "撮影順（すべて表示）" },
+    { value: ORDER_ASSET_VALUE, label: "資産ごとに並べる（すべて表示）" },
   ];
-  photoFilterAssetSelect.innerHTML = options
-    .map(({ value, label }) => `<option value="${value}">${label}</option>`)
-    .join("");
-  photoFilterAssetSelect.value = options.some((option) => option.value === previousValue) ? previousValue : "";
+  const filterOptions = [
+    { value: UNCLASSIFIED_FILTER_VALUE, label: "未分類のみ" },
+    { value: NEEDS_REVIEW_FILTER_VALUE, label: "要確認・読込失敗のみ" },
+    ...assets.map((asset) => ({ value: `filter:${asset.assetNumber}`, label: `${asset.assetNumber} ${asset.assetName} のみ` })),
+    { value: `filter:${OTHER_ASSET_NUMBER}`, label: "その他（資産不明）のみ" },
+  ];
+  photoSortFilter.innerHTML = `
+    <optgroup label="並び替え（全件表示）">${orderOptions.map(({ value, label }) => `<option value="${value}">${label}</option>`).join("")}</optgroup>
+    <optgroup label="絞り込み">${filterOptions.map(({ value, label }) => `<option value="${value}">${label}</option>`).join("")}</optgroup>
+  `;
+  const allValues = [...orderOptions, ...filterOptions].map((option) => option.value);
+  photoSortFilter.value = allValues.includes(previousValue) ? previousValue : ORDER_CAPTURE_VALUE;
 }
 
 function matchesPhotoFilter(photo) {
-  const filterValue = photoFilterAssetSelect.value;
+  const filterValue = currentFilterValue();
   if (filterValue === UNCLASSIFIED_FILTER_VALUE) {
     if (photo.assetNumber) return false;
   } else if (filterValue === NEEDS_REVIEW_FILTER_VALUE) {
     if (!photo.reviewRequired && !photo.qrReadError) return false;
-  } else if (filterValue && photo.assetNumber !== filterValue) {
-    return false;
+  } else if (filterValue) {
+    const assetNumber = filterValue.slice("filter:".length);
+    if (photo.assetNumber !== assetNumber) return false;
   }
   return matchesPhotoKeyword(photo);
 }
@@ -310,8 +332,11 @@ function applyPhotoFilter() {
     if (matches) visibleCount += 1;
   }
   const matchingCount = photos.filter(matchesPhotoFilter).length;
-  const hasFilter = photoFilterAssetSelect.value || photoFilterKeyword?.value.trim();
+  const hasFilter = currentFilterValue() || photoFilterKeyword?.value.trim();
   photoFilterStatus.textContent = hasFilter ? `${matchingCount}枚を表示中（全${photos.length}枚）` : "";
+  const visibleReviewCount = photos.filter((photo) => matchesPhotoFilter(photo) && (photo.reviewRequired || photo.qrReadError)).length;
+  clearAllReview.hidden = visibleReviewCount === 0;
+  clearAllReview.textContent = `表示中の要確認をまとめて解除（${visibleReviewCount}枚）`;
   for (const heading of photoList.querySelectorAll(".photo-group-heading")) {
     heading.hidden = ![...photoList.querySelectorAll(".photo-card")]
       .some((card) => card.dataset.groupKey === heading.dataset.groupKey && !card.hidden);
@@ -920,7 +945,7 @@ function renderPhotos() {
   photoRenderObserver?.disconnect();
   photoList.replaceChildren();
   let displayPhotos = photos.slice();
-  if (photoViewMode.value === "asset") {
+  if (currentOrderMode() === "asset") {
     const assetOrder = new Map([...assets, OTHER_ASSET].map((asset, index) => [asset.assetNumber, index]));
     displayPhotos.sort((left, right) => {
       const leftGroup = left.assetNumber ?? "__unclassified__";
@@ -933,7 +958,7 @@ function renderPhotos() {
   photoRenderQueue = [];
   let previousGroupKey = null;
   for (const photo of displayPhotos) {
-    if (photoViewMode.value === "asset") {
+    if (currentOrderMode() === "asset") {
       const groupKey = photo.assetNumber ?? "__unclassified__";
       if (groupKey !== previousGroupKey) {
         const asset = [...assets, OTHER_ASSET].find((item) => item.assetNumber === photo.assetNumber);
@@ -964,9 +989,8 @@ function renderPhotos() {
   applyPhotoFilter();
 }
 
-photoFilterAssetSelect.addEventListener("change", renderPhotos);
+photoSortFilter.addEventListener("change", renderPhotos);
 photoFilterKeyword?.addEventListener("input", renderPhotos);
-photoViewMode.addEventListener("change", renderPhotos);
 
 function selectWorkspaceTab(name) {
   for (const tab of workspaceTabs) {
@@ -1408,6 +1432,16 @@ clearReview.addEventListener("click", () => {
       photo.reviewRequired = false;
       photo.qrReadError = false;
     }
+  }
+  renderPhotos();
+  scheduleSessionSave();
+});
+
+clearAllReview.addEventListener("click", () => {
+  for (const photo of photos) {
+    if (!matchesPhotoFilter(photo)) continue;
+    photo.reviewRequired = false;
+    photo.qrReadError = false;
   }
   renderPhotos();
   scheduleSessionSave();
