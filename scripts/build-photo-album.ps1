@@ -17,6 +17,26 @@ $healthBook = $null
 $albumBook = $null
 $sourceNo11 = $null
 $targetNo11 = $null
+
+function Add-EmbeddedPicture {
+    param(
+        $Sheet,
+        [string]$PhotoPath,
+        $TargetRange
+    )
+    # ExcelのAddPictureはファイル名をString、座標とサイズをSingleで受け取る。
+    # PowerShellからDoubleのまま渡すと、Excelの環境によって型変換に失敗するため明示する。
+    return $Sheet.Shapes.AddPicture(
+        [string]$PhotoPath,
+        [int]0,
+        [int]-1,
+        [single]$TargetRange.Left,
+        [single]$TargetRange.Top,
+        [single]-1,
+        [single]-1
+    )
+}
+
 try {
     try { $excel = New-Object -ComObject Excel.Application }
     catch { throw 'Microsoft Excel is not installed or could not be started.' }
@@ -105,8 +125,8 @@ try {
             $sourceCell = $sourceNo11.Cells.Item([int]($sourceFirstRow + $row - 1), $sourceColumn)
             $targetCell = $targetNo11.Cells.Item($targetRow, $targetColumn)
             # xlPasteValidation=6。入力規則だけをコピーし、書式・数式は触らない。
-            $sourceCell.Copy()
-            $targetCell.PasteSpecial(6)
+            [void]$sourceCell.Copy()
+            [void]$targetCell.PasteSpecial(6)
             $targetCell.Value2 = $sourceCell.Value2
         }
     }
@@ -145,12 +165,12 @@ try {
             $photo = $photosByItem[$fullKey][0]
             $photoPath = Join-Path (Join-Path $SessionRoot 'photos') ($photo.fileKey + '.jpg')
             $target = $sheet.Range('E5:S18')
-            $shape = $sheet.Shapes.AddPicture($photoPath, $false, $true, $target.Left, $target.Top, -1, -1)
+            $shape = Add-EmbeddedPicture -Sheet $sheet -PhotoPath $photoPath -TargetRange $target
             $shape.LockAspectRatio = -1
-            $shape.Width = [Math]::Min($target.Width, 260.7874)
-            if ($shape.Height -gt $target.Height) { $shape.Height = $target.Height }
-            $shape.Left = $target.Left
-            $shape.Top = $target.Top
+            $shape.Width = [single][Math]::Min([double]$target.Width, 260.7874)
+            if ($shape.Height -gt $target.Height) { $shape.Height = [single]$target.Height }
+            $shape.Left = [single]$target.Left
+            $shape.Top = [single]$target.Top
             $shape.Placement = 1
             $shape.Name = "SM_$($asset.assetNumber)_full"
         }
@@ -178,12 +198,12 @@ try {
                 }
                 $photoPath = Join-Path (Join-Path $SessionRoot 'photos') ($photo.fileKey + '.jpg')
                 $target = $sheet.Range($address)
-                $shape = $sheet.Shapes.AddPicture($photoPath, $false, $true, $target.Left, $target.Top, -1, -1)
+                $shape = Add-EmbeddedPicture -Sheet $sheet -PhotoPath $photoPath -TargetRange $target
                 $shape.LockAspectRatio = -1
-                $shape.Width = [Math]::Min($target.Width, 170.0787)
-                if ($shape.Height -gt $target.Height) { $shape.Height = $target.Height }
-                $shape.Left = $target.Left
-                $shape.Top = $target.Top
+                $shape.Width = [single][Math]::Min([double]$target.Width, 170.0787)
+                if ($shape.Height -gt $target.Height) { $shape.Height = [single]$target.Height }
+                $shape.Left = [single]$target.Left
+                $shape.Top = [single]$target.Top
                 $shape.Placement = 1
                 $shape.Name = "SM_$($asset.assetNumber)_$($item.ItemNumber)_$slot"
             }
