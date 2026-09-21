@@ -38,6 +38,16 @@ try {
     $targetUsed = $targetNo11.UsedRange
     $sourceValues = $sourceUsed.Value2
     $targetValues = $targetUsed.Value2
+    # Excel COMのプロパティは環境によりObject[]として返ることがあるため、
+    # 算術演算に使う値は最初に数値へ固定する。
+    $sourceFirstRow = [int]$sourceUsed.Row
+    $sourceFirstColumn = [int]$sourceUsed.Column
+    $sourceRowCount = [int]$sourceUsed.Rows.Count
+    $sourceColumnCount = [int]$sourceUsed.Columns.Count
+    $targetFirstRow = [int]$targetUsed.Row
+    $targetFirstColumn = [int]$targetUsed.Column
+    $targetRowCount = [int]$targetUsed.Rows.Count
+    $targetColumnCount = [int]$targetUsed.Columns.Count
     $normalizeHeader = {
         param($value)
         ([string]$value).Trim().Replace(' ', '').Replace('　', '').Replace('１', '1').Replace('２', '2')
@@ -46,22 +56,22 @@ try {
     $targetHeaders = @{}
     $sourceHeaderRow = 0
     $targetHeaderRow = 0
-    foreach ($row in 1..([Math]::Min(30, $sourceUsed.Rows.Count))) {
+    foreach ($row in 1..([Math]::Min(30, $sourceRowCount))) {
         $candidate = @{}
-        for ($column = 1; $column -le $sourceUsed.Columns.Count; $column++) {
+        for ($column = 1; $column -le $sourceColumnCount; $column++) {
             $sourceHeader = & $normalizeHeader $sourceValues[$row, $column]
-            if ($sourceHeader -in @('資産番号', '項目番号', '点検結果1', '点検結果2')) { $candidate[$sourceHeader] = $sourceUsed.Column + $column - 1 }
+            if ($sourceHeader -in @('資産番号', '項目番号', '点検結果1', '点検結果2')) { $candidate[$sourceHeader] = [int]($sourceFirstColumn + $column - 1) }
         }
         if (@('資産番号', '項目番号', '点検結果1', '点検結果2') | Where-Object { -not $candidate.ContainsKey($_) }) { continue }
         $sourceHeaders = $candidate
         $sourceHeaderRow = $row
         break
     }
-    foreach ($row in 1..([Math]::Min(30, $targetUsed.Rows.Count))) {
+    foreach ($row in 1..([Math]::Min(30, $targetRowCount))) {
         $candidate = @{}
-        for ($column = 1; $column -le $targetUsed.Columns.Count; $column++) {
+        for ($column = 1; $column -le $targetColumnCount; $column++) {
             $targetHeader = & $normalizeHeader $targetValues[$row, $column]
-            if ($targetHeader -in @('資産番号', '項目番号', '点検結果1', '点検結果2')) { $candidate[$targetHeader] = $targetUsed.Column + $column - 1 }
+            if ($targetHeader -in @('資産番号', '項目番号', '点検結果1', '点検結果2')) { $candidate[$targetHeader] = [int]($targetFirstColumn + $column - 1) }
         }
         if (@('資産番号', '項目番号', '点検結果1', '点検結果2') | Where-Object { -not $candidate.ContainsKey($_) }) { continue }
         $targetHeaders = $candidate
@@ -75,14 +85,16 @@ try {
     }
 
     $targetRows = @{}
-    for ($row = $targetHeaderRow + 1; $row -le $targetUsed.Rows.Count; $row++) {
-        $assetNumber = ([string]$targetValues[$row, $targetHeaders['資産番号'] - $targetUsed.Column + 1]).Trim()
-        $itemNumber = ([string]$targetValues[$row, $targetHeaders['項目番号'] - $targetUsed.Column + 1]).Trim()
-        if ($assetNumber -and $itemNumber) { $targetRows["$assetNumber|$itemNumber"] = $targetUsed.Row + $row - 1 }
+    $targetAssetIndex = [int]$targetHeaders['資産番号'] - $targetFirstColumn + 1
+    $targetItemIndex = [int]$targetHeaders['項目番号'] - $targetFirstColumn + 1
+    for ($row = $targetHeaderRow + 1; $row -le $targetRowCount; $row++) {
+        $assetNumber = ([string]$targetValues[$row, $targetAssetIndex]).Trim()
+        $itemNumber = ([string]$targetValues[$row, $targetItemIndex]).Trim()
+        if ($assetNumber -and $itemNumber) { $targetRows["$assetNumber|$itemNumber"] = [int]($targetFirstRow + $row - 1) }
     }
-    $sourceAssetIndex = $sourceHeaders['資産番号'] - $sourceUsed.Column + 1
-    $sourceItemIndex = $sourceHeaders['項目番号'] - $sourceUsed.Column + 1
-    for ($row = $sourceHeaderRow + 1; $row -le $sourceUsed.Rows.Count; $row++) {
+    $sourceAssetIndex = [int]$sourceHeaders['資産番号'] - $sourceFirstColumn + 1
+    $sourceItemIndex = [int]$sourceHeaders['項目番号'] - $sourceFirstColumn + 1
+    for ($row = $sourceHeaderRow + 1; $row -le $sourceRowCount; $row++) {
         $assetNumber = ([string]$sourceValues[$row, $sourceAssetIndex]).Trim()
         $itemNumber = ([string]$sourceValues[$row, $sourceItemIndex]).Trim()
         $targetRow = $targetRows["$assetNumber|$itemNumber"]
@@ -90,7 +102,7 @@ try {
         foreach ($resultHeader in @('点検結果1', '点検結果2')) {
             $sourceColumn = $sourceHeaders[$resultHeader]
             $targetColumn = $targetHeaders[$resultHeader]
-            $sourceCell = $sourceNo11.Cells.Item($sourceUsed.Row + $row - 1, $sourceColumn)
+            $sourceCell = $sourceNo11.Cells.Item([int]($sourceFirstRow + $row - 1), $sourceColumn)
             $targetCell = $targetNo11.Cells.Item($targetRow, $targetColumn)
             # xlPasteValidation=6。入力規則だけをコピーし、書式・数式は触らない。
             $sourceCell.Copy()
