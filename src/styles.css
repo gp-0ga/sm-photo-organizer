@@ -121,9 +121,18 @@ main { width: min(1440px, calc(100% - 2rem)); margin: 1.5rem auto 4rem; }
 .workspace-side .status { margin-top: .55rem; padding: .5rem .6rem; font-size: .78rem; }
 .workspace-side .section-heading-row { display: block; }
 .workspace-side .section-heading-actions { justify-content: flex-start; margin-top: .7rem; }
-.workspace-side .file-picker { display: grid; align-items: stretch; width: 100%; gap: .4rem; padding: .65rem; overflow: hidden; }
-.workspace-side .file-picker > span { display: none; }
-.workspace-side .file-picker input { display: block; width: 100%; max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-side .file-picker { display: flex; justify-content: center; width: 100%; padding: .6rem .65rem; overflow: hidden; }
+.workspace-tools .bulk-always-visible,
+.workspace-tools .photo-toolbar-row { flex-direction: column; align-items: stretch; gap: .5rem; }
+.workspace-tools .photo-filter { display: grid; gap: .25rem; }
+.workspace-tools .photo-filter select,
+.workspace-tools .photo-filter input { width: 100%; min-width: 0; max-width: 100%; }
+.workspace-tools .bulk-tools-content > .toolbar-session,
+.workspace-tools #bulk-asset { width: 100%; min-width: 0; }
+.workspace-tools .bulk-always-visible > button,
+.workspace-tools .bulk-tools-content > button { width: 100%; }
+.workspace-tools .grid-density-toggle { flex-wrap: wrap; }
+.workspace-tools .bulk-selection-status { text-align: center; }
 .workspace-side .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
 .workspace-side .summary-grid div { min-width: 0; padding: .45rem .25rem; }
 .workspace-side .summary-grid strong { font-size: 1.1rem; }
@@ -154,8 +163,9 @@ p { line-height: 1.65; }
 .panel-collapsed .step-body > *:not(.panel-title-row):not(.section-heading-row) { display: none; }
 .section-heading-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem; }
 
-.file-picker { display: inline-flex; align-items: center; gap: .75rem; padding: .7rem 1rem; border: 1px dashed #2a658f; border-radius: 10px; color: #163a5f; background: #f4f9fd; cursor: pointer; font-weight: 700; }
-.file-picker input { max-width: min(420px, 55vw); }
+.file-picker { display: inline-flex; align-items: center; gap: .75rem; padding: .7rem 1rem; border: 1px dashed #2a658f; border-radius: 10px; color: #163a5f; background: #f4f9fd; cursor: pointer; font-weight: 700; transition: border-color .15s ease, background .15s ease; }
+.file-picker:hover { border-color: #163a5f; background: #eaf4fb; }
+.file-picker input[type="file"] { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .marker-file-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: 1rem; }
 .marker-file-row .file-picker { display: grid; align-content: center; min-width: 0; }
 .marker-file-row .file-picker input { width: 100%; max-width: 100%; min-width: 0; }

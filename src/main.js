@@ -18,6 +18,10 @@ const isLocalPhotoBookApp = ["127.0.0.1", "localhost", "[::1]"].includes(window.
 
 const excelInput = document.querySelector("#excel-input");
 const excelFileName = document.querySelector("#excel-file-name");
+function setSelectedFileName(element, text) {
+  element.hidden = !text;
+  element.textContent = text || "";
+}
 const excelStatus = document.querySelector("#excel-status");
 const folderStatus = document.querySelector("#folder-status");
 const createFoldersButton = document.querySelector("#create-folders");
@@ -206,7 +210,7 @@ function renderAssets() {
       asset.siteAbsent = siteAbsent.checked;
       warning.hidden = !(asset.notInExcel || asset.siteAbsent);
       warning.textContent = [asset.notInExcel && "Excelに計上なし", asset.siteAbsent && "現地なし／対象外"].filter(Boolean).join("・");
-      updatePhotoDestinationAlert();
+      updatePhotoSummary();
       scheduleSessionSave();
     });
     node.querySelector(".asset-edit").dataset.assetNumber = asset.assetNumber;
@@ -252,7 +256,7 @@ function setSiteAbsentForSelection(siteAbsent) {
     asset.siteAbsent = siteAbsent;
   }
   renderAssets();
-  updatePhotoDestinationAlert();
+  updatePhotoSummary();
   scheduleSessionSave();
 }
 
@@ -823,8 +827,8 @@ function applyLoadedSession(saved, message = "") {
     healthWorkbookFile = saved.healthWorkbookFile;
     albumTemplateFile = saved.albumTemplateFile;
     bookmarkPhotoId = photos.some((photo) => photo.id === saved.bookmarkPhotoId) ? saved.bookmarkPhotoId : null;
-    excelFileName.textContent = healthWorkbookFile?.name || "未選択";
-    photoFileName.textContent = photos.length ? `${photos.length}枚` : "未選択";
+    setSelectedFileName(excelFileName, healthWorkbookFile?.name || "");
+    setSelectedFileName(photoFileName, photos.length ? `${photos.length}枚` : "");
     if (saved.photoTargetKb) photoTargetKb.value = saved.photoTargetKb;
     renderAssets();
     renderCameraAssets();
@@ -1185,7 +1189,7 @@ function updateBulkControls() {
 excelInput.addEventListener("change", async () => {
   const file = excelInput.files?.[0];
   if (!file) return;
-  excelFileName.textContent = file.name;
+  setSelectedFileName(excelFileName, file.name);
   createFoldersButton.disabled = true;
   setStatus(excelStatus, `${file.name} を読み込んでいます…`, "working");
   try {
@@ -1445,7 +1449,7 @@ createFoldersButton.addEventListener("click", async () => {
 photoInput.addEventListener("change", async () => {
   const files = photoInput.files;
   if (!files?.length) return;
-  photoFileName.textContent = `${files.length}枚を選択中`;
+  setSelectedFileName(photoFileName, `${files.length}枚を選択中`);
   photoInput.disabled = true;
   setStatus(photoStatus, `${files.length}ファイルのQRを確認しています…`, "working");
   try {
@@ -1467,7 +1471,7 @@ photoInput.addEventListener("change", async () => {
     markerCount = result.markers.length;
     bookmarkPhotoId = null;
     renderPhotos();
-    photoFileName.textContent = `${photos.length}枚`;
+    setSelectedFileName(photoFileName, `${photos.length}枚`);
     setStatus(photoStatus, `${photos.length}枚の写真と${markerCount}枚のマーカーを読み取りました。`, "success");
   } catch (error) {
     setStatus(photoStatus, error.message ?? String(error), "error");
