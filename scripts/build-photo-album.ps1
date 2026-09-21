@@ -68,6 +68,40 @@ function Find-PhotoFrame {
     Write-Output -NoEnumerate $FallbackRange
 }
 
+function Find-OverviewFrame {
+    param(
+        $Sheet,
+        $FallbackRange
+    )
+
+    # 物件によって資産数・項目数が変わっても対応できるよう、
+    # 各資産シート上部から、全景用の大きな結合セルを実際に探す。
+    # 行・列の固定位置や写真欄の個数には依存しない。
+    $bestFrame = $null
+    $bestArea = 0
+    for ($row = 1; $row -le 24; $row++) {
+        for ($column = 1; $column -le 40; $column++) {
+            $cell = $Sheet.Cells.Item($row, $column)
+            if (-not [bool]$cell.MergeCells) { continue }
+            $frame = $cell.MergeArea
+            if (([int]$frame.Row -ne $row) -or ([int]$frame.Column -ne $column)) { continue }
+            $rowCount = [int]$frame.Rows.Count
+            $columnCount = [int]$frame.Columns.Count
+            if ($rowCount -lt 6 -or $columnCount -lt 10) { continue }
+            $area = $rowCount * $columnCount
+            if ($area -gt $bestArea) {
+                $bestFrame = $frame
+                $bestArea = $area
+            }
+        }
+    }
+    if ($bestFrame -ne $null) {
+        Write-Output -NoEnumerate $bestFrame
+        return
+    }
+    Write-Output -NoEnumerate $FallbackRange
+}
+
 try {
     $stage = 'Excelを起動しています'
     try { $excel = New-Object -ComObject Excel.Application }
@@ -201,7 +235,8 @@ try {
             $photo = $photosByItem[$fullKey][0]
             $stage = "資産 $($asset.assetNumber) の全景写真「$($photo.sourceName)」を貼り付けています"
             $photoPath = Join-Path (Join-Path $SessionRoot 'photos') ($photo.fileKey + '.jpg')
-            $target = $sheet.Range('E5:S18')
+            $fallback = $sheet.Range('E5:S18')
+            $target = Find-OverviewFrame -Sheet $sheet -FallbackRange $fallback
             $shape = Add-EmbeddedPicture -Sheet $sheet -PhotoPath $photoPath -TargetRange $target
             $shape.LockAspectRatio = -1
             $shape.Width = [single][Math]::Min([double]$target.Width, 260.7874)
