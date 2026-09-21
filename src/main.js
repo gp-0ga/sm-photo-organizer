@@ -264,12 +264,14 @@ assetBulkSiteAbsent.addEventListener("click", () => setSiteAbsentForSelection(tr
 assetBulkSitePresent.addEventListener("click", () => setSiteAbsentForSelection(false));
 
 const UNCLASSIFIED_FILTER_VALUE = "__unclassified__";
+const NEEDS_REVIEW_FILTER_VALUE = "__needs_review__";
 
 function renderPhotoFilterOptions() {
   const previousValue = photoFilterAssetSelect.value;
   const options = [
     { value: "", label: "すべて表示" },
     { value: UNCLASSIFIED_FILTER_VALUE, label: "未分類" },
+    { value: NEEDS_REVIEW_FILTER_VALUE, label: "要確認・読込失敗" },
     ...assets.map((asset) => ({ value: asset.assetNumber, label: `${asset.assetNumber} ${asset.assetName}` })),
     { value: OTHER_ASSET_NUMBER, label: "その他（資産不明）" },
   ];
@@ -280,10 +282,14 @@ function renderPhotoFilterOptions() {
 }
 
 function matchesPhotoFilter(photo) {
-  if (photoViewMode.value === "needs" && photo.assetNumber && !photo.reviewRequired && !photo.qrReadError) return false;
   const filterValue = photoFilterAssetSelect.value;
-  if (filterValue === UNCLASSIFIED_FILTER_VALUE && photo.assetNumber) return false;
-  if (filterValue && filterValue !== UNCLASSIFIED_FILTER_VALUE && photo.assetNumber !== filterValue) return false;
+  if (filterValue === UNCLASSIFIED_FILTER_VALUE) {
+    if (photo.assetNumber) return false;
+  } else if (filterValue === NEEDS_REVIEW_FILTER_VALUE) {
+    if (!photo.reviewRequired && !photo.qrReadError) return false;
+  } else if (filterValue && photo.assetNumber !== filterValue) {
+    return false;
+  }
   return matchesPhotoKeyword(photo);
 }
 
