@@ -913,7 +913,8 @@ function appendPhotoRenderChunk() {
   const sentinel = photoList.querySelector(".photo-render-sentinel");
   sentinel?.remove();
   const fragment = document.createDocumentFragment();
-  const chunkSize = photoRenderObserver ? PHOTO_RENDER_CHUNK_SIZE : photoRenderQueue.length;
+  const hasActiveFilter = Boolean(currentFilterValue() || photoFilterKeyword?.value.trim());
+  const chunkSize = photoRenderObserver && !hasActiveFilter ? PHOTO_RENDER_CHUNK_SIZE : photoRenderQueue.length;
   const end = Math.min(photoRenderCursor + chunkSize, photoRenderQueue.length);
   for (; photoRenderCursor < end; photoRenderCursor += 1) {
     const entry = photoRenderQueue[photoRenderCursor];
