@@ -59,9 +59,13 @@ function Find-PhotoFrame {
             ([int]$frame.Column -ne [int]$cell.Column) -or
             ([int]$frame.Rows.Count -lt 4)
         ) { continue }
-        return $frame
+        # ExcelのRangeはPowerShellでは列挙可能に扱われることがある。
+        # そのままreturnすると複数セルのObject[]になり、Left/TopをSingleへ
+        # 変換できなくなるため、結合セル範囲を1つのCOMオブジェクトとして返す。
+        Write-Output -NoEnumerate $frame
+        return
     }
-    return $FallbackRange
+    Write-Output -NoEnumerate $FallbackRange
 }
 
 try {
