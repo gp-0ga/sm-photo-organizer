@@ -70,8 +70,8 @@ const bulkAsset = document.querySelector("#bulk-asset");
 const applyBulkAsset = document.querySelector("#apply-bulk-asset");
 const clearReview = document.querySelector("#clear-review");
 const clearAllReview = document.querySelector("#clear-all-review");
-const bulkExclude = document.querySelector("#bulk-exclude");
-const bulkInclude = document.querySelector("#bulk-include");
+const bulkExcludeToggle = document.querySelector("#bulk-exclude-toggle");
+const bulkExcludeToggleLabel = document.querySelector("#bulk-exclude-toggle-label");
 const exportPhotosButton = document.querySelector("#export-photos");
 const exportStatus = document.querySelector("#export-status");
 const exportToolbarStatus = document.querySelector("#export-toolbar-status");
@@ -698,8 +698,8 @@ function updateAlbumReadiness() {
 }
 
 function photoBookKitFileName() {
-  const base = String(sessionName.value || "写真整理").replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_").trim() || "写真整理";
-  return `${base}_写真帳作成セット.zip`;
+  // ZIPをWindows標準の展開機能で開いても文字化けしないよう、配布ファイル名はASCIIに統一する。
+  return "photo-book-kit.zip";
 }
 
 async function createPhotoBookKit() {
@@ -724,7 +724,7 @@ async function createPhotoBookKit() {
     "資産写真整理MVP 写真帳作成セット",
     "",
     "1. ZIPを展開します。",
-    "2. 「写真帳を作成.bat」をダブルクリックします。",
+    "2. 「START-PHOTO-BOOK.bat」をダブルクリックします。",
     "3. 健全度判定表、写真帳様式、元写真フォルダ、出力先フォルダを順に選びます。",
     "4. 元のExcelは変更せず、出力先に写真貼付済みのコピーを作成します。",
     "",
@@ -732,11 +732,12 @@ async function createPhotoBookKit() {
     "元写真はJPG、JPEG、PNGに対応します。同名写真が複数ある場合は整理してから実行してください。",
   ].join("\r\n");
   const blob = await createZip([
-    { path: "写真帳を作成.bat", blob: new Blob([photoBookBat], { type: "text/plain;charset=utf-8" }) },
+    { path: "START-PHOTO-BOOK.bat", blob: new Blob([photoBookBat], { type: "text/plain;charset=us-ascii" }) },
     { path: "photo-book-runner.ps1", blob: new Blob([photoBookRunner], { type: "text/plain;charset=utf-8" }) },
     { path: "build-photo-album.ps1", blob: new Blob([photoBookBuilder], { type: "text/plain;charset=utf-8" }) },
     { path: "photo-book-instruction.json", blob: new Blob([JSON.stringify(instruction, null, 2)], { type: "application/json" }) },
-    { path: "使い方.txt", blob: new Blob([guide], { type: "text/plain;charset=utf-8" }) },
+    // UTF-8 BOMを付け、Windowsのメモ帳でも日本語の案内文を正しく開けるようにする。
+    { path: "README.txt", blob: new Blob(["\uFEFF", guide], { type: "text/plain;charset=utf-8" }) },
   ]);
   return { blob, entryCount: entries.length };
 }
@@ -1182,8 +1183,17 @@ function updateBulkControls() {
   bulkAsset.disabled = selectedCount === 0;
   applyBulkAsset.disabled = selectedCount === 0 || !bulkAsset.value;
   clearReview.disabled = selectedCount === 0;
-  bulkExclude.disabled = selectedCount === 0;
-  bulkInclude.disabled = selectedCount === 0;
+  bulkExcludeToggle.disabled = selectedCount === 0;
+  if (selectedCount > 0) {
+    const selectedPhotos = photos.filter((photo) => selectedPhotoIdsState.has(photo.id));
+    const excludedCount = selectedPhotos.filter((photo) => photo.excluded).length;
+    bulkExcludeToggle.indeterminate = excludedCount > 0 && excludedCount < selectedPhotos.length;
+    bulkExcludeToggle.checked = excludedCount === selectedPhotos.length;
+  } else {
+    bulkExcludeToggle.indeterminate = false;
+    bulkExcludeToggle.checked = false;
+  }
+  bulkExcludeToggleLabel.textContent = bulkExcludeToggle.checked ? "選択写真の除外を解除" : "選択写真を除外にする";
 }
 
 excelInput.addEventListener("change", async () => {
@@ -1564,8 +1574,7 @@ function setExcludedForSelection(excluded) {
   scheduleSessionSave();
 }
 
-bulkExclude.addEventListener("click", () => setExcludedForSelection(true));
-bulkInclude.addEventListener("click", () => setExcludedForSelection(false));
+bulkExcludeToggle.addEventListener("change", () => setExcludedForSelection(bulkExcludeToggle.checked));
 
 exportPhotosButton.addEventListener("click", async () => {
   exportPhotosButton.disabled = true;
