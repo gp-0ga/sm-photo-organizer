@@ -885,16 +885,11 @@ function createPhotoCard(photo) {
   node.querySelector(".photo-date").textContent = photoDate ? `撮影日時：${new Intl.DateTimeFormat("ja-JP", { dateStyle: "short", timeStyle: "short" }).format(new Date(photoDate))}` : "撮影日時：不明";
   const assetSelect = node.querySelector(".photo-asset");
   assetSelect.innerHTML = assetOptions(photo.assetNumber ?? "");
-  const destinationButton = node.querySelector(".photo-destination");
   const destinationOptionsPanel = node.querySelector(".photo-destination-options");
   const fullBadge = node.querySelector(".photo-full-badge");
   const renderDestinationChooser = () => {
     const destinations = photoDestinations(photo);
-    destinationButton.textContent = destinations.length ? destinations.join("・") : "分類なし";
     destinationOptionsPanel.innerHTML = destinationChoices(photo);
-    destinationButton.hidden = true;
-    destinationOptionsPanel.dataset.open = "true";
-    destinationOptionsPanel.hidden = false;
     const hasAsset = Boolean(assets.find((item) => item.assetNumber === photo.assetNumber));
     const isFull = destinations.includes("全景");
     fullBadge.hidden = !hasAsset;
@@ -946,10 +941,6 @@ function createPhotoCard(photo) {
     updatePhotoSummary();
     scheduleSessionSave();
     applyPhotoFilter();
-  });
-  destinationButton.addEventListener("click", () => {
-    destinationOptionsPanel.dataset.open = destinationOptionsPanel.hidden ? "true" : "false";
-    destinationOptionsPanel.hidden = destinationOptionsPanel.dataset.open !== "true";
   });
   destinationOptionsPanel.addEventListener("change", (event) => {
     if (!event.target.matches(".photo-item-select")) return;
@@ -1511,11 +1502,7 @@ applyBulkAsset.addEventListener("click", () => {
       const card = cards.get(photo.id);
       if (!card) continue;
       card.querySelector(".photo-asset").value = photo.assetNumber;
-      card.querySelector(".photo-destination").textContent = "分類なし";
-      const destinationPanel = card.querySelector(".photo-destination-options");
-      destinationPanel.innerHTML = destinationChoices(photo);
-      destinationPanel.dataset.open = "true";
-      destinationPanel.hidden = false;
+      card.querySelector(".photo-destination-options").innerHTML = destinationChoices(photo);
       const fullBadge = card.querySelector(".photo-full-badge");
       fullBadge.hidden = !assets.find((item) => item.assetNumber === photo.assetNumber);
       fullBadge.classList.remove("active");

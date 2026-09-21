@@ -6,23 +6,26 @@
     <meta name="theme-color" content="#163a5f" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <title>資産切替マーカー</title>
-    <script type="module" crossorigin src="/assets/capture-BDLV25qA.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/xlsx-CSDiKpwJ.js">
-    <link rel="modulepreload" crossorigin href="/assets/qr-YEjG3M_E.js">
-    <link rel="stylesheet" crossorigin href="/assets/qr-DlhOwIyv.css">
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <title>施設調査ツール　写真切替マーカー</title>
+    <script type="module" crossorigin src="./assets/capture-C63Uyf4C.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/domain-BdU-FpMW.js">
+    <link rel="modulepreload" crossorigin href="./assets/excel-CccId8mV.js">
+    <link rel="stylesheet" crossorigin href="./assets/excel-CjXhBZI1.css">
   </head>
   <body class="marker-site">
     <header class="app-header">
-      <div>
-        <p class="eyebrow">施設調査</p>
-        <h1>資産切替マーカー</h1>
+      <div class="app-title-block">
+        <span class="app-icon" aria-hidden="true">▥</span>
+        <div>
+        <p class="eyebrow">施設調査ツール</p>
+        <h1>写真切替マーカー</h1>
+        </div>
       </div>
       <div class="header-actions">
-        <span class="local-badge">端末内で作成</span>
-        <a class="header-action" href="./organize.html">PCで写真を振り分ける</a>
+        <span class="header-privacy">写真・Excelは外部へ送信しません</span>
+        <a class="header-action" href="./organize.html">写真ファイリングを開く</a>
       </div>
     </header>
 
@@ -33,16 +36,41 @@
         <div class="step-body">
           <h2 id="marker-excel-heading">資産一覧を読み込む</h2>
           <p>健全度判定表の「No11」から資産番号と資産名だけを読み取り、このブラウザ内に保存します。Excelは外部へ送信しません。</p>
-          <label class="file-picker marker-file-picker">
-            <span>Excelを選択</span>
-            <input id="marker-excel-input" type="file" accept=".xlsx" />
-          </label>
-          <label class="file-picker marker-file-picker">
-            <span>印刷用PDFを選択</span>
-            <input id="marker-pdf-input" type="file" accept=".pdf" />
-          </label>
+          <div class="marker-file-row">
+            <label class="file-picker marker-file-picker">
+              <span>Excelを選択</span>
+              <input id="marker-excel-input" type="file" accept=".xlsx" />
+            </label>
+            <label class="file-picker marker-file-picker">
+              <span>印刷用PDFを選択</span>
+              <input id="marker-pdf-input" type="file" accept=".pdf" />
+            </label>
+          </div>
           <p class="setting-note">PCで作成したこのアプリの印刷用PDFをiPhoneへ送り、ここから読み込めます。読み込み後は資産を選択してマーカーを表示できます。</p>
           <div id="marker-excel-status" class="status neutral" role="status">Excelを選択してください。</div>
+        </div>
+      </section>
+
+      <section id="room-panel" class="panel marker-room-panel" aria-labelledby="room-heading" hidden>
+        <div class="step-label">試</div>
+        <div class="step-body">
+          <h2 id="room-heading">部屋単位の切り替え（試験機能）</h2>
+          <p>棟名・部屋名を登録し、その部屋で使う床・壁・天井の資産をまとめます。登録後は部屋から各資産マーカーへすぐ切り替えられます。</p>
+          <div class="room-input-grid">
+            <label>棟名<input id="room-building-input" type="text" placeholder="例：管理本館" /></label>
+            <label>部屋名<input id="room-name-input" type="text" placeholder="例：会議室1" /></label>
+            <label>床<select id="room-floor-select"></select></label>
+            <label>壁<select id="room-wall-select"></select></label>
+            <label>天井<select id="room-ceiling-select"></select></label>
+          </div>
+          <button id="room-save" class="secondary" type="button">部屋を登録・更新</button>
+          <label class="file-picker room-source-picker">
+            <span>図面PDF・画像から部屋名候補を読み込む</span>
+            <input id="room-source-input" type="file" accept=".pdf,image/*,.tif,.tiff" />
+          </label>
+          <div id="room-source-status" class="status neutral" role="status">PDFの文字情報を優先して候補化します。スキャン画像は候補確認後に手入力で修正してください。</div>
+          <div id="room-candidate-list" class="room-candidate-list"></div>
+          <div id="room-list" class="room-list"></div>
         </div>
       </section>
 
@@ -62,6 +90,8 @@
               <label class="marker-select-label" for="marker-asset-select">表示する資産</label>
               <button id="marker-change-list" class="marker-change-list" type="button">資産一覧を変更</button>
             </div>
+            <label class="marker-search-label" for="marker-asset-search">資産を検索</label>
+            <input id="marker-asset-search" class="marker-asset-search" type="search" inputmode="search" autocomplete="off" placeholder="資産番号・資産名を入力" />
             <select id="marker-asset-select" class="camera-asset-select"></select>
           </div>
 

@@ -146,6 +146,13 @@
               <div id="bulk-tools-sentinel"></div>
               <div id="bulk-tools" class="bulk-tools" hidden>
                 <div class="bulk-tools-content">
+                <div class="grid-density-toggle" role="group" aria-label="写真の表示サイズ">
+                  <span>写真の大きさ</span>
+                  <div class="grid-density-buttons">
+                    <button id="grid-density-6" type="button" class="secondary" aria-pressed="true">1列に6枚</button>
+                    <button id="grid-density-3" type="button" class="secondary" aria-pressed="false">1列に3枚</button>
+                  </div>
+                </div>
                 <button id="jump-to-bookmark" class="secondary" type="button" disabled>しおりへ移動</button>
                 <div class="bulk-always-visible">
                   <label><input id="select-all-photos" type="checkbox" /> 表示中を全選択</label>
@@ -162,11 +169,6 @@
                   <label class="photo-filter">キーワード<input id="photo-filter-keyword" type="search" placeholder="写真名・資産名" aria-label="写真のキーワード絞り込み" /></label>
                   <span id="photo-filter-status" class="photo-filter-status"></span>
                   <button id="clear-all-review" class="secondary" type="button" hidden>表示中の要確認をまとめて解除</button>
-                  <div class="grid-density-toggle" role="group" aria-label="写真の表示サイズ">
-                    <span>写真の大きさ</span>
-                    <button id="grid-density-6" type="button" class="secondary" aria-pressed="true">1列に6枚</button>
-                    <button id="grid-density-3" type="button" class="secondary" aria-pressed="false">1列に3枚</button>
-                  </div>
                 </div>
                 <div id="photo-summary" class="summary-grid bulk-photo-summary" hidden></div>
                 <div id="photo-destination-alert" class="photo-destination-alert" role="status" hidden></div>
@@ -325,11 +327,7 @@
         <div class="photo-info">
           <div class="photo-meta-row"><strong class="photo-name"></strong><span class="photo-date"></span></div>
           <label>資産<select class="photo-asset"></select></label>
-          <div class="photo-destination-field">
-            <span>写真帳分類</span>
-            <button class="photo-destination secondary" type="button">分類なし</button>
-            <div class="photo-destination-options" hidden></div>
-          </div>
+          <div class="photo-destination-options"></div>
           <button class="review-badge" type="button" hidden>要確認（押して解除）</button>
         </div>
       </article>

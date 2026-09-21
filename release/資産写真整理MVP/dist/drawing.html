@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>図面数量拾いMVP</title>
-    <script type="module" crossorigin src="/assets/drawing-D8Z5N0On.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/xlsx-CSDiKpwJ.js">
-    <link rel="modulepreload" crossorigin href="/assets/zip-DhXGBq_l.js">
-    <link rel="stylesheet" crossorigin href="/assets/drawing-Ou6iGuSP.css">
+    <script type="module" crossorigin src="./assets/drawing-CkmFjM8Z.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/domain-BdU-FpMW.js">
+    <link rel="modulepreload" crossorigin href="./assets/zip-Bw9NSO-N.js">
+    <link rel="stylesheet" crossorigin href="./assets/drawing-16iuKkUT.css">
   </head>
   <body class="drawing-app">
     <header class="drawing-header">
@@ -258,6 +258,13 @@
             <button id="delete-selected" class="icon-btn" data-label="選択削除" title="選択削除" type="button" aria-label="選択削除">🗑</button>
           </div>
           <p class="small-note">多角形は点を順にクリック。四角形と開口はドラッグでも作成できます。Shift/Ctrlを押しながらクリックすると水平/垂直に揃えます。図面はドラッグで移動できます。手入力は面積表に書かれた数値をそのまま記録し、図面名が根拠になります。</p>
+        </section>
+
+        <section class="tool-panel">
+          <h2>開口候補</h2>
+          <button id="detect-openings" type="button">この立面図から候補を探す</button>
+          <p id="opening-candidate-note" class="small-note">立面図の外壁面積を先に囲み、縮尺を確定してください。</p>
+          <div id="opening-candidate-list" class="candidate-list"></div>
         </section>
 
         <section class="tool-panel">
