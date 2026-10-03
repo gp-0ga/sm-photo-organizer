@@ -181,9 +181,16 @@ try {
             throw "健全度判定表と写真帳で、No11の$($absoluteRow)行目の資産番号または項目番号が一致しません。写真帳は変更していません。"
         }
         foreach ($resultHeader in @('点検結果1', '点検結果2')) {
+            $sourceCell = $sourceNo11.Cells.Item($absoluteRow, [int]$sourceHeaders[$resultHeader])
             $targetCell = $targetNo11.Cells.Item($absoluteRow, [int]$targetHeaders[$resultHeader])
-            if ([bool]$targetCell.HasFormula) {
-                throw "写真帳No11の$($targetCell.Address($false, $false))に数式があります。写真帳は変更していません。"
+            $sourceHasFormula = [bool]$sourceCell.HasFormula
+            $targetHasFormula = [bool]$targetCell.HasFormula
+            if ($sourceHasFormula -or $targetHasFormula) {
+                $sourceFormula = if ($sourceHasFormula) { [string]$sourceCell.Formula } else { '' }
+                $targetFormula = if ($targetHasFormula) { [string]$targetCell.Formula } else { '' }
+                if (-not ($sourceHasFormula -and $targetHasFormula -and $sourceFormula -eq $targetFormula)) {
+                    throw "健全度判定表と写真帳で、No11の$($targetCell.Address($false, $false))の数式が一致しません。写真帳は変更していません。"
+                }
             }
         }
     }
@@ -195,6 +202,7 @@ try {
             $column = [int]$sourceHeaders[$resultHeader]
             $sourceCell = $sourceNo11.Cells.Item($absoluteRow, $column)
             $targetCell = $targetNo11.Cells.Item($absoluteRow, $column)
+            if ([bool]$targetCell.HasFormula) { continue }
             $targetCell.Value2 = $sourceCell.Value2
         }
     }

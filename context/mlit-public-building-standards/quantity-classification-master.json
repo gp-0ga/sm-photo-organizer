@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "title": "公共建築工事内訳書標準書式（建築工事編）",
+    "revision": "令和7年12月10日改定"
+  },
+  "workType": {
+    "id": "building_renovation",
+    "label": "建築改修工事"
+  },
+  "categories": [
+    {
+      "id": "waterproofing_renovation",
+      "label": "防水改修",
+      "order": 2,
+      "divisions": [
+        { "id": "removal", "label": "撤去", "measurementTypes": ["area", "line", "count"], "units": ["㎡", "m", "m3", "か所", "式"] },
+        { "id": "renovation", "label": "改修", "measurementTypes": ["area", "line", "count"], "units": ["㎡", "m", "m3", "か所", "式"] }
+      ]
+    },
+    {
+      "id": "exterior_wall_renovation",
+      "label": "外壁改修",
+      "order": 3,
+      "divisions": [
+        { "id": "removal", "label": "撤去", "measurementTypes": ["area", "line"], "units": ["㎡", "m", "式"] },
+        { "id": "renovation", "label": "改修", "measurementTypes": ["area", "line", "count"], "units": ["㎡", "m", "か所", "式"] }
+      ]
+    },
+    {
+      "id": "opening_renovation",
+      "label": "建具改修",
+      "order": 4,
+      "divisions": [
+        { "id": "removal", "label": "撤去", "measurementTypes": ["rectangle", "line", "count"], "units": ["か所", "㎡", "m", "式"] },
+        { "id": "renovation", "label": "改修", "measurementTypes": ["rectangle", "count"], "units": ["か所", "㎡", "式"] }
+      ]
+    },
+    {
+      "id": "interior_renovation",
+      "label": "内装改修",
+      "order": 5,
+      "divisions": [
+        { "id": "removal", "label": "撤去", "measurementTypes": ["area", "line", "count"], "units": ["㎡", "m", "m3", "枚", "か所", "式"] },
+        { "id": "renovation", "label": "改修", "measurementTypes": ["area", "line", "count"], "units": ["㎡", "m", "枚", "か所", "式"] }
+      ]
+    },
+    {
+      "id": "painting_renovation",
+      "label": "塗装改修",
+      "order": 6,
+      "divisions": [
+        { "id": "renovation", "label": "改修", "measurementTypes": ["area", "line"], "units": ["㎡", "m"] }
+      ]
+    }
+  ]
+}
