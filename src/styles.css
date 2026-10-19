@@ -594,7 +594,8 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .marker-site.marker-ready #marker-view-panel .step-body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 100dvh; padding: max(.35rem, env(safe-area-inset-top)) .45rem max(.45rem, env(safe-area-inset-bottom)); }
   .marker-site.marker-ready .marker-selector { width: 100%; margin: 0 0 .35rem; }
   .marker-site.marker-ready .marker-select-heading { min-height: 1.35rem; align-items: center; }
-  .marker-site.marker-ready .marker-select-label { margin: 0; font-size: .82rem; line-height: 1.1; }
+  .marker-site.marker-ready .marker-select-heading { justify-content: flex-end; }
+  .marker-site.marker-ready .marker-select-label { display: none; }
   .marker-site.marker-ready .marker-change-list { padding: 0 .2rem; font-size: .76rem; }
   .marker-site.marker-ready .camera-asset-select { min-height: 42px; padding: .45rem .55rem; border-width: 2px; font-size: .95rem; }
   .marker-site.marker-ready .marker-display { grid-template-rows: 2rem minmax(0, 1fr) auto 2.7em; gap: .22rem; width: 100%; height: min(410px, calc(100dvh - 112px)); min-height: 300px; margin: 0 auto .35rem; padding: .35rem .45rem; border-width: 3px; border-radius: 10px; }
