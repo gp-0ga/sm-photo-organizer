@@ -3,6 +3,11 @@ import { readAssetsFromAssetListWorkbook, readAssetsFromWorkbook, readInspection
 import { matchInspectionAssets } from "./domain.js";
 import { createAssetQr } from "./qr.js";
 import { clearMarkerSelection, loadMarkerAssets, loadMarkerSelection, saveMarkerAssets, saveMarkerSelection } from "./marker-storage.js";
+import { parseMarkerAssetsFromTextItems } from "./pdf-marker.js";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 const excelInput = document.querySelector("#marker-excel-input");
 const healthExcelInput = document.querySelector("#marker-health-excel-input");
@@ -59,50 +64,29 @@ function saveRooms() {
   localStorage.setItem(roomsStorageKey, JSON.stringify(rooms));
 }
 
-function decodePdfLiteral(value) {
-  return value.replace(/\\([\\()nrt])/g, (_, code) => ({ "n": "\n", "r": "\r", "t": "\t" }[code] ?? code));
-}
-
 async function readPdfText(file) {
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const chunks = [];
-  const decoder = new TextDecoder("latin1");
-  const raw = decoder.decode(bytes);
-  const streamPattern = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-  let match;
-  while ((match = streamPattern.exec(raw))) {
-    const streamBytes = bytes.slice(match.index + match[0].indexOf("\n") + 1, match.index + match[0].length - "endstream".length);
-    try {
-      const writer = new Blob([streamBytes]).stream().pipeThrough(new DecompressionStream("deflate"));
-      const reader = writer.pipeThrough(new TextDecoderStream("latin1")).getReader();
-      let text = "";
-      for (;;) { const next = await reader.read(); if (next.done) break; text += next.value; }
-      chunks.push(text);
-    } catch {
-      chunks.push(match[1]);
-    }
+  const loadingTask = pdfjsLib.getDocument({ data: bytes });
+  const document = await loadingTask.promise;
+  const items = [];
+  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+    const page = await document.getPage(pageNumber);
+    const content = await page.getTextContent();
+    items.push(...content.items.map((item) => item.str ?? ""), "\n");
   }
-  return chunks.join("\n") + "\n" + raw;
+  await loadingTask.destroy();
+  return items;
 }
 
 async function readMarkerAssetsFromPdf(file) {
-  const text = await readPdfText(file);
-  const assets = [];
-  const seen = new Set();
-  const pattern = /SM-ASSET-NAME\|1\|([^|()\\]+)\|([^()\\]*(?:\\.[^()\\]*)*)/g;
-  let match;
-  while ((match = pattern.exec(text))) {
-    const assetNumber = decodePdfLiteral(match[1]).trim();
-    const assetName = decodePdfLiteral(match[2]).trim();
-    if (assetNumber && assetName && !seen.has(assetNumber)) { seen.add(assetNumber); assets.push({ assetNumber, assetName, items: [] }); }
-  }
+  const assets = parseMarkerAssetsFromTextItems(await readPdfText(file));
   if (!assets.length) throw new Error("このPDFから資産情報を読み取れませんでした。PCアプリの「全マーカーを印刷」で作成したPDFを選択してください。");
   return assets;
 }
 
 function roomCandidatesFromText(text) {
   const seen = new Set();
-  return String(text ?? "").split(/[\r\n]+/)
+  return (Array.isArray(text) ? text : [text]).flatMap((value) => String(value ?? "").split(/[\r\n]+/))
     .map((line) => line.replace(/[()（）［］【】]/g, " ").replace(/\s+/g, " ").trim())
     .filter((line) => line.length >= 2 && line.length <= 40)
     .filter((line) => /(室|ホール|廊下|便所|倉庫|機械|事務|会議|玄関|階段|食堂|更衣|浴室|休憩)/.test(line))
