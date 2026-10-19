@@ -34,11 +34,28 @@
         <div class="step-body">
           <div class="panel-title-row"><h2 id="excel-heading">読み込み</h2></div>
           <div class="import-group">
-            <h3 class="import-group-title">健全度判定表</h3>
-            <label class="file-picker">
-              <span>ファイルを選択</span>
-              <input id="excel-input" type="file" accept=".xlsx" />
-            </label>
+            <fieldset class="marker-import-mode organizer-import-mode">
+              <legend>使用する様式</legend>
+              <label><input type="radio" name="organizer-import-mode" value="health" checked /><span><strong>健全度判定表</strong><small>従来様式・No11</small></span></label>
+              <label><input type="radio" name="organizer-import-mode" value="asset-list" /><span><strong>資産リスト＋点検表</strong><small>新様式・点検表フォルダー</small></span></label>
+            </fieldset>
+            <div id="organizer-health-import">
+              <label class="file-picker">
+                <span>端末内の健全度判定表を選択</span>
+                <input id="excel-input" type="file" accept=".xlsx" />
+              </label>
+            </div>
+            <div id="organizer-asset-list-import" hidden>
+              <label class="file-picker">
+                <span>1　端末内の資産リストを選択</span>
+                <input id="asset-list-input" type="file" accept=".xlsx" />
+              </label>
+              <label class="file-picker">
+                <span>2　端末内の点検表フォルダーを選択</span>
+                <input id="inspection-folder-input" type="file" accept=".xlsx" webkitdirectory directory multiple disabled />
+              </label>
+            </div>
+            <p class="local-only-note">選択したExcelはこの端末内だけで読み取ります。外部へ送信しません。</p>
             <div id="excel-file-name" class="selected-file-name" hidden></div>
             <div id="excel-status" class="status neutral" role="status">未読込</div>
           </div>
@@ -146,7 +163,7 @@
               <div id="bulk-tools-sentinel"></div>
               <div id="photo-tools-empty" class="tool-empty-state">
                 <strong>写真整理の操作パネル</strong>
-                <span id="photo-tools-empty-copy">健全度判定表と撮影写真を読み込むと、絞り込み・一括変更・確認済み操作が表示されます。</span>
+                  <span id="photo-tools-empty-copy">資産情報と撮影写真を読み込むと、絞り込み・一括変更・確認済み操作が表示されます。</span>
               </div>
               <div id="bulk-tools" class="bulk-tools" hidden>
                 <div class="bulk-tools-content">

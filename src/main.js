@@ -1,7 +1,7 @@
 import "./styles.css";
-import { readAssetsFromWorkbook } from "./excel.js";
+import { readAssetsFromAssetListWorkbook, readAssetsFromWorkbook, readInspectionWorkbooks } from "./excel.js";
 import { createAssetFolders, exportOrganizedPhotos } from "./folders.js";
-import { OTHER_ASSET, OTHER_ASSET_NUMBER, photoDestinations } from "./domain.js";
+import { matchInspectionAssets, OTHER_ASSET, OTHER_ASSET_NUMBER, photoDestinations } from "./domain.js";
 import { analyzePhotoFiles, compressToJpeg, jpegFileName, targetBytesFromKilobytes } from "./photos.js";
 import { albumEntries, createPhotoAlbum, inspectPhotoAlbumTemplate } from "./album.js";
 import { photoBookKitArchiveEntries } from "./photo-book-kit.js";
@@ -18,6 +18,11 @@ if (hostedOrganizer) document.body.classList.add("hosted-organizer");
 const isLocalPhotoBookApp = ["127.0.0.1", "localhost", "[::1]"].includes(window.location.hostname);
 
 const excelInput = document.querySelector("#excel-input");
+const assetListInput = document.querySelector("#asset-list-input");
+const inspectionFolderInput = document.querySelector("#inspection-folder-input");
+const organizerImportModeInputs = [...document.querySelectorAll('input[name="organizer-import-mode"]')];
+const organizerHealthImport = document.querySelector("#organizer-health-import");
+const organizerAssetListImport = document.querySelector("#organizer-asset-list-import");
 const excelFileName = document.querySelector("#excel-file-name");
 function setSelectedFileName(element, text) {
   element.hidden = !text;
@@ -136,6 +141,8 @@ let photos = [];
 let markerCount = 0;
 let bookmarkPhotoId = null;
 let healthWorkbookFile = null;
+let organizerImportMode = "health";
+let pendingAssetListAssets = [];
 let albumTemplateFile = null;
 let pendingWorkPhotoMetadata = null;
 let pendingWorkBookmarkId = null;
@@ -400,7 +407,7 @@ function updatePhotoToolsVisibility() {
   if (photoToolsEmptyCopy && !hasPhotos) {
     photoToolsEmptyCopy.textContent = assets.length
       ? "撮影写真を読み込むと、絞り込み・一括変更・確認済み操作が表示されます。"
-      : "健全度判定表と撮影写真を読み込むと、絞り込み・一括変更・確認済み操作が表示されます。";
+      : "資産情報と撮影写真を読み込むと、絞り込み・一括変更・確認済み操作が表示されます。";
   }
 }
 
@@ -409,7 +416,7 @@ function renderPhotoEmptyState() {
   empty.className = "photo-empty-state";
   empty.innerHTML = assets.length
     ? "<strong>撮影写真を読み込んでください</strong><span>写真を選択すると、QRマーカーをもとに資産ごとの整理を始められます。</span>"
-    : "<strong>写真整理はここに表示されます</strong><span>左の「読み込み」から健全度判定表、次に撮影写真を選択してください。</span>";
+    : "<strong>写真整理はここに表示されます</strong><span>左の「読み込み」から使用する様式を選び、資産情報、撮影写真の順に選択してください。</span>";
   photoList.replaceChildren(empty);
 }
 
@@ -764,6 +771,10 @@ function moveDestinationOrder(direction, photoId) {
 function updateAlbumReadiness() {
   createAlbumButton.disabled = true;
   exportAlbumKitButton.disabled = true;
+  if (organizerImportMode === "asset-list") {
+    setStatus(albumStatus, "新様式の写真帳は未確認のため、写真帳作成は利用できません。資産別の写真フォルダ出力は利用できます。", "neutral");
+    return;
+  }
   let entries;
   try {
     entries = albumEntries(assets, photos);
@@ -927,6 +938,7 @@ function applyLoadedSession(saved, message = "") {
     assets = saved.assets ?? [];
     photos = (saved.photos ?? []).map((photo) => normalizePhotoDestinations(photo));
     healthWorkbookFile = saved.healthWorkbookFile;
+    showOrganizerImportMode(healthWorkbookFile ? "health" : "asset-list");
     albumTemplateFile = saved.albumTemplateFile;
     bookmarkPhotoId = photos.some((photo) => photo.id === saved.bookmarkPhotoId) ? saved.bookmarkPhotoId : null;
     setSelectedFileName(excelFileName, healthWorkbookFile?.name || "");
@@ -1313,6 +1325,52 @@ function updateBulkControls() {
   bulkExcludeToggleLabel.textContent = bulkExcludeToggle.checked ? "選択写真の除外を解除" : "選択写真を除外にする";
 }
 
+function activateImportedAssets(importedAssets, sourceLabel, { healthWorkbook = null } = {}) {
+  const merged = assets.length > 0;
+  assets = merged ? mergeWorkbookAssets(importedAssets) : importedAssets;
+  healthWorkbookFile = healthWorkbook;
+  albumTemplateFile = null;
+  albumInput.value = "";
+  renderAssets();
+  renderCameraAssets();
+  if (merged && photos.length) renderPhotos();
+  createFoldersButton.disabled = false;
+  photoInput.disabled = false;
+  albumInput.disabled = organizerImportMode !== "health";
+  setStatus(photoStatus, "写真を選択してください。", "neutral");
+  setStatus(
+    albumTemplateStatus,
+    organizerImportMode === "health" ? "この健全度判定表と対になる写真帳様式を選択してください。" : "新様式の写真帳は、様式確認後に対応します。",
+    "neutral",
+  );
+  setStatus(excelStatus, `${assets.length}資産を${sourceLabel}から読み込みました。Excelは外部へ送信していません。`, "success");
+  updateAlbumReadiness();
+  scheduleSessionSave();
+}
+
+function resetOrganizerImportMode() {
+  organizerImportMode = organizerImportModeInputs.find((input) => input.checked)?.value ?? "health";
+  organizerHealthImport.hidden = organizerImportMode !== "health";
+  organizerAssetListImport.hidden = organizerImportMode !== "asset-list";
+  pendingAssetListAssets = [];
+  excelInput.value = "";
+  assetListInput.value = "";
+  inspectionFolderInput.value = "";
+  inspectionFolderInput.disabled = true;
+  setSelectedFileName(excelFileName, "");
+  setStatus(excelStatus, organizerImportMode === "health" ? "健全度判定表を選択してください。" : "最初に資産リストを選択してください。", "neutral");
+  updateAlbumReadiness();
+}
+
+function showOrganizerImportMode(mode) {
+  organizerImportMode = mode === "asset-list" ? "asset-list" : "health";
+  for (const input of organizerImportModeInputs) input.checked = input.value === organizerImportMode;
+  organizerHealthImport.hidden = organizerImportMode !== "health";
+  organizerAssetListImport.hidden = organizerImportMode !== "asset-list";
+}
+
+for (const input of organizerImportModeInputs) input.addEventListener("change", resetOrganizerImportMode);
+
 excelInput.addEventListener("change", async () => {
   const file = excelInput.files?.[0];
   if (!file) return;
@@ -1321,28 +1379,7 @@ excelInput.addEventListener("change", async () => {
   setStatus(excelStatus, `${file.name} を読み込んでいます…`, "working");
   try {
     const workbookAssets = await readAssetsFromWorkbook(file);
-    const merged = assets.length > 0;
-    assets = merged ? mergeWorkbookAssets(workbookAssets) : workbookAssets;
-    healthWorkbookFile = file;
-    albumTemplateFile = null;
-    albumInput.value = "";
-    renderAssets();
-    renderCameraAssets();
-    if (merged && photos.length) renderPhotos();
-    createFoldersButton.disabled = false;
-    photoInput.disabled = false;
-    albumInput.disabled = false;
-    setStatus(photoStatus, "写真を選択してください。", "neutral");
-    setStatus(albumTemplateStatus, "この健全度判定表と対になる写真帳様式を選択してください。", "neutral");
-    setStatus(
-      excelStatus,
-      merged
-        ? `${assets.length}資産に更新しました。既存の写真の振り分けは維持されます。元のExcelは変更していません。`
-        : `${assets.length}資産を読み込みました。元のExcelは変更していません。`,
-      "success",
-    );
-    updateAlbumReadiness();
-    scheduleSessionSave();
+    activateImportedAssets(workbookAssets, "健全度判定表", { healthWorkbook: file });
   } catch (error) {
     assets = [];
     addAssetButton.disabled = true;
@@ -1354,6 +1391,45 @@ excelInput.addEventListener("change", async () => {
     assetsEmpty.hidden = false;
     cameraAsset.disabled = true;
     cameraWorkspace.hidden = true;
+    setStatus(excelStatus, error.message ?? String(error), "error");
+  }
+});
+
+assetListInput.addEventListener("change", async () => {
+  const file = assetListInput.files?.[0];
+  if (!file) return;
+  createFoldersButton.disabled = true;
+  inspectionFolderInput.disabled = true;
+  setSelectedFileName(excelFileName, file.name);
+  setStatus(excelStatus, `${file.name}を端末内で読み取っています…`, "working");
+  try {
+    pendingAssetListAssets = await readAssetsFromAssetListWorkbook(file);
+    inspectionFolderInput.disabled = false;
+    setStatus(excelStatus, `${pendingAssetListAssets.length}資産を確認しました。次に点検表フォルダーを選択してください。`, "success");
+  } catch (error) {
+    pendingAssetListAssets = [];
+    setStatus(excelStatus, error.message ?? String(error), "error");
+  }
+});
+
+inspectionFolderInput.addEventListener("change", async () => {
+  const files = inspectionFolderInput.files;
+  if (!files?.length || !pendingAssetListAssets.length) return;
+  createFoldersButton.disabled = true;
+  setStatus(excelStatus, `${files.length}ファイルを端末内で確認しています…`, "working");
+  try {
+    const loaded = await readInspectionWorkbooks(files, (done, total) => {
+      if (done === total || done % 20 === 0) setStatus(excelStatus, `点検表を確認しています… ${done} / ${total}`, "working");
+    });
+    const matched = matchInspectionAssets(pendingAssetListAssets, loaded.inspections);
+    if (!matched.assets.length) throw new Error("資産リストと一致する点検表がありませんでした。");
+    activateImportedAssets(matched.assets, "資産リストと点検表");
+    const warningCount = loaded.failures.length + matched.duplicates.length + matched.unmatched.length + matched.nameMismatches.length;
+    if (warningCount) {
+      setStatus(excelStatus, `${matched.assets.length}資産を読み込みました。照合できない点検表など${warningCount}件は除外しました。Excelは外部へ送信していません。`, "neutral");
+    }
+    setSelectedFileName(excelFileName, `${assetListInput.files?.[0]?.name ?? "資産リスト"}／点検表 ${files.length}件`);
+  } catch (error) {
     setStatus(excelStatus, error.message ?? String(error), "error");
   }
 });
@@ -1896,6 +1972,7 @@ importWorkFileInput.addEventListener("change", async () => {
     assets = saved.assets ?? [];
     photos = [];
     healthWorkbookFile = null;
+    showOrganizerImportMode("asset-list");
     albumTemplateFile = null;
     pendingWorkPhotoMetadata = saved.photos ?? [];
     pendingWorkBookmarkId = saved.bookmarkPhotoId ?? null;
