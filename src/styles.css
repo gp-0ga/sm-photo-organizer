@@ -610,6 +610,13 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 }
 
 @media (min-width: 701px) {
+  body.marker-site {
+    display: block;
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
   .marker-site main {
     display: grid;
     flex: initial;
