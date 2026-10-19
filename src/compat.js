@@ -85,4 +85,50 @@ define(Array.prototype, "flatMap", function flatMap(callback, thisArg) {
   return this.map(callback, thisArg).flat(1);
 });
 
-define(globalThis, "structuredClone", (value) => JSON.parse(JSON.stringify(value)));
+
+// PDF.jsがワーカー無し環境（古いiOS）でメッセージ複製に使う。転送(transfer)は無視してコピーする。
+function cloneValue(value, seen) {
+  if (value === null || typeof value !== "object") return value;
+  if (seen.has(value)) return seen.get(value);
+  let copy;
+  if (value instanceof ArrayBuffer) {
+    copy = value.slice(0);
+  } else if (ArrayBuffer.isView(value)) {
+    const buffer = cloneValue(value.buffer, seen);
+    copy = value instanceof DataView
+      ? new DataView(buffer, value.byteOffset, value.byteLength)
+      : new value.constructor(buffer, value.byteOffset, value.length);
+  } else if (value instanceof Date) {
+    copy = new Date(value.getTime());
+  } else if (value instanceof RegExp) {
+    copy = new RegExp(value.source, value.flags);
+  } else if (value instanceof Map) {
+    copy = new Map();
+    seen.set(value, copy);
+    value.forEach((item, key) => copy.set(cloneValue(key, seen), cloneValue(item, seen)));
+    return copy;
+  } else if (value instanceof Set) {
+    copy = new Set();
+    seen.set(value, copy);
+    value.forEach((item) => copy.add(cloneValue(item, seen)));
+    return copy;
+  } else if (value instanceof Error) {
+    copy = new Error(value.message);
+    copy.name = value.name;
+    copy.stack = value.stack;
+  } else if (Array.isArray(value)) {
+    copy = [];
+    seen.set(value, copy);
+    value.forEach((item, index) => { copy[index] = cloneValue(item, seen); });
+    return copy;
+  } else {
+    copy = {};
+    seen.set(value, copy);
+    Object.keys(value).forEach((key) => { copy[key] = cloneValue(value[key], seen); });
+    return copy;
+  }
+  seen.set(value, copy);
+  return copy;
+}
+
+define(globalThis, "structuredClone", (value) => cloneValue(value, new Map()));
