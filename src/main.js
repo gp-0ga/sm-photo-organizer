@@ -1439,10 +1439,15 @@ inspectionFolderInput.addEventListener("change", async () => {
     const matched = matchInspectionAssets(pendingAssetListAssets, loaded.inspections);
     if (!matched.assets.length) throw new Error("資産リストと一致する点検表がありませんでした。");
     activateImportedAssets(matched.assets, "資産リストと点検表");
-    const warningCount = loaded.failures.length + matched.duplicates.length + matched.unmatched.length + matched.nameMismatches.length;
-    if (warningCount) {
-      setStatus(excelStatus, `${matched.assets.length}資産を読み込みました。照合できない点検表など${warningCount}件は除外しました。Excelは外部へ送信していません。`, "neutral");
-    }
+    const excludedCount = loaded.failures.length + matched.duplicates.length + matched.unmatched.length;
+    const notes = [];
+    if (excludedCount) notes.push(`読取不可・重複・資産リストにない点検表 ${excludedCount}件を除外`);
+    if (matched.nameMismatches.length) notes.push(`名称が異なる ${matched.nameMismatches.length}件はリスト番号で照合し、資産リストの完全名称を使用`);
+    setStatus(
+      excelStatus,
+      `${matched.assets.length}資産を読み込みました。${notes.length ? `${notes.join("。")}。` : "資産リストの完全名称を使用します。"}Excelは外部へ送信していません。`,
+      notes.length ? "neutral" : "success",
+    );
     setSelectedFileName(excelFileName, `${assetListInput.files?.[0]?.name ?? "資産リスト"}／点検表 ${files.length}件`);
   } catch (error) {
     setStatus(excelStatus, error.message ?? String(error), "error");

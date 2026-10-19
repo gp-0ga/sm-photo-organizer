@@ -33,16 +33,18 @@ test("資産リストの改行入り見出しから資産を読み取る", () =>
 test("点検表を資産番号で資産リストに対応付ける", () => {
   const rows = [
     ["リスト番号", "", "資産名称"],
-    [1200070, "", "内装床_管理棟"],
+    [1200070, "", "内装床"],
   ];
   const inspection = parseInspectionSheetRows(rows, "1200070.xlsx");
   const result = matchInspectionAssets([
-    { assetNumber: "1200070", assetName: "内装床_管理棟", items: [] },
+    { assetNumber: "1200070", assetName: "内装床_磁器質ﾀｲﾙ_管理棟_1F_風除室", items: [] },
     { assetNumber: "1200080", assetName: "内装天井_管理棟", items: [] },
   ], [inspection, inspection, { assetNumber: "9999990", assetName: "対象外", sourceName: "extra.xlsx" }]);
   assert.deepEqual(result.assets.map((asset) => asset.assetNumber), ["1200070"]);
+  assert.equal(result.assets[0].assetName, "内装床_磁器質ﾀｲﾙ_管理棟_1F_風除室");
   assert.equal(result.duplicates.length, 1);
   assert.equal(result.unmatched.length, 1);
+  assert.equal(result.nameMismatches.length, 1);
 });
 
 test("資産マーカーを往復変換する", () => {
