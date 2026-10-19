@@ -202,7 +202,11 @@ p { line-height: 1.65; }
 .file-picker input[type="file"] { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .marker-file-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: 1rem; }
 .marker-file-row .file-picker { display: grid; align-content: center; min-width: 0; }
-.marker-file-row .file-picker input { width: 100%; max-width: 100%; min-width: 0; }
+.marker-file-row .file-picker input[type="file"] { width: 1px; max-width: 1px; min-width: 1px; }
+.marker-file-row .file-picker:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+.marker-pdf-option { margin-top: .85rem; }
+.marker-pdf-option summary { color: #174f78; font-weight: 700; cursor: pointer; }
+.marker-pdf-option .file-picker { margin-top: .65rem; max-width: 22rem; }
 .room-input-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .65rem; margin: 1rem 0 .75rem; }
 .room-input-grid label { display: grid; gap: .3rem; color: #42515c; font-size: .82rem; font-weight: 700; }
 .room-input-grid input, .room-input-grid select { width: 100%; min-width: 0; padding: .55rem; border: 1px solid #aebdc7; border-radius: 7px; background: white; font: inherit; font-weight: 400; }
@@ -528,7 +532,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .privacy-banner { grid-template-columns: 1fr; }
   .organizer-back-link { width: 100%; }
   .file-picker { display: grid; width: 100%; }
-  .file-picker input { width: 100%; max-width: 100%; min-width: 0; }
+  .file-picker input[type="file"] { width: 1px; max-width: 1px; min-width: 1px; }
   .marker-file-row { grid-template-columns: 1fr; }
   .room-input-grid { grid-template-columns: 1fr 1fr; }
   .panel { grid-template-columns: 2.4rem 1fr; }

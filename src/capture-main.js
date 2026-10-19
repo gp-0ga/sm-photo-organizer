@@ -1,9 +1,11 @@
 import "./styles.css";
-import { readAssetsFromWorkbook } from "./excel.js";
+import { readAssetsFromAssetListWorkbook, readInspectionWorkbooks } from "./excel.js";
+import { matchInspectionAssets } from "./domain.js";
 import { createAssetQr } from "./qr.js";
 import { clearMarkerSelection, loadMarkerAssets, loadMarkerSelection, saveMarkerAssets, saveMarkerSelection } from "./marker-storage.js";
 
 const excelInput = document.querySelector("#marker-excel-input");
+const inspectionFolderInput = document.querySelector("#marker-inspection-folder-input");
 const pdfInput = document.querySelector("#marker-pdf-input");
 const excelStatus = document.querySelector("#marker-excel-status");
 const viewPanel = document.querySelector("#marker-view-panel");
@@ -33,6 +35,7 @@ const roomCandidateList = document.querySelector("#room-candidate-list");
 const roomList = document.querySelector("#room-list");
 
 let assets = [];
+let assetListAssets = [];
 let currentIndex = 0;
 const qrUrls = new Map();
 let cardsRendered = false;
@@ -269,7 +272,7 @@ function renderRoomCandidates(candidates) {
   }
 }
 
-async function useAssets(nextAssets, message) {
+async function useAssets(nextAssets, message, tone = "success") {
   assets = nextAssets;
   qrUrls.clear();
   cardsRendered = false;
@@ -285,7 +288,7 @@ async function useAssets(nextAssets, message) {
   const storedSelection = loadMarkerSelection(localStorage);
   const restoredIndex = Math.max(0, assets.findIndex((asset) => asset.assetNumber === storedSelection));
   await showAsset(restoredIndex);
-  setStatus(message, "success");
+  setStatus(message, tone);
 }
 
 roomSaveButton.addEventListener("click", () => {
@@ -339,13 +342,46 @@ excelInput.addEventListener("change", async () => {
   if (!file) return;
   viewPanel.hidden = true;
   printPanel.hidden = true;
+  inspectionFolderInput.disabled = true;
+  inspectionFolderInput.value = "";
   setStatus(`${file.name}を読み込んでいます…`, "working");
   try {
-    const loadedAssets = await readAssetsFromWorkbook(file);
-    assets = loadedAssets;
-    saveMarkerAssets(localStorage, loadedAssets);
+    assetListAssets = await readAssetsFromAssetListWorkbook(file);
+    inspectionFolderInput.disabled = false;
+    setStatus(`${assetListAssets.length}資産を読み取りました。次に、点検表フォルダーを選択してください。`, "success");
+  } catch (error) {
+    assetListAssets = [];
+    assets = [];
+    document.body.classList.remove("marker-ready");
+    cardList.replaceChildren();
+    setStatus(error.message ?? String(error), "error");
+  }
+});
+
+inspectionFolderInput.addEventListener("change", async () => {
+  const files = inspectionFolderInput.files;
+  if (!files?.length || !assetListAssets.length) return;
+  viewPanel.hidden = true;
+  printPanel.hidden = true;
+  setStatus(`${files.length}ファイルを確認しています…`, "working");
+  try {
+    const loaded = await readInspectionWorkbooks(files, (done, total) => {
+      if (done === total || done % 20 === 0) setStatus(`点検表を確認しています… ${done} / ${total}`, "working");
+    });
+    const matched = matchInspectionAssets(assetListAssets, loaded.inspections);
+    if (!matched.assets.length) throw new Error("資産リストと一致する点検表がありませんでした。別の点検表フォルダーを選択してください。");
+    const warningCount = loaded.failures.length + matched.duplicates.length + matched.unmatched.length + matched.nameMismatches.length;
+    const notes = [];
+    if (loaded.failures.length) notes.push(`読取不可 ${loaded.failures.length}件`);
+    if (matched.duplicates.length) notes.push(`重複 ${matched.duplicates.length}件`);
+    if (matched.unmatched.length) notes.push(`資産リストにない番号 ${matched.unmatched.length}件`);
+    if (matched.nameMismatches.length) notes.push(`名称相違 ${matched.nameMismatches.length}件`);
+    saveMarkerAssets(localStorage, matched.assets);
     clearMarkerSelection(localStorage);
-    await useAssets(loadedAssets, `${loadedAssets.length}資産をこのブラウザ内に保存しました。Excelは外部へ送信していません。`);
+    const message = warningCount
+      ? `${matched.assets.length}資産を読み込みました。確認事項: ${notes.join("、")}。該当ファイルを除いて表示します。`
+      : `${matched.assets.length}資産を点検表フォルダーから読み込みました。Excelは外部へ送信していません。`;
+    await useAssets(matched.assets, message, warningCount ? "neutral" : "success");
   } catch (error) {
     assets = [];
     document.body.classList.remove("marker-ready");
@@ -401,7 +437,10 @@ changeListButton.addEventListener("click", () => {
   viewPanel.hidden = true;
   printPanel.hidden = true;
   excelInput.value = "";
-  setStatus("新しいExcelを選択してください。保存済み一覧は、新しい一覧を読み込むまで残ります。", "neutral");
+  inspectionFolderInput.value = "";
+  inspectionFolderInput.disabled = true;
+  assetListAssets = [];
+  setStatus("新しい資産リストを選択してください。保存済み一覧は、新しい一覧を読み込むまで残ります。", "neutral");
   document.querySelector(".marker-load-panel")?.scrollIntoView({ block: "start" });
 });
 

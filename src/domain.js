@@ -1,5 +1,6 @@
 export const REQUIRED_HEADERS = ["資産番号", "項目番号", "資産名称", "点検項目"];
 export const EXCLUDED_INSPECTION_ITEMS = new Set(["経過年数"]);
+const ASSET_LIST_REQUIRED_HEADERS = ["リストNO", "資産名称"];
 
 const WINDOWS_FORBIDDEN = /[<>:"/\\|?*\u0000-\u001F]/g;
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
@@ -17,6 +18,97 @@ export function sanitizeFolderSegment(value) {
 
 export function naturalCompare(left, right) {
   return String(left).localeCompare(String(right), "ja", { numeric: true, sensitivity: "base" });
+}
+
+function normalizedHeader(value) {
+  return String(value ?? "").replace(/\s+/g, "").trim();
+}
+
+export function parseAssetsFromAssetListRows(rows) {
+  let headerIndex = -1;
+  let headers = [];
+  for (let index = 0; index < Math.min(rows.length, 30); index += 1) {
+    const values = rows[index].map(normalizedHeader);
+    if (ASSET_LIST_REQUIRED_HEADERS.every((header) => values.includes(header))) {
+      headerIndex = index;
+      headers = values;
+      break;
+    }
+  }
+  if (headerIndex < 0) {
+    throw new Error("資産リストに必要な見出し（リストNO・資産名称）が見つかりません。");
+  }
+
+  const numberColumn = headers.indexOf("リストNO");
+  const nameColumn = headers.indexOf("資産名称");
+  const targetColumn = headers.indexOf("調査対象");
+  const assets = [];
+  const seen = new Set();
+  for (const row of rows.slice(headerIndex + 1)) {
+    const assetNumber = String(row[numberColumn] ?? "").trim();
+    const assetName = String(row[nameColumn] ?? "").trim();
+    if (!assetNumber || !assetName || seen.has(assetNumber)) continue;
+    seen.add(assetNumber);
+    assets.push({
+      assetNumber,
+      assetName,
+      folderName: `${sanitizeFolderSegment(assetNumber)}_${sanitizeFolderSegment(assetName)}`,
+      inspectionTarget: targetColumn >= 0 ? String(row[targetColumn] ?? "").trim() === "○" : null,
+      items: [],
+    });
+  }
+  if (!assets.length) throw new Error("資産リストから資産を読み取れませんでした。");
+  assets.sort((a, b) => naturalCompare(a.assetNumber, b.assetNumber));
+  return assets;
+}
+
+export function parseInspectionSheetRows(rows, sourceName = "") {
+  for (let index = 0; index < Math.min(rows.length - 1, 20); index += 1) {
+    const headers = rows[index].map(normalizedHeader);
+    const numberColumn = headers.indexOf("リスト番号");
+    const nameColumn = headers.indexOf("資産名称");
+    if (numberColumn < 0 || nameColumn < 0) continue;
+    const values = rows[index + 1] ?? [];
+    const assetNumber = String(values[numberColumn] ?? "").trim();
+    const assetName = String(values[nameColumn] ?? "").trim();
+    if (!assetNumber || !assetName) break;
+    return { assetNumber, assetName, sourceName };
+  }
+  throw new Error("点検表にリスト番号と資産名称が見つかりません。");
+}
+
+export function matchInspectionAssets(assetList, inspections) {
+  const byNumber = new Map(assetList.map((asset) => [asset.assetNumber, asset]));
+  const matched = new Map();
+  const duplicates = [];
+  const unmatched = [];
+  const nameMismatches = [];
+
+  for (const inspection of inspections) {
+    const asset = byNumber.get(inspection.assetNumber);
+    if (!asset) {
+      unmatched.push(inspection);
+      continue;
+    }
+    if (matched.has(inspection.assetNumber)) {
+      duplicates.push(inspection);
+      continue;
+    }
+    if (inspection.assetName && inspection.assetName !== asset.assetName) {
+      nameMismatches.push({ inspection, asset });
+    }
+    matched.set(inspection.assetNumber, {
+      ...asset,
+      inspectionFileName: inspection.sourceName,
+    });
+  }
+
+  return {
+    assets: [...matched.values()].sort((a, b) => naturalCompare(a.assetNumber, b.assetNumber)),
+    duplicates,
+    unmatched,
+    nameMismatches,
+  };
 }
 
 export function findHeaderRow(rows) {

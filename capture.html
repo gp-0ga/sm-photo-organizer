@@ -30,20 +30,27 @@
       <section class="panel marker-load-panel" aria-labelledby="marker-excel-heading">
         <div class="step-label">1</div>
         <div class="step-body">
-          <h2 id="marker-excel-heading">資産一覧を読み込む</h2>
-          <p>健全度判定表の「No11」から資産番号と資産名だけを読み取り、このブラウザ内に保存します。Excelは外部へ送信しません。</p>
+          <h2 id="marker-excel-heading">資産リストと点検表を読み込む</h2>
+          <p>資産リストを選んだ後、今回使う点検表フォルダーを選択してください。点検表がある資産だけをマーカー一覧にします。</p>
           <div class="marker-file-row">
             <label class="file-picker marker-file-picker">
-              <span>Excelを選択</span>
+              <span>1　資産リストを選択</span>
               <input id="marker-excel-input" type="file" accept=".xlsx" />
             </label>
+            <label class="file-picker marker-file-picker">
+              <span>2　点検表フォルダーを選択</span>
+              <input id="marker-inspection-folder-input" type="file" accept=".xlsx" webkitdirectory directory multiple disabled />
+            </label>
+          </div>
+          <div id="marker-excel-status" class="status neutral" role="status">最初に資産リストを選択してください。</div>
+          <details class="marker-pdf-option">
+            <summary>以前の印刷用PDFから読み込む</summary>
             <label class="file-picker marker-file-picker">
               <span>印刷用PDFを選択</span>
               <input id="marker-pdf-input" type="file" accept=".pdf" />
             </label>
-          </div>
-          <p class="setting-note">PCで作成したこのアプリの印刷用PDFをiPhoneへ送り、ここから読み込めます。読み込み後は資産を選択してマーカーを表示できます。</p>
-          <div id="marker-excel-status" class="status neutral" role="status">Excelを選択してください。</div>
+            <p class="setting-note">PCで作成したこのアプリの印刷用PDFをiPhoneへ送った場合に使用します。</p>
+          </details>
         </div>
       </section>
 

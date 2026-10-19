@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classifyDecodedEntries, parseAssetsFromRows, parseMarkerPayload, markerPayload, sanitizeFolderSegment, OTHER_ASSET_NUMBER } from "../src/domain.js";
+import { classifyDecodedEntries, matchInspectionAssets, parseAssetsFromAssetListRows, parseAssetsFromRows, parseInspectionSheetRows, parseMarkerPayload, markerPayload, sanitizeFolderSegment, OTHER_ASSET_NUMBER } from "../src/domain.js";
 
 test("No11の行から資産を重複排除し、経過年数を除外する", () => {
   const rows = [
@@ -17,6 +17,31 @@ test("No11の行から資産を重複排除し、経過年数を除外する", (
 
 test("Windowsで使えない文字を置換する", () => {
   assert.equal(sanitizeFolderSegment('A/B:C*D?'), "A_B_C_D_");
+});
+
+test("資産リストの改行入り見出しから資産を読み取る", () => {
+  const rows = [
+    ["", "リスト\nNO", "", "", "", "", "", "資産名称", "", "", "", "", "", "", "", "", "調査対象"],
+    ["", 1200070, "", "", "", "", "", "内装床_管理棟", "", "", "", "", "", "", "", "", "○"],
+  ];
+  const assets = parseAssetsFromAssetListRows(rows);
+  assert.equal(assets[0].assetNumber, "1200070");
+  assert.equal(assets[0].inspectionTarget, true);
+});
+
+test("点検表を資産番号で資産リストに対応付ける", () => {
+  const rows = [
+    ["リスト番号", "", "資産名称"],
+    [1200070, "", "内装床_管理棟"],
+  ];
+  const inspection = parseInspectionSheetRows(rows, "1200070.xlsx");
+  const result = matchInspectionAssets([
+    { assetNumber: "1200070", assetName: "内装床_管理棟", items: [] },
+    { assetNumber: "1200080", assetName: "内装天井_管理棟", items: [] },
+  ], [inspection, inspection, { assetNumber: "9999990", assetName: "対象外", sourceName: "extra.xlsx" }]);
+  assert.deepEqual(result.assets.map((asset) => asset.assetNumber), ["1200070"]);
+  assert.equal(result.duplicates.length, 1);
+  assert.equal(result.unmatched.length, 1);
 });
 
 test("資産マーカーを往復変換する", () => {
