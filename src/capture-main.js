@@ -1,3 +1,4 @@
+import "./compat.js";
 import "./styles.css";
 import { readAssetsFromAssetListWorkbook, readAssetsFromWorkbook, readInspectionWorkbooks } from "./excel.js";
 import { matchInspectionAssets } from "./domain.js";
@@ -432,7 +433,8 @@ pdfInput.addEventListener("change", async () => {
     await useAssets(loadedAssets, `${loadedAssets.length}資産をPDFから読み込みました。圏外でもマーカーを表示できます。`);
   } catch (error) {
     document.body.classList.remove("marker-ready");
-    setStatus(error.message ?? String(error), "error");
+    const where = String(error?.stack ?? "").split("\n").slice(0, 3).join(" / ").slice(0, 300);
+    setStatus(`${error.message ?? String(error)}${where ? `（詳細: ${where}）` : ""}`, "error");
   }
 });
 
