@@ -90,6 +90,7 @@ async function readMarkerAssetsFromPdf(file) {
   const assets = [];
   const seen = new Set();
   const pattern = /SM-ASSET-NAME\|1\|([^|()\\]+)\|([^()\\]*(?:\\.[^()\\]*)*)/g;
+  let match;
   while ((match = pattern.exec(text))) {
     const assetNumber = decodePdfLiteral(match[1]).trim();
     const assetName = decodePdfLiteral(match[2]).trim();
