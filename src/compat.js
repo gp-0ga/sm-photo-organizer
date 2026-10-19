@@ -132,3 +132,38 @@ function cloneValue(value, seen) {
 }
 
 define(globalThis, "structuredClone", (value) => cloneValue(value, new Map()));
+
+// SafariはReadableStreamの非同期反復(for await)に未対応。PDF.jsのテキスト取得が使うため補う。
+if (typeof ReadableStream !== "undefined" && !ReadableStream.prototype[Symbol.asyncIterator]) {
+  const values = function values(options) {
+    const preventCancel = Boolean(options?.preventCancel);
+    const reader = this.getReader();
+    return {
+      async next() {
+        try {
+          const result = await reader.read();
+          if (result.done) reader.releaseLock();
+          return result;
+        } catch (error) {
+          reader.releaseLock();
+          throw error;
+        }
+      },
+      async return(value) {
+        if (!preventCancel) {
+          const cancelled = reader.cancel(value);
+          reader.releaseLock();
+          await cancelled;
+        } else {
+          reader.releaseLock();
+        }
+        return { done: true, value };
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+    };
+  };
+  Object.defineProperty(ReadableStream.prototype, "values", { value: values, configurable: true, writable: true });
+  Object.defineProperty(ReadableStream.prototype, Symbol.asyncIterator, { value: values, configurable: true, writable: true });
+}

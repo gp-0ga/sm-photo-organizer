@@ -326,7 +326,6 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .privacy-banner span { line-height: 1.5; }
 .marker-privacy-banner { width: min(960px, calc(100% - 2rem)); margin: 1rem auto 0; }
 .organizer-back-link { white-space: nowrap; }
-.hosted-organizer #camera-panel { display: none; }
 .marker-card.special { border-width: 2px; }
 .marker-card.review { border-color: #b23838; background: #fff4f4; }
 .marker-card.unknown { border-color: #bd7a13; background: #fff9ed; }
@@ -467,7 +466,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .workspace-pane.pane-collapsed { flex-basis: auto; opacity: 1; pointer-events: auto; margin-right: 0; }
   .workspace-side { position: static; max-height: none; height: auto; overflow: visible; margin-bottom: 1rem; }
   .pane-body { overflow: visible; }
-  .workspace-side .camera-panel { display: none; }
+  .workspace-side .camera-panel { display: grid; }
   .workspace-side .prep-summary-panel { display: grid; }
   .pane-toggle-rail { display: none !important; }
   .workspace-main { display: grid; gap: 1rem; height: auto; overflow: visible; }

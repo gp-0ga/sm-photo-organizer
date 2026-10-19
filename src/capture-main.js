@@ -16,6 +16,17 @@ const inspectionFolderInput = document.querySelector("#marker-inspection-folder-
 const healthImportPanel = document.querySelector("#marker-health-import");
 const assetListImportPanel = document.querySelector("#marker-asset-list-import");
 const importModeInputs = document.querySelectorAll('input[name="marker-import-mode"]');
+const touchDevice = navigator.maxTouchPoints > 0 && window.matchMedia("(pointer: coarse)").matches;
+if (touchDevice) {
+  const folderInput = document.querySelector("#marker-inspection-folder-input");
+  if (folderInput) {
+    folderInput.removeAttribute("webkitdirectory");
+    folderInput.removeAttribute("directory");
+    const label = folderInput.closest("label")?.querySelector("span");
+    if (label) label.textContent = "2　点検表のExcelをすべて選択（ドライブで全選択）";
+  }
+}
+
 const pdfInput = document.querySelector("#marker-pdf-input");
 const excelStatus = document.querySelector("#marker-excel-status");
 const viewPanel = document.querySelector("#marker-view-panel");

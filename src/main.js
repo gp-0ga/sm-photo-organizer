@@ -1,3 +1,4 @@
+import "./compat.js";
 import "./styles.css";
 import { readAssetsFromAssetListWorkbook, readAssetsFromWorkbook, readInspectionWorkbooks } from "./excel.js";
 import { createAssetFolders, exportOrganizedPhotos } from "./folders.js";
@@ -12,6 +13,17 @@ import { createPhotoWorkFile, readPhotoWorkFile } from "./photo-work-file.js";
 import photoBookBat from "../scripts/写真帳作成.bat?raw";
 import photoBookRunner from "../scripts/photo-book-runner.ps1?raw";
 import photoBookBuilder from "../scripts/build-photo-album.ps1?raw";
+
+const touchDevice = navigator.maxTouchPoints > 0 && window.matchMedia("(pointer: coarse)").matches;
+if (touchDevice) {
+  const folderInput = document.querySelector("#inspection-folder-input");
+  if (folderInput) {
+    folderInput.removeAttribute("webkitdirectory");
+    folderInput.removeAttribute("directory");
+    const label = folderInput.closest("label")?.querySelector("span");
+    if (label) label.textContent = "2　点検表のExcelをすべて選択（ドライブで全選択）";
+  }
+}
 
 const hostedOrganizer = /\/organize(?:\.html)?$/i.test(window.location.pathname);
 if (hostedOrganizer) document.body.classList.add("hosted-organizer");
@@ -118,6 +130,7 @@ const orderDialog = document.querySelector("#order-dialog");
 const orderDestinationSelect = document.querySelector("#order-destination-select");
 const orderList = document.querySelector("#order-list");
 const cameraAsset = document.querySelector("#camera-asset");
+const cameraPanel = document.querySelector("#camera-panel");
 const cameraWorkspace = document.querySelector("#camera-workspace");
 const cameraPreview = document.querySelector("#camera-preview");
 const cameraPlaceholder = document.querySelector("#camera-placeholder");
@@ -486,6 +499,7 @@ function renderCameraAssets() {
     .map((asset) => `<option value="${asset.assetNumber}">${asset.assetNumber} ${asset.assetName}</option>`)
     .join("")}`;
   cameraAsset.disabled = false;
+  cameraPanel.hidden = false;
   cameraWorkspace.hidden = false;
   updateCameraCurrent();
   updateCameraCounts();
@@ -1390,6 +1404,7 @@ excelInput.addEventListener("change", async () => {
     summary.hidden = true;
     assetsEmpty.hidden = false;
     cameraAsset.disabled = true;
+    cameraPanel.hidden = true;
     cameraWorkspace.hidden = true;
     setStatus(excelStatus, error.message ?? String(error), "error");
   }
