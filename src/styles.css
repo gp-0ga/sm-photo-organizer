@@ -213,6 +213,7 @@ p { line-height: 1.65; }
 .marker-import-mode small { color: #52616d; font-weight: 400; }
 .marker-import-panel { margin-top: .8rem; }
 .marker-import-panel > .file-picker { width: min(100%, 28rem); }
+.marker-local-note { margin: .65rem 0 0; color: #31546d; font-size: .82rem; font-weight: 600; }
 .marker-import-panel .marker-file-row { margin-top: .65rem; }
 .marker-pdf-option { margin-top: .85rem; }
 .marker-pdf-option summary { color: #174f78; font-weight: 700; cursor: pointer; }

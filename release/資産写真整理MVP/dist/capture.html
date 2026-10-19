@@ -9,10 +9,10 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <title>施設調査ツール　写真切替マーカー</title>
-    <script type="module" crossorigin src="./assets/capture-Dod3Oz_b.js"></script>
+    <script type="module" crossorigin src="./assets/capture-DphIuR8C.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/domain-io1Piy4-.js">
-    <link rel="modulepreload" crossorigin href="./assets/excel-CF0L0gce.js">
-    <link rel="stylesheet" crossorigin href="./assets/excel-_t9fOUO_.css">
+    <link rel="modulepreload" crossorigin href="./assets/excel-BqunRHiD.js">
+    <link rel="stylesheet" crossorigin href="./assets/excel-D1HBEdOj.css">
   </head>
   <body class="marker-site">
     <header class="app-header">
@@ -48,28 +48,29 @@
           </fieldset>
           <div id="marker-health-import" class="marker-import-panel">
             <label class="file-picker marker-file-picker">
-              <span>健全度判定表を選択</span>
+              <span>端末内の健全度判定表を選択</span>
               <input id="marker-health-excel-input" type="file" accept=".xlsx" />
             </label>
           </div>
           <div id="marker-asset-list-import" class="marker-import-panel" hidden>
-            <p>資産リストを選んだ後、今回使う点検表フォルダーを選択してください。点検表がある資産だけをマーカー一覧にします。</p>
+            <p>端末内の資産リストを選んだ後、今回使う点検表フォルダーを選択してください。点検表がある資産だけをマーカー一覧にします。</p>
             <div class="marker-file-row">
               <label class="file-picker marker-file-picker">
-                <span>1　資産リストを選択</span>
+                <span>1　端末内の資産リストを選択</span>
                 <input id="marker-excel-input" type="file" accept=".xlsx" />
               </label>
               <label class="file-picker marker-file-picker">
-                <span>2　点検表フォルダーを選択</span>
+                <span>2　端末内の点検表フォルダーを選択</span>
                 <input id="marker-inspection-folder-input" type="file" accept=".xlsx" webkitdirectory directory multiple disabled />
               </label>
             </div>
           </div>
+          <p class="marker-local-note">選択したExcelはこの端末内だけで読み取ります。外部へ送信しません。</p>
           <div id="marker-excel-status" class="status neutral" role="status">健全度判定表を選択してください。</div>
           <details class="marker-pdf-option">
             <summary>以前の印刷用PDFから読み込む</summary>
             <label class="file-picker marker-file-picker">
-              <span>印刷用PDFを選択</span>
+              <span>端末内の印刷用PDFを選択</span>
               <input id="marker-pdf-input" type="file" accept=".pdf" />
             </label>
             <p class="setting-note">PCで作成したこのアプリの印刷用PDFをiPhoneへ送った場合に使用します。</p>
