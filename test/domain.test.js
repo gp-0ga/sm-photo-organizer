@@ -22,10 +22,11 @@ test("Windowsで使えない文字を置換する", () => {
 test("資産リストの改行入り見出しから資産を読み取る", () => {
   const rows = [
     ["", "リスト\nNO", "", "", "", "", "", "資産名称", "", "", "", "", "", "", "", "", "調査対象"],
-    ["", 1200070, "", "", "", "", "", "内装床_管理棟", "", "", "", "", "", "", "", "", "○"],
+    ["", 1200070, "", "", "", "", "", "内装床_磁器質ﾀｲﾙ_管理棟_1F_風除室", "", "", "", "", "", "", "", "", "○"],
   ];
   const assets = parseAssetsFromAssetListRows(rows);
   assert.equal(assets[0].assetNumber, "1200070");
+  assert.equal(assets[0].assetName, "内装床_磁器質ﾀｲﾙ_管理棟_1F_風除室");
   assert.equal(assets[0].inspectionTarget, true);
 });
 

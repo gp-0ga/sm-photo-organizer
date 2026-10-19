@@ -4,7 +4,7 @@ import { readAssetsFromAssetListWorkbook, readAssetsFromWorkbook, readInspection
 import { matchInspectionAssets } from "./domain.js";
 import { createAssetQr } from "./qr.js";
 import { clearMarkerSelection, loadMarkerAssets, loadMarkerSelection, saveMarkerAssets, saveMarkerSelection } from "./marker-storage.js";
-import { parseMarkerAssetsFromTextItems } from "./pdf-marker.js";
+import { markerAssetPrintPayload, parseMarkerAssetsFromTextItems } from "./pdf-marker.js";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import pdfjsWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 
@@ -192,7 +192,7 @@ async function renderMarkerCards() {
     name.textContent = asset.assetName;
     const payload = document.createElement("small");
     payload.className = "marker-payload";
-    payload.textContent = `SM-ASSET-NAME|1|${asset.assetNumber}|${asset.assetName}`;
+    payload.textContent = markerAssetPrintPayload(asset.assetNumber, asset.assetName);
     card.append(start, image, number, name, payload);
     card.addEventListener("click", () => {
       showAsset(index);
