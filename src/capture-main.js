@@ -1,11 +1,15 @@
 import "./styles.css";
-import { readAssetsFromAssetListWorkbook, readInspectionWorkbooks } from "./excel.js";
+import { readAssetsFromAssetListWorkbook, readAssetsFromWorkbook, readInspectionWorkbooks } from "./excel.js";
 import { matchInspectionAssets } from "./domain.js";
 import { createAssetQr } from "./qr.js";
 import { clearMarkerSelection, loadMarkerAssets, loadMarkerSelection, saveMarkerAssets, saveMarkerSelection } from "./marker-storage.js";
 
 const excelInput = document.querySelector("#marker-excel-input");
+const healthExcelInput = document.querySelector("#marker-health-excel-input");
 const inspectionFolderInput = document.querySelector("#marker-inspection-folder-input");
+const healthImportPanel = document.querySelector("#marker-health-import");
+const assetListImportPanel = document.querySelector("#marker-asset-list-import");
+const importModeInputs = document.querySelectorAll('input[name="marker-import-mode"]');
 const pdfInput = document.querySelector("#marker-pdf-input");
 const excelStatus = document.querySelector("#marker-excel-status");
 const viewPanel = document.querySelector("#marker-view-panel");
@@ -108,6 +112,25 @@ function roomCandidatesFromText(text) {
 function setStatus(message, tone = "neutral") {
   excelStatus.className = `status ${tone}`;
   excelStatus.textContent = message;
+}
+
+function selectedImportMode() {
+  return document.querySelector('input[name="marker-import-mode"]:checked')?.value ?? "health";
+}
+
+function resetImportForMode() {
+  const healthMode = selectedImportMode() === "health";
+  healthImportPanel.hidden = !healthMode;
+  assetListImportPanel.hidden = healthMode;
+  healthExcelInput.value = "";
+  excelInput.value = "";
+  inspectionFolderInput.value = "";
+  inspectionFolderInput.disabled = true;
+  assetListAssets = [];
+  viewPanel.hidden = true;
+  printPanel.hidden = true;
+  document.body.classList.remove("marker-ready");
+  setStatus(healthMode ? "健全度判定表を選択してください。" : "最初に資産リストを選択してください。", "neutral");
 }
 
 async function qrFor(asset) {
@@ -358,6 +381,27 @@ excelInput.addEventListener("change", async () => {
   }
 });
 
+healthExcelInput.addEventListener("change", async () => {
+  const file = healthExcelInput.files?.[0];
+  if (!file) return;
+  viewPanel.hidden = true;
+  printPanel.hidden = true;
+  setStatus(`${file.name}のNo11を読み込んでいます…`, "working");
+  try {
+    const loadedAssets = await readAssetsFromWorkbook(file);
+    saveMarkerAssets(localStorage, loadedAssets);
+    clearMarkerSelection(localStorage);
+    await useAssets(loadedAssets, `${loadedAssets.length}資産を健全度判定表から読み込みました。Excelは外部へ送信していません。`);
+  } catch (error) {
+    assets = [];
+    document.body.classList.remove("marker-ready");
+    cardList.replaceChildren();
+    setStatus(error.message ?? String(error), "error");
+  }
+});
+
+for (const input of importModeInputs) input.addEventListener("change", resetImportForMode);
+
 inspectionFolderInput.addEventListener("change", async () => {
   const files = inspectionFolderInput.files;
   if (!files?.length || !assetListAssets.length) return;
@@ -437,10 +481,12 @@ changeListButton.addEventListener("click", () => {
   viewPanel.hidden = true;
   printPanel.hidden = true;
   excelInput.value = "";
+  healthExcelInput.value = "";
   inspectionFolderInput.value = "";
   inspectionFolderInput.disabled = true;
   assetListAssets = [];
-  setStatus("新しい資産リストを選択してください。保存済み一覧は、新しい一覧を読み込むまで残ります。", "neutral");
+  const nextPrompt = selectedImportMode() === "health" ? "健全度判定表" : "資産リスト";
+  setStatus(`新しい${nextPrompt}を選択してください。保存済み一覧は、新しい一覧を読み込むまで残ります。`, "neutral");
   document.querySelector(".marker-load-panel")?.scrollIntoView({ block: "start" });
 });
 

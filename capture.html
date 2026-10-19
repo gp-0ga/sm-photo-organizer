@@ -30,19 +30,38 @@
       <section class="panel marker-load-panel" aria-labelledby="marker-excel-heading">
         <div class="step-label">1</div>
         <div class="step-body">
-          <h2 id="marker-excel-heading">資産リストと点検表を読み込む</h2>
-          <p>資産リストを選んだ後、今回使う点検表フォルダーを選択してください。点検表がある資産だけをマーカー一覧にします。</p>
-          <div class="marker-file-row">
-            <label class="file-picker marker-file-picker">
-              <span>1　資産リストを選択</span>
-              <input id="marker-excel-input" type="file" accept=".xlsx" />
+          <h2 id="marker-excel-heading">資産一覧を読み込む</h2>
+          <fieldset class="marker-import-mode">
+            <legend>使用する様式</legend>
+            <label>
+              <input type="radio" name="marker-import-mode" value="health" checked />
+              <span><strong>健全度判定表</strong><small>従来様式・No11を使用</small></span>
             </label>
+            <label>
+              <input type="radio" name="marker-import-mode" value="asset-list" />
+              <span><strong>資産リスト＋点検表</strong><small>新様式・点検表フォルダーを使用</small></span>
+            </label>
+          </fieldset>
+          <div id="marker-health-import" class="marker-import-panel">
             <label class="file-picker marker-file-picker">
-              <span>2　点検表フォルダーを選択</span>
-              <input id="marker-inspection-folder-input" type="file" accept=".xlsx" webkitdirectory directory multiple disabled />
+              <span>健全度判定表を選択</span>
+              <input id="marker-health-excel-input" type="file" accept=".xlsx" />
             </label>
           </div>
-          <div id="marker-excel-status" class="status neutral" role="status">最初に資産リストを選択してください。</div>
+          <div id="marker-asset-list-import" class="marker-import-panel" hidden>
+            <p>資産リストを選んだ後、今回使う点検表フォルダーを選択してください。点検表がある資産だけをマーカー一覧にします。</p>
+            <div class="marker-file-row">
+              <label class="file-picker marker-file-picker">
+                <span>1　資産リストを選択</span>
+                <input id="marker-excel-input" type="file" accept=".xlsx" />
+              </label>
+              <label class="file-picker marker-file-picker">
+                <span>2　点検表フォルダーを選択</span>
+                <input id="marker-inspection-folder-input" type="file" accept=".xlsx" webkitdirectory directory multiple disabled />
+              </label>
+            </div>
+          </div>
+          <div id="marker-excel-status" class="status neutral" role="status">健全度判定表を選択してください。</div>
           <details class="marker-pdf-option">
             <summary>以前の印刷用PDFから読み込む</summary>
             <label class="file-picker marker-file-picker">

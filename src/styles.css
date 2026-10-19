@@ -204,6 +204,16 @@ p { line-height: 1.65; }
 .marker-file-row .file-picker { display: grid; align-content: center; min-width: 0; }
 .marker-file-row .file-picker input[type="file"] { width: 1px; max-width: 1px; min-width: 1px; }
 .marker-file-row .file-picker:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+.marker-import-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin: 1rem 0 0; padding: 0; border: 0; }
+.marker-import-mode legend { margin-bottom: .45rem; color: #42515c; font-size: .82rem; font-weight: 800; }
+.marker-import-mode label { display: flex; align-items: center; gap: .65rem; min-width: 0; padding: .7rem .8rem; border: 1px solid #aebdc7; border-radius: 7px; background: #fff; cursor: pointer; }
+.marker-import-mode label:has(input:checked) { border-color: #1f628f; background: #edf7fc; box-shadow: inset 0 0 0 1px #1f628f; }
+.marker-import-mode input { flex: 0 0 auto; }
+.marker-import-mode span { display: grid; gap: .1rem; min-width: 0; }
+.marker-import-mode small { color: #52616d; font-weight: 400; }
+.marker-import-panel { margin-top: .8rem; }
+.marker-import-panel > .file-picker { width: min(100%, 28rem); }
+.marker-import-panel .marker-file-row { margin-top: .65rem; }
 .marker-pdf-option { margin-top: .85rem; }
 .marker-pdf-option summary { color: #174f78; font-weight: 700; cursor: pointer; }
 .marker-pdf-option .file-picker { margin-top: .65rem; max-width: 22rem; }
@@ -534,6 +544,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .file-picker { display: grid; width: 100%; }
   .file-picker input[type="file"] { width: 1px; max-width: 1px; min-width: 1px; }
   .marker-file-row { grid-template-columns: 1fr; }
+  .marker-import-mode { grid-template-columns: 1fr; }
   .room-input-grid { grid-template-columns: 1fr 1fr; }
   .panel { grid-template-columns: 2.4rem 1fr; }
   .step-body { padding: 1.1rem 1rem 1.3rem; }
